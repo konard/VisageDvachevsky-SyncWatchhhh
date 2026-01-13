@@ -28,14 +28,22 @@
    - [9.4 Secrets Management](#94-secrets-management)
    - [9.5 Graceful Shutdown](#95-graceful-shutdown)
 10. [CI/CD Pipeline (Production Required)](#10-cicd-pipeline-production-required)
-   - [10.1 GitHub Actions Workflow](#101-github-actions-workflow)
-   - [10.2 Versioning & Release Strategy](#102-versioning--release-strategy)
+    - [10.1 GitHub Actions Workflow](#101-github-actions-workflow)
+    - [10.2 Versioning & Release Strategy](#102-versioning--release-strategy)
 11. [Infrastructure as Code](#11-infrastructure-as-code)
 12. [Reliability & Disaster Recovery](#12-reliability--disaster-recovery)
-   - [12.1 Backup & Restore](#121-backup--restore)
-   - [12.2 Disaster Recovery Plan](#122-disaster-recovery-plan)
+    - [12.1 Backup & Restore](#121-backup--restore)
+    - [12.2 Disaster Recovery Plan](#122-disaster-recovery-plan)
 13. [Operations Documentation](#13-operations-documentation)
 14. [Work Plan](#14-work-plan)
+15. [Premium Engineering Features](#15-premium-engineering-features-production-excellence)
+    - [15.1 Product & UX Excellence](#151-product--ux-excellence)
+    - [15.2 Discord-Like Voice Features](#152-discord-like-voice-features)
+    - [15.3 Social Features](#153-social-features)
+    - [15.4 Security & Trust](#154-security--trust)
+    - [15.5 Quality & Testing](#155-quality--testing)
+    - [15.6 Analytics & Intelligence](#156-analytics--intelligence)
+    - [15.7 Engineering Excellence](#157-engineering-excellence)
 
 ---
 
@@ -3211,6 +3219,2194 @@ async function getTurnServers(): Promise<TurnServer[]> {
 31. Testing & QA
 32. Documentation
 33. Deployment pipeline
+
+### Phase 9: Production Readiness
+34. Infrastructure as Code (Terraform)
+35. Environment Configuration & Secrets Management
+36. Security Hardening & Audit Logging
+37. Reliability, Backup & Disaster Recovery
+38. Enhanced Monitoring, Health Checks & Resource Limits
+
+### Phase 10: Premium Engineering
+39. Session UX Polish (Ready check, Countdown, Sync indicators)
+40. Smart Ownership (Temporary host, Vote to pause, Auto-host selection)
+41. Room Lifecycle (Scheduled rooms, Auto-close, History, Templates)
+42. Voice UX Enhancements (Per-user volume, Activity visualizer, PTT remapping)
+43. Voice Reliability (ICE restart, Auto-reconnect, Quality indicators)
+44. Friends & Presence (Online status, Rich presence, Invisible mode)
+45. Reactions & Fun (Emoji reactions, Time-based reactions, Replay)
+46. Abuse Protection (Report, Mute, Shadow mute, Auto-moderation)
+47. Privacy Controls (TURN-only mode, Anonymous nicknames, Privacy presets)
+48. Testing Pyramid (Unit, Integration, E2E, Chaos, Media regression)
+49. Compatibility Lab (Browser matrix, Mobile quirks, Autoplay restrictions)
+50. Product Analytics (Session duration, Drop-off, Voice success rate)
+51. Diagnostics Mode (Debug overlay, Export logs, Drift visualization)
+52. ADR Repository (Architecture Decision Records)
+53. Backward Compatibility Guarantees
+54. Self-Hosting Guide
+
+---
+
+## 15. Premium Engineering Features (Production Excellence)
+
+> **Note**: This section covers the "final layer" of features that elevate SyncWatch from a working product to premium-grade engineering. These features are what distinguish professional services from basic implementations.
+
+### 15.1 Product & UX Excellence
+
+#### 15.1.1 Session UX Polish
+
+**Ready Check Before Playback**:
+```typescript
+interface ReadyCheck {
+  roomId: string;
+  initiatedBy: string;
+  participants: Map<string, ReadyStatus>;
+  timeoutMs: 30000;
+  allReadyCallback: () => void;
+}
+
+type ReadyStatus = 'pending' | 'ready' | 'not_ready' | 'timeout';
+
+// Flow
+async function initiateReadyCheck(roomId: string): Promise<boolean> {
+  const check = await createReadyCheck(roomId);
+
+  await broadcast(roomId, 'ready_check:start', {
+    checkId: check.id,
+    timeoutMs: check.timeoutMs,
+    message: 'Are you ready to start watching?',
+  });
+
+  return waitForAllReady(check);
+}
+```
+
+**Countdown Before Play**:
+```typescript
+interface CountdownConfig {
+  durationMs: 3000;  // 3...2...1
+  steps: [3, 2, 1, 'GO!'];
+  syncWithServer: boolean;
+}
+
+// Broadcast countdown to all participants
+async function startCountdown(roomId: string) {
+  const serverStartTime = Date.now() + COUNTDOWN_SYNC_BUFFER;
+
+  await broadcast(roomId, 'countdown:start', {
+    serverStartTime,
+    duration: 3000,
+  });
+
+  // All clients render countdown based on server time
+  // Ensures visual sync even with network latency
+}
+```
+
+**Visual Sync Indicator**:
+```typescript
+interface SyncIndicator {
+  status: 'synced' | 'drifting' | 'desynced';
+  driftMs: number;
+  color: 'green' | 'yellow' | 'red';
+  showResyncButton: boolean;
+}
+
+const SYNC_THRESHOLDS = {
+  synced: 150,      // < 150ms = green
+  drifting: 500,    // 150-500ms = yellow
+  desynced: 500,    // > 500ms = red + resync button
+};
+
+// Client-side indicator component
+function getSyncStatus(driftMs: number): SyncIndicator {
+  const absDrift = Math.abs(driftMs);
+
+  if (absDrift < SYNC_THRESHOLDS.synced) {
+    return { status: 'synced', driftMs, color: 'green', showResyncButton: false };
+  }
+  if (absDrift < SYNC_THRESHOLDS.desynced) {
+    return { status: 'drifting', driftMs, color: 'yellow', showResyncButton: false };
+  }
+  return { status: 'desynced', driftMs, color: 'red', showResyncButton: true };
+}
+```
+
+**Soft Resync (No Video Jerking)**:
+```typescript
+// Gradual playback rate adjustment instead of hard seek
+async function softResync(player: VideoPlayer, targetTime: number) {
+  const currentTime = player.currentTime;
+  const drift = targetTime - currentTime;
+
+  if (Math.abs(drift) < 1000) {
+    // Small drift: adjust playback rate temporarily
+    const adjustedRate = drift > 0 ? 1.03 : 0.97;
+    const adjustmentDuration = Math.abs(drift) / 0.03;
+
+    player.playbackRate = adjustedRate;
+    setTimeout(() => {
+      player.playbackRate = 1.0;
+    }, adjustmentDuration);
+  } else {
+    // Large drift: hard seek is necessary
+    player.currentTime = targetTime;
+  }
+}
+```
+
+**Manual Resync Button**:
+```typescript
+// When user clicks "Resync" button
+async function manualResync(roomId: string, userId: string) {
+  // Request fresh state from server
+  const state = await requestStateSnapshot(roomId);
+
+  // Apply immediately
+  await applyPlaybackState(state, { force: true });
+
+  // Track for analytics
+  trackEvent('manual_resync', { roomId, userId, drift: state.drift });
+}
+```
+
+#### 15.1.2 Smart Ownership
+
+**Temporary Host**:
+```typescript
+interface TemporaryHostSession {
+  roomId: string;
+  permanentOwnerId: string;
+  temporaryHostId: string;
+  grantedAt: Date;
+  expiresAt: Date | null;  // null = until revoked
+  permissions: HostPermission[];
+}
+
+type HostPermission =
+  | 'playback_control'
+  | 'source_change'
+  | 'kick_users'
+  | 'manage_permissions';
+
+// Grant temporary host
+async function grantTemporaryHost(
+  roomId: string,
+  targetUserId: string,
+  permissions: HostPermission[],
+  duration?: number
+) {
+  const session = await createTempHostSession({
+    roomId,
+    temporaryHostId: targetUserId,
+    permissions,
+    expiresAt: duration ? addMs(Date.now(), duration) : null,
+  });
+
+  await broadcast(roomId, 'host:temporary_granted', {
+    userId: targetUserId,
+    permissions,
+  });
+}
+```
+
+**Vote to Pause/Resume**:
+```typescript
+interface PlaybackVote {
+  roomId: string;
+  type: 'pause' | 'resume';
+  initiatedBy: string;
+  votes: Map<string, 'yes' | 'no'>;
+  threshold: number;  // e.g., 0.6 = 60% majority
+  timeoutMs: 15000;
+}
+
+async function initiatePlaybackVote(roomId: string, type: 'pause' | 'resume') {
+  const participants = await getActiveParticipants(roomId);
+
+  const vote = await createVote({
+    roomId,
+    type,
+    threshold: Math.ceil(participants.length * 0.6),
+    timeoutMs: 15000,
+  });
+
+  await broadcast(roomId, 'vote:playback_start', {
+    voteId: vote.id,
+    type,
+    requiredVotes: vote.threshold,
+  });
+}
+
+// On vote completion
+async function resolvePlaybackVote(vote: PlaybackVote) {
+  const yesVotes = [...vote.votes.values()].filter(v => v === 'yes').length;
+
+  if (yesVotes >= vote.threshold) {
+    if (vote.type === 'pause') {
+      await pausePlayback(vote.roomId, 'vote_passed');
+    } else {
+      await resumePlayback(vote.roomId, 'vote_passed');
+    }
+  }
+}
+```
+
+**Auto-Host Selection by Network Stability**:
+```typescript
+interface ParticipantMetrics {
+  userId: string;
+  avgLatencyMs: number;
+  packetLossPercent: number;
+  connectionUptime: number;
+  stabilityScore: number;  // Computed
+}
+
+function computeStabilityScore(metrics: ParticipantMetrics): number {
+  // Lower is better
+  const latencyScore = metrics.avgLatencyMs / 100;
+  const lossScore = metrics.packetLossPercent * 2;
+  const uptimeBonus = Math.min(metrics.connectionUptime / 3600000, 1) * -0.5;
+
+  return latencyScore + lossScore + uptimeBonus;
+}
+
+async function selectBestHost(roomId: string): Promise<string> {
+  const participants = await getParticipantsWithMetrics(roomId);
+  const sorted = participants.sort((a, b) =>
+    computeStabilityScore(a) - computeStabilityScore(b)
+  );
+
+  return sorted[0].userId;
+}
+```
+
+**Host Lock (Owner Cannot Be Kicked)**:
+```typescript
+// Room setting
+interface RoomSettings {
+  // ...
+  ownerLock: boolean;  // default: true
+}
+
+// Kick validation
+async function canKickUser(roomId: string, kickerId: string, targetId: string): Promise<boolean> {
+  const room = await getRoom(roomId);
+
+  // Owner can never be kicked
+  if (targetId === room.ownerId && room.settings.ownerLock) {
+    return false;
+  }
+
+  // Only owner or temp host with permission can kick
+  const kicker = await getParticipant(roomId, kickerId);
+  return kicker.isOwner || kicker.tempHostPermissions?.includes('kick_users');
+}
+```
+
+#### 15.1.3 Room Lifecycle
+
+**Scheduled Rooms**:
+```typescript
+interface ScheduledRoom {
+  id: string;
+  creatorId: string;
+  scheduledFor: Date;
+  timezone: string;
+  name: string;
+  source?: VideoSource;
+  invitedUsers: string[];
+  remindersSent: boolean;
+  status: 'scheduled' | 'active' | 'cancelled' | 'expired';
+}
+
+// Create scheduled room
+async function createScheduledRoom(data: CreateScheduledRoomInput) {
+  const room = await prisma.scheduledRoom.create({
+    data: {
+      ...data,
+      code: generateInviteCode(),
+      status: 'scheduled',
+    },
+  });
+
+  // Schedule activation job
+  await scheduleJob(`activate_room:${room.id}`, room.scheduledFor, async () => {
+    await activateScheduledRoom(room.id);
+  });
+
+  // Schedule reminder (30 min before)
+  const reminderTime = new Date(room.scheduledFor.getTime() - 30 * 60 * 1000);
+  await scheduleJob(`reminder:${room.id}`, reminderTime, async () => {
+    await sendRoomReminders(room.id);
+  });
+
+  return room;
+}
+```
+
+**Auto-Close Idle Rooms**:
+```typescript
+interface RoomIdlePolicy {
+  maxIdleTimeMs: number;  // e.g., 30 minutes
+  warningBeforeMs: number;  // e.g., 5 minutes
+  checkIntervalMs: number;  // e.g., 1 minute
+}
+
+// Background job
+async function checkIdleRooms() {
+  const rooms = await getActiveRooms();
+
+  for (const room of rooms) {
+    const lastActivity = await getLastActivityTime(room.id);
+    const idleTime = Date.now() - lastActivity;
+
+    if (idleTime > IDLE_POLICY.maxIdleTimeMs) {
+      await closeRoom(room.id, 'idle_timeout');
+    } else if (idleTime > IDLE_POLICY.maxIdleTimeMs - IDLE_POLICY.warningBeforeMs) {
+      await warnRoomClosing(room.id, IDLE_POLICY.warningBeforeMs);
+    }
+  }
+}
+```
+
+**Room History**:
+```typescript
+interface RoomHistoryEntry {
+  id: string;
+  roomId: string;
+  userId: string;
+  source: VideoSource;
+  watchedAt: Date;
+  watchDurationMs: number;
+  participants: string[];
+  thumbnail?: string;
+}
+
+// Track watch session
+async function recordWatchSession(roomId: string, userId: string) {
+  const room = await getRoom(roomId);
+  const session = await getSessionDuration(roomId, userId);
+
+  await prisma.roomHistory.create({
+    data: {
+      roomId,
+      userId,
+      source: room.source,
+      watchedAt: session.startTime,
+      watchDurationMs: session.duration,
+      participants: session.participants,
+      thumbnail: await generateThumbnail(room.source),
+    },
+  });
+}
+
+// Get user's watch history
+async function getWatchHistory(userId: string, limit: number = 20) {
+  return prisma.roomHistory.findMany({
+    where: { userId },
+    orderBy: { watchedAt: 'desc' },
+    take: limit,
+  });
+}
+```
+
+**Room Templates**:
+```typescript
+interface RoomTemplate {
+  id: string;
+  userId: string;
+  name: string;
+  isDefault: boolean;
+  settings: RoomSettings;
+  createdAt: Date;
+}
+
+interface RoomSettings {
+  maxParticipants: number;
+  playbackControl: 'owner_only' | 'all' | 'selected';
+  voiceEnabled: boolean;
+  chatEnabled: boolean;
+  readyCheckEnabled: boolean;
+  countdownEnabled: boolean;
+  autoHandover: boolean;
+  privacyPreset: 'public' | 'friends_only' | 'private';
+}
+
+// Apply template on room creation
+async function createRoomFromTemplate(userId: string, templateId: string) {
+  const template = await prisma.roomTemplate.findUnique({
+    where: { id: templateId, userId },
+  });
+
+  return createRoom({
+    ...template.settings,
+    ownerId: userId,
+  });
+}
+```
+
+### 15.2 Discord-Like Voice Features
+
+#### 15.2.1 Voice UX Enhancements
+
+**Per-User Volume Control**:
+```typescript
+interface UserVolumeSettings {
+  roomId: string;
+  listenerUserId: string;  // Who is adjusting
+  targetUserId: string;    // Whose volume
+  volume: number;          // 0.0 - 2.0 (0-200%)
+  muted: boolean;
+}
+
+// Client-side audio node per peer
+class PeerAudioController {
+  private gainNode: GainNode;
+  private userId: string;
+
+  constructor(audioContext: AudioContext, stream: MediaStream, userId: string) {
+    this.userId = userId;
+    const source = audioContext.createMediaStreamSource(stream);
+    this.gainNode = audioContext.createGain();
+    source.connect(this.gainNode);
+    this.gainNode.connect(audioContext.destination);
+  }
+
+  setVolume(volume: number) {
+    // volume: 0.0 - 2.0
+    this.gainNode.gain.value = Math.min(2.0, Math.max(0, volume));
+  }
+
+  mute() {
+    this.gainNode.gain.value = 0;
+  }
+}
+```
+
+**Per-User Mute**:
+```typescript
+// Local mute (only affects local playback)
+async function muteUserLocally(targetUserId: string) {
+  const audioController = getPeerAudioController(targetUserId);
+  audioController.mute();
+
+  // Persist preference
+  await saveLocalPreference(`mute:${targetUserId}`, true);
+}
+
+// Global mute (room-wide, admin action)
+async function muteUserGlobally(roomId: string, targetUserId: string, duration?: number) {
+  await redis.set(`room:${roomId}:muted:${targetUserId}`, 'true', {
+    EX: duration ? duration / 1000 : undefined,
+  });
+
+  await broadcast(roomId, 'voice:user_muted', {
+    userId: targetUserId,
+    global: true,
+    duration,
+  });
+}
+```
+
+**Voice Activity Visualizer**:
+```typescript
+// Analyser node for real-time visualization
+class VoiceActivityVisualizer {
+  private analyser: AnalyserNode;
+  private dataArray: Uint8Array;
+  private animationId: number | null = null;
+
+  constructor(audioContext: AudioContext, stream: MediaStream) {
+    this.analyser = audioContext.createAnalyser();
+    this.analyser.fftSize = 256;
+    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+
+    const source = audioContext.createMediaStreamSource(stream);
+    source.connect(this.analyser);
+  }
+
+  getLevel(): number {
+    this.analyser.getByteFrequencyData(this.dataArray);
+    const sum = this.dataArray.reduce((a, b) => a + b, 0);
+    return sum / this.dataArray.length / 255;  // 0.0 - 1.0
+  }
+
+  onSpeaking(callback: (level: number, isSpeaking: boolean) => void) {
+    const check = () => {
+      const level = this.getLevel();
+      callback(level, level > 0.1);  // Threshold for "speaking"
+      this.animationId = requestAnimationFrame(check);
+    };
+    check();
+  }
+
+  stop() {
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+    }
+  }
+}
+```
+
+**Push-to-Talk Key Remapping**:
+```typescript
+interface PTTKeyBinding {
+  userId: string;
+  keyCode: string;      // e.g., 'KeyV', 'Space', 'F1'
+  mouseButton?: number; // e.g., 3 for mouse button 4
+  modifier?: 'ctrl' | 'alt' | 'shift';
+}
+
+// Client-side key handler
+class PTTController {
+  private binding: PTTKeyBinding;
+  private isPressed: boolean = false;
+
+  constructor(binding: PTTKeyBinding, onActivate: () => void, onDeactivate: () => void) {
+    this.binding = binding;
+
+    window.addEventListener('keydown', (e) => {
+      if (this.matchesBinding(e) && !this.isPressed) {
+        this.isPressed = true;
+        onActivate();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (this.matchesBinding(e) && this.isPressed) {
+        this.isPressed = false;
+        onDeactivate();
+      }
+    });
+
+    // Mouse button support
+    if (binding.mouseButton !== undefined) {
+      window.addEventListener('mousedown', (e) => {
+        if (e.button === binding.mouseButton && !this.isPressed) {
+          this.isPressed = true;
+          onActivate();
+        }
+      });
+      window.addEventListener('mouseup', (e) => {
+        if (e.button === binding.mouseButton && this.isPressed) {
+          this.isPressed = false;
+          onDeactivate();
+        }
+      });
+    }
+  }
+
+  private matchesBinding(e: KeyboardEvent): boolean {
+    if (e.code !== this.binding.keyCode) return false;
+    if (this.binding.modifier === 'ctrl' && !e.ctrlKey) return false;
+    if (this.binding.modifier === 'alt' && !e.altKey) return false;
+    if (this.binding.modifier === 'shift' && !e.shiftKey) return false;
+    return true;
+  }
+}
+```
+
+**Noise Suppression Levels**:
+```typescript
+interface NoiseSuppressionConfig {
+  enabled: boolean;
+  level: 'off' | 'low' | 'moderate' | 'high' | 'maximum';
+  useRNNoise: boolean;  // ML-based suppression
+}
+
+// Using browser's built-in suppression + optional RNNoise
+async function configureNoiseSuppression(config: NoiseSuppressionConfig): Promise<MediaStream> {
+  const constraints: MediaStreamConstraints = {
+    audio: {
+      echoCancellation: true,
+      autoGainControl: true,
+      noiseSuppression: config.level !== 'off',
+      // @ts-ignore - experimental constraint
+      suppressLocalAudioPlayback: true,
+    },
+  };
+
+  const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+  if (config.useRNNoise && config.level === 'maximum') {
+    // Apply ML-based noise suppression via AudioWorklet
+    return applyRNNoiseProcessor(stream);
+  }
+
+  return stream;
+}
+```
+
+#### 15.2.2 Voice Reliability
+
+**ICE Restart**:
+```typescript
+// Detect ICE failures and restart
+class WebRTCConnectionManager {
+  private pc: RTCPeerConnection;
+  private iceRestartCount: number = 0;
+  private maxRestarts: number = 3;
+
+  constructor() {
+    this.pc = new RTCPeerConnection(config);
+
+    this.pc.oniceconnectionstatechange = () => {
+      if (this.pc.iceConnectionState === 'failed') {
+        this.handleICEFailure();
+      }
+    };
+  }
+
+  private async handleICEFailure() {
+    if (this.iceRestartCount < this.maxRestarts) {
+      this.iceRestartCount++;
+      console.log(`ICE restart attempt ${this.iceRestartCount}`);
+
+      // Create new offer with ICE restart flag
+      const offer = await this.pc.createOffer({ iceRestart: true });
+      await this.pc.setLocalDescription(offer);
+
+      // Send to signaling server
+      await this.sendOffer(offer);
+    } else {
+      // Escalate to full reconnection
+      await this.fullReconnect();
+    }
+  }
+
+  private async fullReconnect() {
+    this.pc.close();
+    this.pc = new RTCPeerConnection(config);
+    this.iceRestartCount = 0;
+    // Re-establish connection from scratch
+  }
+}
+```
+
+**Auto-Reconnect with Exponential Backoff**:
+```typescript
+class VoiceAutoReconnect {
+  private baseDelayMs: number = 1000;
+  private maxDelayMs: number = 30000;
+  private attempt: number = 0;
+
+  async reconnect(roomId: string): Promise<void> {
+    while (true) {
+      const delay = Math.min(
+        this.baseDelayMs * Math.pow(2, this.attempt),
+        this.maxDelayMs
+      );
+
+      await sleep(delay);
+      this.attempt++;
+
+      try {
+        await this.establishVoiceConnection(roomId);
+        this.attempt = 0;  // Reset on success
+        return;
+      } catch (error) {
+        console.log(`Reconnect attempt ${this.attempt} failed`);
+        if (this.attempt > 10) {
+          // Give up and notify user
+          this.notifyReconnectFailed();
+          return;
+        }
+      }
+    }
+  }
+}
+```
+
+**Fallback to Voice-Only Room**:
+```typescript
+// When video sync fails but voice works
+async function fallbackToVoiceOnly(roomId: string) {
+  const room = await getRoom(roomId);
+
+  await updateRoomMode(roomId, 'voice_only');
+
+  await broadcast(roomId, 'room:mode_changed', {
+    mode: 'voice_only',
+    reason: 'video_sync_unavailable',
+    message: 'Video sync unavailable. Voice chat is still active.',
+  });
+
+  // Disable video-related UI elements
+  // Keep voice connections active
+}
+```
+
+**Voice Quality Indicator**:
+```typescript
+interface VoiceQualityMetrics {
+  userId: string;
+  bitrate: number;
+  packetLoss: number;
+  jitter: number;
+  latency: number;
+  qualityScore: 'excellent' | 'good' | 'fair' | 'poor';
+}
+
+async function getVoiceQuality(pc: RTCPeerConnection): Promise<VoiceQualityMetrics> {
+  const stats = await pc.getStats();
+  let bitrate = 0, packetLoss = 0, jitter = 0;
+
+  stats.forEach(report => {
+    if (report.type === 'inbound-rtp' && report.kind === 'audio') {
+      bitrate = report.bytesReceived * 8 / (report.timestamp / 1000);
+      packetLoss = report.packetsLost / (report.packetsReceived + report.packetsLost);
+      jitter = report.jitter * 1000;  // Convert to ms
+    }
+  });
+
+  const qualityScore = calculateQualityScore(bitrate, packetLoss, jitter);
+
+  return { bitrate, packetLoss, jitter, latency: 0, qualityScore };
+}
+
+function calculateQualityScore(bitrate: number, packetLoss: number, jitter: number): 'excellent' | 'good' | 'fair' | 'poor' {
+  if (packetLoss < 0.01 && jitter < 30) return 'excellent';
+  if (packetLoss < 0.03 && jitter < 50) return 'good';
+  if (packetLoss < 0.05 && jitter < 100) return 'fair';
+  return 'poor';
+}
+```
+
+### 15.3 Social Features
+
+#### 15.3.1 Friends & Presence
+
+**Online Status**:
+```typescript
+type PresenceStatus = 'online' | 'away' | 'busy' | 'invisible' | 'offline';
+
+interface UserPresence {
+  userId: string;
+  status: PresenceStatus;
+  lastSeenAt: Date;
+  currentRoomId?: string;
+  currentActivity?: string;  // "Watching: Movie Title"
+}
+
+// Real-time presence updates via Redis pub/sub
+async function updatePresence(userId: string, status: PresenceStatus) {
+  const presence = {
+    status,
+    lastSeenAt: new Date(),
+  };
+
+  await redis.hset(`presence:${userId}`, presence);
+  await redis.publish('presence:updates', JSON.stringify({ userId, ...presence }));
+
+  // Broadcast to friends
+  const friends = await getFriendIds(userId);
+  for (const friendId of friends) {
+    await notifyUser(friendId, 'friend:presence_updated', { userId, ...presence });
+  }
+}
+```
+
+**Join Friend's Room**:
+```typescript
+// Get friends currently in rooms
+async function getFriendsInRooms(userId: string): Promise<FriendRoom[]> {
+  const friends = await getFriends(userId);
+  const result: FriendRoom[] = [];
+
+  for (const friend of friends) {
+    const presence = await getPresence(friend.id);
+
+    if (presence.currentRoomId && presence.status !== 'invisible') {
+      const room = await getRoom(presence.currentRoomId);
+
+      // Check if room is joinable and not full
+      if (room.participantCount < room.maxParticipants) {
+        result.push({
+          friend,
+          room,
+          activity: presence.currentActivity,
+        });
+      }
+    }
+  }
+
+  return result;
+}
+```
+
+**Rich Presence**:
+```typescript
+interface RichPresence {
+  userId: string;
+  activity: string;         // "Watching"
+  details: string;          // "Breaking Bad S1E1"
+  timestamp: Date;          // Started at
+  partySize?: number;       // "2 of 5"
+  partyMax?: number;
+  thumbnailUrl?: string;
+  joinable: boolean;
+}
+
+async function updateRichPresence(roomId: string, userId: string) {
+  const room = await getRoom(roomId);
+  const source = await getVideoSource(room.sourceId);
+
+  const richPresence: RichPresence = {
+    userId,
+    activity: 'Watching',
+    details: source.title || 'Video',
+    timestamp: new Date(),
+    partySize: room.participantCount,
+    partyMax: room.maxParticipants,
+    thumbnailUrl: source.thumbnail,
+    joinable: room.participantCount < room.maxParticipants,
+  };
+
+  await redis.hset(`presence:${userId}:rich`, richPresence);
+  await broadcastToFriends(userId, 'friend:rich_presence', richPresence);
+}
+```
+
+**Invisible Mode**:
+```typescript
+// When invisible: presence appears offline to others
+async function setInvisibleMode(userId: string, enabled: boolean) {
+  await prisma.userSettings.update({
+    where: { userId },
+    data: { invisibleMode: enabled },
+  });
+
+  if (enabled) {
+    // Broadcast "offline" status to friends
+    await broadcastToFriends(userId, 'friend:presence_updated', {
+      userId,
+      status: 'offline',
+    });
+  } else {
+    // Broadcast actual status
+    const actualPresence = await getActualPresence(userId);
+    await broadcastToFriends(userId, 'friend:presence_updated', actualPresence);
+  }
+}
+
+// Check visibility when returning presence
+async function getPresenceForUser(targetId: string, requesterId: string): Promise<UserPresence> {
+  const settings = await getUserSettings(targetId);
+
+  if (settings.invisibleMode) {
+    return { userId: targetId, status: 'offline', lastSeenAt: new Date(0) };
+  }
+
+  return getActualPresence(targetId);
+}
+```
+
+#### 15.3.2 Reactions & Fun
+
+**Emoji Reactions Over Video**:
+```typescript
+interface VideoReaction {
+  id: string;
+  roomId: string;
+  userId: string;
+  emoji: string;
+  position: { x: number; y: number };  // Percentage-based
+  mediaTimeMs: number;
+  createdAt: Date;
+  animation: 'float' | 'burst' | 'bounce';
+}
+
+// Broadcast reaction to all participants
+async function sendReaction(roomId: string, userId: string, emoji: string) {
+  const reaction: VideoReaction = {
+    id: generateId(),
+    roomId,
+    userId,
+    emoji,
+    position: { x: Math.random() * 80 + 10, y: Math.random() * 20 + 70 },
+    mediaTimeMs: await getCurrentMediaTime(roomId),
+    createdAt: new Date(),
+    animation: 'float',
+  };
+
+  // Store for replay
+  await redis.lpush(`room:${roomId}:reactions`, JSON.stringify(reaction));
+  await redis.ltrim(`room:${roomId}:reactions`, 0, 999);  // Keep last 1000
+
+  // Broadcast
+  await broadcast(roomId, 'reaction:new', reaction);
+}
+```
+
+**Quick Reactions**:
+```typescript
+const QUICK_REACTIONS = ['👏', '😂', '😱', '❤️', '🔥', '👀'];
+
+// Quick reaction UI: single click sends reaction
+// Rendered as floating emojis on video overlay
+```
+
+**Time-Based Reactions (Timeline Attachment)**:
+```typescript
+interface TimelineReaction {
+  mediaTimeMs: number;
+  reactions: Map<string, number>;  // emoji -> count
+}
+
+// Get reactions for timeline scrubber visualization
+async function getTimelineReactions(roomId: string): Promise<TimelineReaction[]> {
+  const reactions = await redis.lrange(`room:${roomId}:reactions`, 0, -1);
+
+  // Group by 30-second intervals
+  const grouped = new Map<number, Map<string, number>>();
+
+  for (const r of reactions.map(JSON.parse)) {
+    const bucket = Math.floor(r.mediaTimeMs / 30000) * 30000;
+    const bucketReactions = grouped.get(bucket) || new Map();
+    bucketReactions.set(r.emoji, (bucketReactions.get(r.emoji) || 0) + 1);
+    grouped.set(bucket, bucketReactions);
+  }
+
+  return [...grouped.entries()].map(([time, reactions]) => ({
+    mediaTimeMs: time,
+    reactions,
+  }));
+}
+```
+
+**Reaction Replay**:
+```typescript
+// When seeking, replay reactions near that timestamp
+async function replayReactionsNear(roomId: string, mediaTimeMs: number) {
+  const reactions = await getReactionsInRange(
+    roomId,
+    mediaTimeMs - 5000,  // 5 seconds before
+    mediaTimeMs + 5000   // 5 seconds after
+  );
+
+  // Render reactions with appropriate delays
+  for (const reaction of reactions) {
+    const delay = reaction.mediaTimeMs - (mediaTimeMs - 5000);
+    setTimeout(() => {
+      renderReaction(reaction);
+    }, delay);
+  }
+}
+```
+
+### 15.4 Security & Trust
+
+#### 15.4.1 Abuse Protection
+
+**Report User**:
+```typescript
+interface UserReport {
+  id: string;
+  reporterId: string;
+  reportedUserId: string;
+  roomId: string;
+  reason: ReportReason;
+  description?: string;
+  evidence?: {
+    chatLogs?: string[];
+    timestamp: Date;
+  };
+  status: 'pending' | 'reviewed' | 'actioned' | 'dismissed';
+  createdAt: Date;
+}
+
+type ReportReason =
+  | 'harassment'
+  | 'inappropriate_content'
+  | 'spam'
+  | 'cheating'
+  | 'hate_speech'
+  | 'other';
+
+async function reportUser(data: CreateReportInput): Promise<UserReport> {
+  const report = await prisma.userReport.create({
+    data: {
+      ...data,
+      status: 'pending',
+      evidence: {
+        chatLogs: await getRecentChatLogs(data.roomId, data.reportedUserId),
+        timestamp: new Date(),
+      },
+    },
+  });
+
+  // Alert moderators if this user has multiple reports
+  const reportCount = await prisma.userReport.count({
+    where: { reportedUserId: data.reportedUserId, status: 'pending' },
+  });
+
+  if (reportCount >= 3) {
+    await alertModerators(data.reportedUserId, reportCount);
+  }
+
+  return report;
+}
+```
+
+**Temporary Mute**:
+```typescript
+interface TempMute {
+  userId: string;
+  roomId: string;
+  mutedBy: string;
+  reason?: string;
+  expiresAt: Date;
+  scope: 'voice' | 'chat' | 'both';
+}
+
+async function temporaryMute(
+  roomId: string,
+  targetUserId: string,
+  durationMs: number,
+  scope: 'voice' | 'chat' | 'both' = 'both'
+) {
+  const mute: TempMute = {
+    userId: targetUserId,
+    roomId,
+    mutedBy: getCurrentUserId(),
+    expiresAt: new Date(Date.now() + durationMs),
+    scope,
+  };
+
+  await redis.set(
+    `room:${roomId}:mute:${targetUserId}`,
+    JSON.stringify(mute),
+    { PX: durationMs }
+  );
+
+  // Notify the muted user
+  await notifyUser(targetUserId, 'moderation:muted', {
+    roomId,
+    duration: durationMs,
+    scope,
+    reason: 'You have been temporarily muted by a moderator.',
+  });
+}
+```
+
+**Shadow Mute**:
+```typescript
+// User can still send messages, but only they see them
+async function shadowMute(roomId: string, targetUserId: string) {
+  await redis.sadd(`room:${roomId}:shadow_muted`, targetUserId);
+}
+
+// When broadcasting messages, check shadow mute
+async function broadcastChatMessage(roomId: string, message: ChatMessage) {
+  const shadowMuted = await redis.sismember(
+    `room:${roomId}:shadow_muted`,
+    message.userId
+  );
+
+  if (shadowMuted) {
+    // Only send to the sender
+    await sendToUser(message.userId, 'chat:message', message);
+  } else {
+    // Send to everyone
+    await broadcast(roomId, 'chat:message', message);
+  }
+}
+```
+
+**Auto Moderation Hooks**:
+```typescript
+interface AutoModRule {
+  id: string;
+  pattern: RegExp | string[];
+  action: 'warn' | 'delete' | 'mute' | 'kick';
+  duration?: number;  // For mute
+  alertModerators: boolean;
+}
+
+const DEFAULT_AUTOMOD_RULES: AutoModRule[] = [
+  {
+    id: 'spam_detection',
+    pattern: /(.)\1{10,}/,  // Same character repeated 10+ times
+    action: 'delete',
+    alertModerators: false,
+  },
+  {
+    id: 'link_spam',
+    pattern: /(https?:\/\/[^\s]+.*){3,}/,  // 3+ links in one message
+    action: 'warn',
+    alertModerators: true,
+  },
+  {
+    id: 'rapid_messages',
+    pattern: [],  // Handled differently
+    action: 'mute',
+    duration: 60000,
+    alertModerators: false,
+  },
+];
+
+async function checkAutoMod(message: ChatMessage): Promise<AutoModAction | null> {
+  for (const rule of DEFAULT_AUTOMOD_RULES) {
+    if (matchesRule(message.content, rule.pattern)) {
+      return executeAutoModAction(message, rule);
+    }
+  }
+
+  // Rate limiting: check rapid message detection
+  const messageCount = await redis.incr(`rate:chat:${message.userId}`);
+  await redis.expire(`rate:chat:${message.userId}`, 10);
+
+  if (messageCount > 10) {  // More than 10 messages in 10 seconds
+    return executeAutoModAction(message, DEFAULT_AUTOMOD_RULES.find(r => r.id === 'rapid_messages')!);
+  }
+
+  return null;
+}
+```
+
+#### 15.4.2 Privacy Controls
+
+**TURN-Only Mode (Hide Real IP)**:
+```typescript
+interface PrivacySettings {
+  forceRelay: boolean;  // Force TURN, never direct P2P
+  hideFromSearch: boolean;
+  blockNonFriends: boolean;
+}
+
+// Configure RTCPeerConnection for TURN-only
+function createPrivateConnection(turnServers: RTCIceServer[]): RTCPeerConnection {
+  return new RTCPeerConnection({
+    iceServers: turnServers,
+    iceTransportPolicy: 'relay',  // FORCE relay, never direct
+  });
+}
+```
+
+**Anonymous Nicknames**:
+```typescript
+// For users who want to join without revealing identity
+async function generateAnonymousNickname(): Promise<string> {
+  const adjectives = ['Swift', 'Clever', 'Brave', 'Calm', 'Eager'];
+  const animals = ['Fox', 'Owl', 'Bear', 'Wolf', 'Hawk'];
+  const number = Math.floor(Math.random() * 1000);
+
+  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const animal = animals[Math.floor(Math.random() * animals.length)];
+
+  return `${adj}${animal}${number}`;
+}
+
+// Room setting
+interface RoomPrivacySettings {
+  allowAnonymous: boolean;
+  requireAuth: boolean;
+  showRealNames: boolean;
+}
+```
+
+**Per-Room Privacy Presets**:
+```typescript
+type PrivacyPreset = 'public' | 'friends_only' | 'private' | 'anonymous';
+
+const PRIVACY_PRESETS: Record<PrivacyPreset, RoomPrivacySettings> = {
+  public: {
+    allowAnonymous: true,
+    requireAuth: false,
+    showRealNames: true,
+    joinableByLink: true,
+    listedInDirectory: true,
+  },
+  friends_only: {
+    allowAnonymous: false,
+    requireAuth: true,
+    showRealNames: true,
+    joinableByLink: false,
+    listedInDirectory: false,
+    onlyFriendsCanJoin: true,
+  },
+  private: {
+    allowAnonymous: false,
+    requireAuth: true,
+    showRealNames: true,
+    joinableByLink: true,
+    listedInDirectory: false,
+    passwordRequired: true,
+  },
+  anonymous: {
+    allowAnonymous: true,
+    requireAuth: false,
+    showRealNames: false,  // Everyone uses anonymous names
+    joinableByLink: true,
+    listedInDirectory: false,
+    forceRelayConnection: true,  // Hide IPs
+  },
+};
+```
+
+### 15.5 Quality & Testing
+
+#### 15.5.1 Testing Pyramid
+
+**Unit Tests**:
+```typescript
+// Example: Testing sync algorithm
+describe('SoftResync', () => {
+  it('should adjust playback rate for small drift', async () => {
+    const mockPlayer = createMockPlayer({ currentTime: 100 });
+
+    await softResync(mockPlayer, 100.5);  // 500ms ahead
+
+    expect(mockPlayer.playbackRate).toBe(0.97);
+  });
+
+  it('should hard seek for large drift', async () => {
+    const mockPlayer = createMockPlayer({ currentTime: 100 });
+
+    await softResync(mockPlayer, 105);  // 5 seconds ahead
+
+    expect(mockPlayer.currentTime).toBe(105);
+    expect(mockPlayer.seekCount).toBe(1);
+  });
+});
+```
+
+**Integration Tests**:
+```typescript
+// Example: Room creation flow
+describe('Room API Integration', () => {
+  let app: FastifyInstance;
+  let db: PrismaClient;
+
+  beforeAll(async () => {
+    app = await buildApp();
+    db = new PrismaClient();
+  });
+
+  it('should create room and store in Redis', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/rooms',
+      payload: {
+        name: 'Test Room',
+        maxParticipants: 5,
+      },
+      headers: { Authorization: `Bearer ${testToken}` },
+    });
+
+    expect(response.statusCode).toBe(201);
+
+    const room = JSON.parse(response.payload);
+    expect(room.code).toHaveLength(8);
+
+    // Verify Redis state
+    const redisState = await redis.hgetall(`room:${room.id}:state`);
+    expect(redisState).toBeDefined();
+  });
+});
+```
+
+**E2E Tests (Playwright)**:
+```typescript
+// Example: Full watch session
+import { test, expect } from '@playwright/test';
+
+test.describe('Watch Session', () => {
+  test('two users can watch synchronized video', async ({ browser }) => {
+    const owner = await browser.newContext();
+    const participant = await browser.newContext();
+
+    const ownerPage = await owner.newPage();
+    const participantPage = await participant.newPage();
+
+    // Owner creates room
+    await ownerPage.goto('/create');
+    await ownerPage.fill('[data-testid="youtube-url"]', 'https://youtube.com/watch?v=test');
+    await ownerPage.click('[data-testid="create-room"]');
+
+    const inviteLink = await ownerPage.locator('[data-testid="invite-link"]').textContent();
+
+    // Participant joins
+    await participantPage.goto(inviteLink!);
+    await participantPage.fill('[data-testid="nickname"]', 'TestUser');
+    await participantPage.click('[data-testid="join-room"]');
+
+    // Owner starts playback
+    await ownerPage.click('[data-testid="play-button"]');
+
+    // Verify both are playing
+    await expect(ownerPage.locator('[data-testid="video-state"]')).toHaveText('Playing');
+    await expect(participantPage.locator('[data-testid="video-state"]')).toHaveText('Playing');
+
+    // Verify sync (within threshold)
+    const ownerTime = await ownerPage.evaluate(() =>
+      (document.querySelector('video') as HTMLVideoElement).currentTime
+    );
+    const participantTime = await participantPage.evaluate(() =>
+      (document.querySelector('video') as HTMLVideoElement).currentTime
+    );
+
+    expect(Math.abs(ownerTime - participantTime)).toBeLessThan(1);  // Within 1 second
+  });
+});
+```
+
+**Network Chaos Tests**:
+```typescript
+// Using Toxiproxy or similar for network simulation
+describe('Network Chaos', () => {
+  it('should recover from network partition', async () => {
+    const { owner, participant } = await setupWatchSession();
+
+    // Simulate network partition (disconnect participant)
+    await toxiproxy.addToxic('partition', {
+      type: 'timeout',
+      stream: 'downstream',
+      toxicity: 1.0,
+    });
+
+    await sleep(5000);  // Wait for disconnect detection
+
+    // Remove partition
+    await toxiproxy.removeToxic('partition');
+
+    // Wait for reconnection
+    await waitFor(() => participant.isConnected(), { timeout: 30000 });
+
+    // Verify resync
+    expect(await participant.getSyncStatus()).toBe('synced');
+  });
+
+  it('should handle high latency gracefully', async () => {
+    await toxiproxy.addToxic('latency', {
+      type: 'latency',
+      latency: 500,
+      jitter: 100,
+    });
+
+    const { owner, participant } = await setupWatchSession();
+
+    // Sync should still work with soft corrections
+    await owner.play();
+    await sleep(3000);
+
+    const drift = await participant.getDrift();
+    expect(Math.abs(drift)).toBeLessThan(1000);  // Within 1 second even with latency
+  });
+});
+```
+
+**Media Regression Tests**:
+```typescript
+// Test various video formats and edge cases
+describe('Media Handling', () => {
+  const testVideos = [
+    { name: 'mp4_h264', path: 'fixtures/test_h264.mp4' },
+    { name: 'webm_vp9', path: 'fixtures/test_vp9.webm' },
+    { name: 'mkv_hevc', path: 'fixtures/test_hevc.mkv' },
+    { name: 'long_video', path: 'fixtures/3hour_test.mp4' },
+    { name: 'variable_framerate', path: 'fixtures/vfr_test.mp4' },
+  ];
+
+  for (const video of testVideos) {
+    it(`should transcode ${video.name} to HLS`, async () => {
+      const job = await transcodingQueue.add('transcode', {
+        inputPath: video.path,
+        outputFormat: 'hls',
+      });
+
+      const result = await job.finished();
+
+      expect(result.status).toBe('completed');
+      expect(result.outputs.hls).toBeDefined();
+
+      // Verify HLS is playable
+      const isPlayable = await verifyHLSPlayback(result.outputs.hls);
+      expect(isPlayable).toBe(true);
+    });
+  }
+});
+```
+
+#### 15.5.2 Compatibility Lab
+
+**Browser Matrix**:
+```typescript
+// CI configuration for cross-browser testing
+const BROWSER_MATRIX = {
+  desktop: [
+    { browser: 'chromium', version: 'latest' },
+    { browser: 'chromium', version: 'latest-1' },
+    { browser: 'firefox', version: 'latest' },
+    { browser: 'firefox', version: 'latest-1' },
+    { browser: 'webkit', version: 'latest' },
+  ],
+  mobile: [
+    { browser: 'chromium', device: 'Pixel 5' },
+    { browser: 'webkit', device: 'iPhone 13' },
+    { browser: 'webkit', device: 'iPad Pro' },
+  ],
+};
+
+// Features to test per browser
+const BROWSER_TESTS = [
+  'video_playback',
+  'webrtc_audio',
+  'websocket_reconnection',
+  'fullscreen',
+  'picture_in_picture',
+  'media_session_api',
+];
+```
+
+**Mobile Safari Quirks**:
+```typescript
+// Safari-specific handling
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+// Safari WebRTC quirks
+if (isSafari) {
+  // Safari doesn't support addTransceiver with sendrecv
+  // Must use addTrack instead
+  function addAudioTrack(pc: RTCPeerConnection, stream: MediaStream) {
+    stream.getAudioTracks().forEach(track => {
+      pc.addTrack(track, stream);
+    });
+  }
+
+  // Safari requires explicit audio element for WebRTC playback
+  function playRemoteAudio(stream: MediaStream) {
+    const audio = document.createElement('audio');
+    audio.srcObject = stream;
+    audio.autoplay = true;
+    audio.setAttribute('playsinline', 'true');
+    document.body.appendChild(audio);
+  }
+}
+```
+
+**iOS Autoplay Restrictions**:
+```typescript
+// iOS requires user interaction before media playback
+async function initializeMediaForIOS() {
+  if (!isIOS) return;
+
+  // Create silent audio context on first interaction
+  document.addEventListener('touchstart', async () => {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Play silence to unlock audio
+    const oscillator = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0;
+    oscillator.connect(gain);
+    gain.connect(audioCtx.destination);
+    oscillator.start(0);
+    oscillator.stop(0.001);
+
+    // Resume audio context if suspended
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+  }, { once: true });
+
+  // Video requires playsinline attribute
+  const videoEl = document.querySelector('video');
+  if (videoEl) {
+    videoEl.setAttribute('playsinline', 'true');
+    videoEl.setAttribute('webkit-playsinline', 'true');
+    videoEl.muted = true;  // Muted autoplay is allowed
+  }
+}
+```
+
+**Android Power Saving Mode**:
+```typescript
+// Handle background/power saving mode
+class PowerSavingHandler {
+  private wakeLock: WakeLockSentinel | null = null;
+
+  async requestWakeLock() {
+    if ('wakeLock' in navigator) {
+      try {
+        this.wakeLock = await navigator.wakeLock.request('screen');
+
+        // Re-acquire on visibility change
+        document.addEventListener('visibilitychange', async () => {
+          if (document.visibilityState === 'visible' && !this.wakeLock) {
+            this.wakeLock = await navigator.wakeLock.request('screen');
+          }
+        });
+      } catch (e) {
+        console.warn('Wake lock not available:', e);
+      }
+    }
+  }
+
+  // Handle background mode
+  handleVisibilityChange() {
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        // Reduce activity when in background
+        this.enterLowPowerMode();
+      } else {
+        // Resume full activity
+        this.exitLowPowerMode();
+      }
+    });
+  }
+
+  private enterLowPowerMode() {
+    // Reduce sync frequency
+    syncInterval = 5000;  // From 1000ms to 5000ms
+
+    // Pause non-essential animations
+    document.body.classList.add('low-power-mode');
+  }
+
+  private exitLowPowerMode() {
+    syncInterval = 1000;
+    document.body.classList.remove('low-power-mode');
+
+    // Force resync
+    requestStateSnapshot();
+  }
+}
+```
+
+### 15.6 Analytics & Intelligence
+
+#### 15.6.1 Product Analytics
+
+**Session Tracking**:
+```typescript
+interface SessionAnalytics {
+  sessionId: string;
+  userId: string;
+  roomId: string;
+  startedAt: Date;
+  endedAt: Date;
+  duration: number;
+  events: AnalyticsEvent[];
+  metrics: SessionMetrics;
+}
+
+interface SessionMetrics {
+  totalWatchTime: number;
+  syncCorrections: number;
+  hardSyncs: number;
+  softSyncs: number;
+  voiceMinutes: number;
+  chatMessages: number;
+  reactions: number;
+  buffering: number;
+  avgLatency: number;
+  maxDrift: number;
+}
+
+// Track key events
+type AnalyticsEventType =
+  | 'session_start'
+  | 'session_end'
+  | 'play'
+  | 'pause'
+  | 'seek'
+  | 'sync_correction'
+  | 'voice_join'
+  | 'voice_leave'
+  | 'chat_message'
+  | 'reaction'
+  | 'error'
+  | 'buffering_start'
+  | 'buffering_end';
+
+class AnalyticsCollector {
+  private events: AnalyticsEvent[] = [];
+
+  track(type: AnalyticsEventType, data?: Record<string, any>) {
+    this.events.push({
+      type,
+      timestamp: Date.now(),
+      data,
+    });
+
+    // Batch send every 30 seconds or 50 events
+    if (this.events.length >= 50) {
+      this.flush();
+    }
+  }
+
+  async flush() {
+    if (this.events.length === 0) return;
+
+    await fetch('/api/analytics/events', {
+      method: 'POST',
+      body: JSON.stringify({ events: this.events }),
+    });
+
+    this.events = [];
+  }
+}
+```
+
+**Drop-off Analysis**:
+```typescript
+interface FunnelStep {
+  name: string;
+  count: number;
+  dropoffPercent: number;
+}
+
+// Funnel: Visit → Create Room → Add Video → Invite → Play → Complete Session
+async function analyzeFunnel(dateRange: DateRange): Promise<FunnelStep[]> {
+  const steps = [
+    { name: 'site_visit', query: 'page_view WHERE page = "/"' },
+    { name: 'create_room', query: 'room_created' },
+    { name: 'add_video', query: 'video_added' },
+    { name: 'invite_sent', query: 'invite_link_copied OR invite_sent' },
+    { name: 'play_started', query: 'playback_started' },
+    { name: 'session_completed', query: 'session_ended WHERE duration > 300000' },  // 5+ min
+  ];
+
+  const counts = await Promise.all(
+    steps.map(s => queryAnalytics(s.query, dateRange))
+  );
+
+  return steps.map((step, i) => ({
+    name: step.name,
+    count: counts[i],
+    dropoffPercent: i > 0 ? ((counts[i-1] - counts[i]) / counts[i-1]) * 100 : 0,
+  }));
+}
+```
+
+**Voice Join Success Rate**:
+```typescript
+interface VoiceMetrics {
+  totalAttempts: number;
+  successfulJoins: number;
+  failedJoins: number;
+  successRate: number;
+  avgJoinTime: number;
+  failureReasons: Map<string, number>;
+}
+
+async function getVoiceMetrics(dateRange: DateRange): Promise<VoiceMetrics> {
+  const attempts = await queryAnalytics('voice_join_attempt', dateRange);
+  const successes = await queryAnalytics('voice_join_success', dateRange);
+  const failures = await queryAnalytics('voice_join_failed', dateRange);
+
+  const failureReasons = await queryAnalytics(
+    'voice_join_failed GROUP BY reason',
+    dateRange
+  );
+
+  return {
+    totalAttempts: attempts,
+    successfulJoins: successes,
+    failedJoins: failures,
+    successRate: (successes / attempts) * 100,
+    avgJoinTime: await queryAnalytics('AVG(voice_join_duration)', dateRange),
+    failureReasons: new Map(failureReasons),
+  };
+}
+```
+
+**Sync Correction Frequency**:
+```typescript
+interface SyncMetrics {
+  totalCorrections: number;
+  softCorrections: number;
+  hardCorrections: number;
+  avgDriftBeforeCorrection: number;
+  p95Drift: number;
+  p99Drift: number;
+  correctionsBySource: Map<string, number>;  // youtube, upload, external
+}
+
+// Dashboard query
+async function getSyncMetrics(dateRange: DateRange): Promise<SyncMetrics> {
+  return {
+    totalCorrections: await queryAnalytics('sync_correction', dateRange),
+    softCorrections: await queryAnalytics('sync_correction WHERE type = "soft"', dateRange),
+    hardCorrections: await queryAnalytics('sync_correction WHERE type = "hard"', dateRange),
+    avgDriftBeforeCorrection: await queryAnalytics('AVG(drift) FROM sync_correction', dateRange),
+    p95Drift: await queryAnalytics('PERCENTILE(drift, 95) FROM sync_correction', dateRange),
+    p99Drift: await queryAnalytics('PERCENTILE(drift, 99) FROM sync_correction', dateRange),
+    correctionsBySource: await queryAnalytics(
+      'COUNT(*) FROM sync_correction GROUP BY source_type',
+      dateRange
+    ),
+  };
+}
+```
+
+#### 15.6.2 Diagnostics Mode
+
+**Debug Overlay**:
+```typescript
+interface DebugOverlayData {
+  // Network
+  latency: number;
+  jitter: number;
+  packetLoss: number;
+  bandwidth: number;
+
+  // Sync
+  serverTime: number;
+  localTime: number;
+  clockOffset: number;
+  drift: number;
+  lastSyncCommand: string;
+
+  // Video
+  bufferHealth: number;
+  currentTime: number;
+  targetTime: number;
+  playbackRate: number;
+
+  // Voice
+  voiceState: 'connected' | 'connecting' | 'disconnected';
+  audioLevel: number;
+  iceState: string;
+
+  // Connection
+  socketState: string;
+  reconnectAttempts: number;
+}
+
+// Toggle with keyboard shortcut (Ctrl+Shift+D)
+class DebugOverlay {
+  private visible: boolean = false;
+  private data: DebugOverlayData;
+  private updateInterval: number;
+
+  toggle() {
+    this.visible = !this.visible;
+
+    if (this.visible) {
+      this.updateInterval = setInterval(() => this.update(), 100);
+      this.render();
+    } else {
+      clearInterval(this.updateInterval);
+      this.hide();
+    }
+  }
+
+  private update() {
+    this.data = {
+      latency: networkMonitor.getLatency(),
+      drift: syncEngine.getCurrentDrift(),
+      // ... collect all metrics
+    };
+    this.render();
+  }
+
+  private render() {
+    // Render semi-transparent overlay with monospace font
+    // Show all metrics in real-time
+  }
+}
+```
+
+**Export Logs Per Room**:
+```typescript
+interface RoomLogExport {
+  roomId: string;
+  exportedAt: Date;
+  exportedBy: string;
+  dateRange: DateRange;
+  logs: {
+    sync: SyncLog[];
+    chat: ChatLog[];
+    voice: VoiceLog[];
+    errors: ErrorLog[];
+    analytics: AnalyticsEvent[];
+  };
+  format: 'json' | 'csv';
+}
+
+async function exportRoomLogs(
+  roomId: string,
+  dateRange: DateRange,
+  format: 'json' | 'csv' = 'json'
+): Promise<string> {
+  const logs: RoomLogExport = {
+    roomId,
+    exportedAt: new Date(),
+    exportedBy: getCurrentUserId(),
+    dateRange,
+    logs: {
+      sync: await getSyncLogs(roomId, dateRange),
+      chat: await getChatLogs(roomId, dateRange),
+      voice: await getVoiceLogs(roomId, dateRange),
+      errors: await getErrorLogs(roomId, dateRange),
+      analytics: await getAnalyticsEvents(roomId, dateRange),
+    },
+    format,
+  };
+
+  if (format === 'csv') {
+    return convertToCSV(logs);
+  }
+
+  return JSON.stringify(logs, null, 2);
+}
+```
+
+**Drift Timeline Visualization**:
+```typescript
+interface DriftDataPoint {
+  timestamp: number;
+  drift: number;
+  correctionType?: 'soft' | 'hard';
+  event?: 'play' | 'pause' | 'seek' | 'user_join' | 'user_leave';
+}
+
+// Collect drift data for visualization
+class DriftTimeline {
+  private dataPoints: DriftDataPoint[] = [];
+  private maxPoints: number = 1000;
+
+  record(drift: number, event?: DriftDataPoint['event']) {
+    this.dataPoints.push({
+      timestamp: Date.now(),
+      drift,
+      event,
+    });
+
+    // Keep only last N points
+    if (this.dataPoints.length > this.maxPoints) {
+      this.dataPoints = this.dataPoints.slice(-this.maxPoints);
+    }
+  }
+
+  recordCorrection(drift: number, type: 'soft' | 'hard') {
+    this.dataPoints.push({
+      timestamp: Date.now(),
+      drift,
+      correctionType: type,
+    });
+  }
+
+  // Get data for chart rendering
+  getChartData(): { x: number[]; y: number[]; markers: any[] } {
+    return {
+      x: this.dataPoints.map(p => p.timestamp),
+      y: this.dataPoints.map(p => p.drift),
+      markers: this.dataPoints
+        .filter(p => p.correctionType || p.event)
+        .map(p => ({
+          x: p.timestamp,
+          y: p.drift,
+          type: p.correctionType || p.event,
+        })),
+    };
+  }
+}
+```
+
+### 15.7 Engineering Excellence
+
+#### 15.7.1 Architecture Decision Records (ADR)
+
+**ADR Template**:
+```markdown
+# ADR-{number}: {Title}
+
+## Status
+{Proposed | Accepted | Deprecated | Superseded}
+
+## Context
+What is the issue that we're seeing that is motivating this decision or change?
+
+## Decision
+What is the change that we're proposing and/or doing?
+
+## Consequences
+What becomes easier or more difficult to do because of this change?
+
+## Alternatives Considered
+What other options were considered and why were they rejected?
+```
+
+**ADR Directory Structure**:
+```
+docs/
+  adr/
+    0001-use-socket-io-for-realtime.md
+    0002-p2p-mesh-for-voice-mvp.md
+    0003-hls-for-video-delivery.md
+    0004-redis-for-state-and-pubsub.md
+    0005-monorepo-structure.md
+    0006-turn-mandatory-for-production.md
+    0007-sync-protocol-versioning.md
+    0008-liquid-glass-design-system.md
+    template.md
+    index.md
+```
+
+**Example ADR**:
+```markdown
+# ADR-0002: P2P Mesh for Voice Chat (MVP)
+
+## Status
+Accepted
+
+## Context
+SyncWatch needs voice chat for up to 5 participants. The options are:
+1. P2P Mesh: Each participant connects directly to all others
+2. SFU (Selective Forwarding Unit): Central server relays media
+3. MCU (Multipoint Control Unit): Central server mixes media
+
+## Decision
+We will use P2P Mesh for the MVP with a documented migration path to SFU.
+
+Reasons:
+- Simpler to implement (no media server infrastructure)
+- Works well for up to 5 participants
+- Lower latency (direct connections)
+- Lower infrastructure cost initially
+
+## Consequences
+Positive:
+- Faster time to market
+- No media server to maintain
+- Lower operational costs
+
+Negative:
+- CPU intensive on clients (N-1 encode/decode per participant)
+- Traffic grows as N×(N-1)
+- Must migrate to SFU for scaling beyond 5 users
+
+## Alternatives Considered
+- **LiveKit (SFU)**: Better scalability but requires additional infrastructure
+  - Rejected for MVP: Adds complexity without immediate benefit
+  - Planned for v2 when scaling is needed
+- **mediasoup (SFU)**: More flexible but complex to operate
+  - Rejected: Higher operational burden
+```
+
+#### 15.7.2 Backward Compatibility Guarantees
+
+**API Versioning**:
+```typescript
+// URL-based versioning
+app.register(v1Routes, { prefix: '/api/v1' });
+app.register(v2Routes, { prefix: '/api/v2' });
+
+// Header-based versioning as fallback
+app.addHook('preHandler', (request, reply, done) => {
+  const version = request.headers['x-api-version'] || 'v1';
+  request.apiVersion = version;
+  done();
+});
+```
+
+**Protocol Versioning**:
+```typescript
+// Sync protocol negotiation
+interface ProtocolNegotiation {
+  clientVersion: string;  // e.g., '1.0.0'
+  serverVersion: string;
+  compatible: boolean;
+  deprecationWarning?: string;
+  upgradeRequired?: boolean;
+}
+
+async function negotiateProtocol(clientVersion: string): Promise<ProtocolNegotiation> {
+  const serverVersion = SYNC_PROTOCOL_VERSION;
+  const clientMajor = parseInt(clientVersion.split('.')[0]);
+  const serverMajor = parseInt(serverVersion.split('.')[0]);
+
+  return {
+    clientVersion,
+    serverVersion,
+    compatible: clientMajor === serverMajor,  // Same major = compatible
+    deprecationWarning: clientMajor < serverMajor - 1
+      ? `Protocol ${clientVersion} is deprecated. Please upgrade.`
+      : undefined,
+    upgradeRequired: clientMajor < serverMajor - 1,
+  };
+}
+```
+
+**Graceful Deprecation**:
+```typescript
+// Deprecation notices in responses
+app.addHook('onSend', (request, reply, payload, done) => {
+  const deprecations = getDeprecations(request.routerPath);
+
+  if (deprecations.length > 0) {
+    reply.header('X-Deprecated', deprecations.join(', '));
+    reply.header('X-Sunset', deprecations[0].sunsetDate.toISOString());
+  }
+
+  done();
+});
+
+// Log deprecated endpoint usage
+async function trackDeprecatedUsage(endpoint: string, userId?: string) {
+  await analytics.track('deprecated_endpoint_used', {
+    endpoint,
+    userId,
+    timestamp: new Date(),
+  });
+}
+```
+
+**Feature Flags for Gradual Rollout**:
+```typescript
+interface FeatureFlag {
+  name: string;
+  enabled: boolean;
+  rolloutPercent: number;
+  enabledForUsers?: string[];
+  disabledForUsers?: string[];
+}
+
+class FeatureFlagService {
+  async isEnabled(flagName: string, userId?: string): Promise<boolean> {
+    const flag = await this.getFlag(flagName);
+
+    if (!flag.enabled) return false;
+
+    // Check user-specific overrides
+    if (userId && flag.enabledForUsers?.includes(userId)) return true;
+    if (userId && flag.disabledForUsers?.includes(userId)) return false;
+
+    // Check rollout percentage
+    if (flag.rolloutPercent < 100) {
+      const hash = this.hashUserId(userId || 'anonymous');
+      return hash % 100 < flag.rolloutPercent;
+    }
+
+    return true;
+  }
+}
+```
+
+#### 15.7.3 Self-Hosting Guide
+
+**Self-Hosting Requirements**:
+```markdown
+# SyncWatch Self-Hosting Guide
+
+## Minimum Requirements
+
+### Hardware
+- CPU: 4 cores (8 recommended for transcoding)
+- RAM: 8 GB minimum (16 GB recommended)
+- Storage: 100 GB SSD (more for video storage)
+- Network: 100 Mbps minimum
+
+### Software
+- Docker 24.0+
+- Docker Compose 2.20+
+- Domain name with DNS control
+- SSL certificate (Let's Encrypt supported)
+
+### External Services (Optional)
+- TURN server (coturn included, or use external)
+- Object storage (MinIO included, or use S3)
+- CDN (recommended for production)
+```
+
+**Quick Start**:
+```bash
+# Clone repository
+git clone https://github.com/syncwatch/syncwatch.git
+cd syncwatch
+
+# Copy environment template
+cp .env.example .env
+
+# Edit configuration
+nano .env
+
+# Start services
+docker compose -f docker-compose.prod.yml up -d
+
+# Verify health
+curl http://localhost:3000/health
+```
+
+**Resource Sizing Guide**:
+```markdown
+## Resource Sizing
+
+### Small (1-10 concurrent rooms)
+- 2 vCPU, 4 GB RAM
+- 50 GB storage
+- Suitable for: Personal use, small teams
+
+### Medium (10-50 concurrent rooms)
+- 4 vCPU, 8 GB RAM
+- 200 GB storage
+- Separate transcoding worker recommended
+- Suitable for: Small communities
+
+### Large (50-200 concurrent rooms)
+- 8 vCPU, 16 GB RAM
+- 500 GB storage
+- Dedicated transcoding workers
+- CDN required
+- Redis cluster recommended
+- Suitable for: Large communities, small businesses
+
+### Enterprise (200+ concurrent rooms)
+- Kubernetes deployment recommended
+- Horizontal scaling for all components
+- Managed PostgreSQL (RDS, Cloud SQL)
+- Managed Redis (ElastiCache, Memorystore)
+- CDN with edge caching
+- SFU for voice (LiveKit)
+```
+
+**Security Checklist**:
+```markdown
+## Self-Hosting Security Checklist
+
+### Network
+- [ ] TLS enabled for all public endpoints
+- [ ] Firewall configured (only expose 80, 443, TURN ports)
+- [ ] DDoS protection enabled
+- [ ] Rate limiting configured
+
+### Authentication
+- [ ] Strong JWT secret generated
+- [ ] Password policy configured
+- [ ] OAuth providers verified (if used)
+- [ ] Session timeout configured
+
+### Database
+- [ ] PostgreSQL password changed from default
+- [ ] Database not exposed to internet
+- [ ] Backups configured and tested
+- [ ] Connection encryption enabled
+
+### Storage
+- [ ] MinIO/S3 credentials secured
+- [ ] Bucket policies configured
+- [ ] Lifecycle rules for cleanup
+- [ ] Access logging enabled
+
+### Application
+- [ ] DEBUG mode disabled
+- [ ] Error messages don't leak internals
+- [ ] CSP headers configured
+- [ ] CORS whitelist configured
+- [ ] Upload size limits set
+- [ ] Transcoding timeouts configured
+
+### Monitoring
+- [ ] Logging enabled
+- [ ] Metrics collection configured
+- [ ] Alerting set up
+- [ ] Error tracking enabled
+```
 
 ---
 
