@@ -10,7 +10,6 @@ import {
   createRoomSchema,
   joinRoomSchema,
   updateRoomSchema,
-  CreateRoomInput,
   JoinRoomInput,
   UpdateRoomInput,
 } from './schemas.js';
@@ -66,15 +65,12 @@ export async function registerRoomRoutes(app: FastifyInstance) {
   );
 
   // GET /api/rooms/:code - Get room information
-  app.get(
+  app.get<{ Params: { code: string } }>(
     '/api/rooms/:code',
     {
       preHandler: [authenticateOptional],
     },
-    async (
-      request: FastifyRequest<{ Params: { code: string } }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       const { code } = request.params;
       const { room, participants } = await roomService.getRoomWithParticipants(
         code
@@ -93,7 +89,7 @@ export async function registerRoomRoutes(app: FastifyInstance) {
           createdAt: room.createdAt,
           expiresAt: room.expiresAt,
           participantCount: participants.length,
-          participants: participants.map((p) => ({
+          participants: participants.map((p: any) => ({
             id: p.id,
             userId: p.userId,
             username: p.username,
@@ -107,22 +103,19 @@ export async function registerRoomRoutes(app: FastifyInstance) {
   );
 
   // POST /api/rooms/:code/join - Join a room
-  app.post(
+  app.post<{
+    Params: { code: string };
+    Body: JoinRoomInput;
+  }>(
     '/api/rooms/:code/join',
     {
       preHandler: [authenticateOptional],
     },
-    async (
-      request: FastifyRequest<{
-        Params: { code: string };
-        Body: JoinRoomInput;
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       try {
         const { code } = request.params;
         const input = joinRoomSchema.parse(request.body);
-        const userId = request.user?.userId;
+        const userId = request.user?.userId as string | undefined;
 
         const { room, participant } = await roomService.joinRoom(
           code,
@@ -165,15 +158,12 @@ export async function registerRoomRoutes(app: FastifyInstance) {
   );
 
   // POST /api/rooms/:code/leave - Leave a room (authenticated)
-  app.post(
+  app.post<{ Params: { code: string } }>(
     '/api/rooms/:code/leave',
     {
       preHandler: [authenticateRequired],
     },
-    async (
-      request: FastifyRequest<{ Params: { code: string } }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       const { code } = request.params;
       await roomService.leaveRoom(code, request.user!.userId);
 
@@ -185,15 +175,12 @@ export async function registerRoomRoutes(app: FastifyInstance) {
   );
 
   // DELETE /api/rooms/:code - Delete a room (owner only)
-  app.delete(
+  app.delete<{ Params: { code: string } }>(
     '/api/rooms/:code',
     {
       preHandler: [authenticateRequired],
     },
-    async (
-      request: FastifyRequest<{ Params: { code: string } }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       const { code } = request.params;
       await roomService.deleteRoom(code, request.user!.userId);
 
@@ -205,18 +192,15 @@ export async function registerRoomRoutes(app: FastifyInstance) {
   );
 
   // PATCH /api/rooms/:code - Update room settings (owner only)
-  app.patch(
+  app.patch<{
+    Params: { code: string };
+    Body: UpdateRoomInput;
+  }>(
     '/api/rooms/:code',
     {
       preHandler: [authenticateRequired],
     },
-    async (
-      request: FastifyRequest<{
-        Params: { code: string };
-        Body: UpdateRoomInput;
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       try {
         const { code } = request.params;
         const input = updateRoomSchema.parse(request.body);

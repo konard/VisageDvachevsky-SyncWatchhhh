@@ -3,7 +3,7 @@
  * JWT verification and user context injection
  */
 
-import { FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyRequest } from 'fastify';
 import { UnauthorizedError } from '../errors/index.js';
 
 export interface AuthUser {
@@ -12,9 +12,9 @@ export interface AuthUser {
   username: string;
 }
 
-declare module 'fastify' {
-  interface FastifyRequest {
-    user?: AuthUser;
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    user: AuthUser;
   }
 }
 
@@ -23,20 +23,11 @@ declare module 'fastify' {
  * Required for authenticated routes
  */
 export async function authenticateRequired(
-  request: FastifyRequest,
-  reply: FastifyReply
+  request: FastifyRequest
 ): Promise<void> {
   try {
     await request.jwtVerify();
-
-    // Extract user info from JWT payload
-    const payload = request.user as any;
-    request.user = {
-      userId: payload.userId || payload.id,
-      email: payload.email,
-      username: payload.username,
-    };
-  } catch (error) {
+  } catch (_error) {
     throw new UnauthorizedError('Invalid or expired token');
   }
 }
@@ -46,8 +37,7 @@ export async function authenticateRequired(
  * Sets user context if token is valid, but doesn't fail if missing
  */
 export async function authenticateOptional(
-  request: FastifyRequest,
-  reply: FastifyReply
+  request: FastifyRequest
 ): Promise<void> {
   try {
     const authHeader = request.headers.authorization;
@@ -56,16 +46,7 @@ export async function authenticateOptional(
     }
 
     await request.jwtVerify();
-
-    // Extract user info from JWT payload
-    const payload = request.user as any;
-    request.user = {
-      userId: payload.userId || payload.id,
-      email: payload.email,
-      username: payload.username,
-    };
-  } catch (error) {
+  } catch (_error) {
     // Silently ignore invalid tokens for optional auth
-    request.user = undefined;
   }
 }

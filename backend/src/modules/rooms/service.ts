@@ -3,7 +3,7 @@
  * Business logic for room management
  */
 
-import { Room, RoomParticipant, User } from '@prisma/client';
+import type { Room, RoomParticipant, Prisma } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { prisma } from '../../database/client.js';
 import { generateRoomCode } from '../../common/utils/room-code.js';
@@ -43,7 +43,7 @@ export class RoomService {
     }
 
     // Create room and add owner as participant in a transaction
-    const room = await prisma.$transaction(async (tx) => {
+    const room = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const newRoom = await tx.room.create({
         data: {
           code,
@@ -114,7 +114,7 @@ export class RoomService {
 
     return {
       room,
-      participants: participants.map((p) => ({
+      participants: participants.map((p: any) => ({
         id: p.id,
         userId: p.userId,
         username: p.user?.username || p.guestName || 'Guest',
