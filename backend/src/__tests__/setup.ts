@@ -1,20 +1,9 @@
-/**
- * Test Setup
- * Global configuration for Vitest tests
- */
+import { afterAll } from 'vitest';
+import { closeRedisConnections } from '../config/redis.js';
+import { closePrisma } from '../config/prisma.js';
 
-import { beforeAll, afterAll } from 'vitest';
-
-// Set test environment variables
-process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'test-secret';
-process.env.LOG_LEVEL = 'silent';
-
-// Optional: Set up test database or Redis connections
-beforeAll(() => {
-  // Global setup if needed
-});
-
-afterAll(() => {
-  // Global cleanup if needed
+// Clean up connections after all tests
+afterAll(async () => {
+  await closeRedisConnections();
+  await closePrisma();
 });

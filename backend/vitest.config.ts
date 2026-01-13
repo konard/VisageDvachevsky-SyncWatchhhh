@@ -1,7 +1,3 @@
-/**
- * Vitest Configuration
- */
-
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -14,13 +10,11 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       exclude: [
         'node_modules/',
+        'dist/',
         'src/__tests__/',
         '**/*.test.ts',
         '**/*.spec.ts',
-        'dist/',
       ],
     },
-    testTimeout: 10000,
-    hookTimeout: 10000,
   },
 });

@@ -1,72 +1,83 @@
+import { createApp } from './app.js';
+import { createSocketServer, closeSocketServer } from './websocket/socket.js';
+import { closeRedisConnections } from './config/redis.js';
+import { closePrisma } from './config/prisma.js';
+import { logger } from './config/logger.js';
+import { env } from './config/env.js';
+
 /**
- * SyncWatch Backend Server
- * Main application entry point
+ * Start the server
  */
-
-import Fastify from 'fastify';
-import cors from '@fastify/cors';
-import helmet from '@fastify/helmet';
-import jwt from '@fastify/jwt';
-import rateLimit from '@fastify/rate-limit';
-import { registerRoomRoutes, setupErrorHandler } from './modules/rooms/routes.js';
-
-const app = Fastify({
-  logger: {
-    level: process.env.LOG_LEVEL || 'info',
-    transport:
-      process.env.NODE_ENV === 'development'
-        ? {
-            target: 'pino-pretty',
-            options: {
-              colorize: true,
-              translateTime: 'HH:MM:ss Z',
-              ignore: 'pid,hostname',
-            },
-          }
-        : undefined,
-  },
-});
-
 async function start() {
   try {
-    // Register plugins
-    await app.register(cors, {
-      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-      credentials: true,
+    // Create Fastify app
+    const app = await createApp();
+
+    // Start HTTP server
+    await app.listen({
+      port: env.PORT,
+      host: env.HOST,
     });
 
-    await app.register(helmet, {
-      contentSecurityPolicy: false, // Disable for development
+    // Get HTTP server instance
+    const httpServer = app.server;
+
+    // Create Socket.io server
+    const io = createSocketServer(httpServer);
+
+    logger.info(
+      {
+        port: env.PORT,
+        host: env.HOST,
+        nodeEnv: env.NODE_ENV,
+      },
+      'SyncWatch server started successfully'
+    );
+
+    // Graceful shutdown
+    const shutdown = async (signal: string) => {
+      logger.info({ signal }, 'Shutdown signal received');
+
+      try {
+        // Close Socket.io server
+        await closeSocketServer(io);
+
+        // Close Fastify server
+        await app.close();
+
+        // Close Redis connections
+        await closeRedisConnections();
+
+        // Close Prisma connection
+        await closePrisma();
+
+        logger.info('Server shut down gracefully');
+        process.exit(0);
+      } catch (error) {
+        logger.error({ error: (error as Error).message }, 'Error during shutdown');
+        process.exit(1);
+      }
+    };
+
+    // Register shutdown handlers
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+
+    // Handle uncaught errors
+    process.on('uncaughtException', (error) => {
+      logger.error({ error: error.message, stack: error.stack }, 'Uncaught exception');
+      shutdown('UNCAUGHT_EXCEPTION');
     });
 
-    await app.register(jwt, {
-      secret: process.env.JWT_SECRET || 'development-secret-change-in-production',
+    process.on('unhandledRejection', (reason, promise) => {
+      logger.error({ reason, promise }, 'Unhandled promise rejection');
+      shutdown('UNHANDLED_REJECTION');
     });
-
-    await app.register(rateLimit, {
-      max: 100,
-      timeWindow: '1 minute',
-    });
-
-    // Setup error handler
-    setupErrorHandler(app);
-
-    // Register routes
-    await registerRoomRoutes(app);
-
-    // Health check endpoint
-    app.get('/health', async () => ({ status: 'ok', timestamp: new Date() }));
-
-    // Start server
-    const port = parseInt(process.env.PORT || '4000', 10);
-    const host = process.env.HOST || '0.0.0.0';
-
-    await app.listen({ port, host });
-    app.log.info(`Server listening on http://${host}:${port}`);
   } catch (error) {
-    app.log.error(error);
+    logger.error({ error: (error as Error).message, stack: (error as Error).stack }, 'Failed to start server');
     process.exit(1);
   }
 }
 
+// Start the server
 start();

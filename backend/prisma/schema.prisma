@@ -84,6 +84,7 @@ model Room {
 model RoomParticipant {
   id        String   @id @default(cuid())
   roomId    String
+  oderId    String // Unique order ID for participant in room
   userId    String? // null for guests
   guestName String?
   role      String   @default("participant") // owner, participant, guest
