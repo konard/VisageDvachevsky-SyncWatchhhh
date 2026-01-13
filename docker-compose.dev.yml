@@ -71,6 +71,26 @@ services:
       echo 'MinIO buckets created successfully';
       "
 
+  # TURN/STUN Server (coturn) - REQUIRED for WebRTC in production
+  # Without TURN, voice chat will fail for users behind corporate NAT,
+  # mobile operators with CGNAT, or restrictive Wi-Fi networks
+  coturn:
+    image: coturn/coturn:4.6-alpine
+    container_name: syncwatch-coturn
+    restart: unless-stopped
+    network_mode: host  # Required for TURN to work properly
+    volumes:
+      - ./config/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    environment:
+      # These can be overridden in turnserver.conf
+      TURN_SECRET: ${TURN_SECRET:-syncwatch_turn_secret_change_in_production}
+    # Note: In development, you can use network_mode: bridge with these ports:
+    # ports:
+    #   - "3478:3478/udp"    # STUN/TURN UDP
+    #   - "3478:3478/tcp"    # STUN/TURN TCP
+    #   - "5349:5349/tcp"    # TURNS (TLS)
+    #   - "49152-49200:49152-49200/udp"  # TURN relay ports
+
   # Backend API Server
   backend:
     build:
@@ -92,6 +112,10 @@ services:
       JWT_SECRET: dev_jwt_secret_change_in_production
       JWT_REFRESH_SECRET: dev_refresh_secret_change_in_production
       CORS_ORIGIN: http://localhost:3000
+      # TURN server configuration (for generating time-limited credentials)
+      TURN_SERVER_URL: turn:localhost:3478
+      TURN_SERVER_SECRET: ${TURN_SECRET:-syncwatch_turn_secret_change_in_production}
+      TURN_CREDENTIAL_TTL: 86400  # 24 hours
     volumes:
       - ./backend/src:/app/src
       - ./shared:/app/../shared
