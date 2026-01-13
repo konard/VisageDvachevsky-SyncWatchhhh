@@ -1,0 +1,21 @@
+FROM node:20-alpine
+
+# Install FFmpeg
+RUN apk add --no-cache ffmpeg
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code (will be overwritten by volume mount in dev)
+COPY . .
+
+# Create tmp directory for transcoding
+RUN mkdir -p /tmp/transcode
+
+# Start worker
+CMD ["npm", "run", "dev"]

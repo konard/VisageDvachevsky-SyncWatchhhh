@@ -1,0 +1,155 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: syncwatch-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: syncwatch
+      POSTGRES_PASSWORD: syncwatch_dev
+      POSTGRES_DB: syncwatch
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U syncwatch"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis for sessions, state, and pub/sub
+  redis:
+    image: redis:7-alpine
+    container_name: syncwatch-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # MinIO for S3-compatible object storage
+  minio:
+    image: minio/minio:latest
+    container_name: syncwatch-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: syncwatch
+      MINIO_ROOT_PASSWORD: syncwatch_dev
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Console
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # MinIO initialization (create buckets)
+  minio-init:
+    image: minio/mc:latest
+    container_name: syncwatch-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 syncwatch syncwatch_dev;
+      mc mb myminio/videos --ignore-existing;
+      mc mb myminio/hls --ignore-existing;
+      mc anonymous set download myminio/hls;
+      echo 'MinIO buckets created successfully';
+      "
+
+  # Backend API Server
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: syncwatch-backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgresql://syncwatch:syncwatch_dev@db:5432/syncwatch
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: syncwatch
+      MINIO_SECRET_KEY: syncwatch_dev
+      JWT_SECRET: dev_jwt_secret_change_in_production
+      JWT_REFRESH_SECRET: dev_refresh_secret_change_in_production
+      CORS_ORIGIN: http://localhost:3000
+    volumes:
+      - ./backend/src:/app/src
+      - ./shared:/app/../shared
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  # Frontend Development Server
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: syncwatch-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_URL: http://localhost:4000
+      VITE_WS_URL: ws://localhost:4000
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./shared:/app/../shared
+    depends_on:
+      - backend
+
+  # Transcoding Worker
+  transcoder:
+    build:
+      context: ./transcoder
+      dockerfile: Dockerfile.dev
+    container_name: syncwatch-transcoder
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: syncwatch
+      MINIO_SECRET_KEY: syncwatch_dev
+    volumes:
+      - ./transcoder/src:/app/src
+      - transcodertmp:/tmp/transcode
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  transcodertmp:
+
+networks:
+  default:
+    name: syncwatch-network
