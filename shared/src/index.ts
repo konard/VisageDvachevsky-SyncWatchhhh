@@ -165,7 +165,7 @@ export interface VoiceSettings {
 }
 
 export interface VoicePeer {
-  oderId: string;
+  userId: string;
   username: string;
   avatarUrl?: string;
   isSpeaking: boolean;
@@ -280,7 +280,7 @@ export interface ServerToClientEvents {
   // Room events
   'room:state': (data: { room: Room; participants: RoomParticipant[]; playback: PlaybackState | null }) => void;
   'room:participant:joined': (data: RoomParticipant) => void;
-  'room:participant:left': (data: { oderId: string }) => void;
+  'room:participant:left': (data: { userId: string }) => void;
   'room:error': (data: { code: string; message: string }) => void;
 
   // Sync events
@@ -293,10 +293,10 @@ export interface ServerToClientEvents {
 
   // Voice events
   'voice:peers': (data: string[]) => void;
-  'voice:peer:joined': (data: { oderId: string }) => void;
-  'voice:peer:left': (data: { oderId: string }) => void;
+  'voice:peer:joined': (data: { userId: string }) => void;
+  'voice:peer:left': (data: { userId: string }) => void;
   'voice:signal': (data: { fromId: string; signal: unknown }) => void;
-  'voice:speaking': (data: { oderId: string; isSpeaking: boolean }) => void;
+  'voice:speaking': (data: { userId: string; isSpeaking: boolean }) => void;
 
   // Time sync
   'time:pong': (data: { clientTime: number; serverTime: number }) => void;
