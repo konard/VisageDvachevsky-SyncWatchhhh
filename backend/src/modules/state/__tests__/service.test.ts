@@ -436,7 +436,7 @@ describe('RoomStateService', () => {
     });
 
     it('should reject state with invalid sourceType', async () => {
-      const invalid = { ...testState, sourceType: 'invalid' as any };
+      const invalid = { ...testState, sourceType: 'invalid' as PlaybackState['sourceType'] };
       await expect(service.setState(invalid)).rejects.toThrow('Invalid sourceType');
     });
 
@@ -446,7 +446,7 @@ describe('RoomStateService', () => {
     });
 
     it('should reject state with non-boolean isPlaying', async () => {
-      const invalid = { ...testState, isPlaying: 'true' as any };
+      const invalid = { ...testState, isPlaying: 'true' as unknown as boolean };
       await expect(service.setState(invalid)).rejects.toThrow('Invalid isPlaying');
     });
 

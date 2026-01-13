@@ -5,7 +5,7 @@
 
 import { PlaybackState } from '@syncwatch/shared';
 import { redis, redisPub, redisSub } from '../../database/redis.js';
-import { BadRequestError, NotFoundError } from '../../common/errors/index.js';
+import { BadRequestError } from '../../common/errors/index.js';
 import type Redis from 'ioredis';
 
 /**

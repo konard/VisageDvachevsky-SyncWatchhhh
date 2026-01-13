@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { RoomStateService, REDIS_KEYS } from '../service.js';
+import { RoomStateService } from '../service.js';
 import { PlaybackState } from '@syncwatch/shared';
 import Redis from 'ioredis';
 
