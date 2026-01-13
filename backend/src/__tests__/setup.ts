@@ -1,19 +1,20 @@
 /**
- * Test setup file
- * Runs before all tests
+ * Test Setup
+ * Global configuration for Vitest tests
  */
 
 import { beforeAll, afterAll } from 'vitest';
-import { prisma } from '../database/client.js';
 
-beforeAll(async () => {
-  // Ensure we're using a test database
-  if (!process.env.DATABASE_URL?.includes('test')) {
-    console.warn('Warning: Not using a test database!');
-  }
+// Set test environment variables
+process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = 'test-secret';
+process.env.LOG_LEVEL = 'silent';
+
+// Optional: Set up test database or Redis connections
+beforeAll(() => {
+  // Global setup if needed
 });
 
-afterAll(async () => {
-  // Disconnect from database after all tests
-  await prisma.$disconnect();
+afterAll(() => {
+  // Global cleanup if needed
 });
