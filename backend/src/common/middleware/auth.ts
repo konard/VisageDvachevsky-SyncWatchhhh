@@ -1,38 +1,52 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { verifyAccessToken } from '../utils/jwt.js';
+/**
+ * Authentication Middleware
+ * JWT verification and user context injection
+ */
 
-declare module 'fastify' {
-  interface FastifyRequest {
-    user?: {
-      userId: string;
-      email: string;
-      username: string;
-    };
+import { FastifyRequest } from 'fastify';
+import { UnauthorizedError } from '../errors/index.js';
+
+export interface AuthUser {
+  userId: string;
+  email: string;
+  username: string;
+}
+
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    user: AuthUser;
   }
 }
 
-export async function authenticateUser(
-  request: FastifyRequest,
-  reply: FastifyReply
+/**
+ * Middleware to verify JWT token and set user context
+ * Required for authenticated routes
+ */
+export async function authenticateRequired(
+  request: FastifyRequest
 ): Promise<void> {
-  const authorization = request.headers.authorization;
-
-  if (!authorization || !authorization.startsWith('Bearer ')) {
-    return reply.status(401).send({
-      error: 'Unauthorized',
-      message: 'Missing or invalid authorization header',
-    });
+  try {
+    await request.jwtVerify();
+  } catch (_error) {
+    throw new UnauthorizedError('Invalid or expired token');
   }
+}
 
-  const token = authorization.slice(7);
-  const payload = verifyAccessToken(token);
+/**
+ * Middleware to optionally verify JWT token
+ * Sets user context if token is valid, but doesn't fail if missing
+ */
+export async function authenticateOptional(
+  request: FastifyRequest
+): Promise<void> {
+  try {
+    const authHeader = request.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return;
+    }
 
-  if (!payload) {
-    return reply.status(401).send({
-      error: 'Unauthorized',
-      message: 'Invalid or expired access token',
-    });
+    await request.jwtVerify();
+  } catch (_error) {
+    // Silently ignore invalid tokens for optional auth
   }
-
-  request.user = payload;
 }

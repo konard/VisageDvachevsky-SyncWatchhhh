@@ -1,78 +1,72 @@
+/**
+ * SyncWatch Backend Server
+ * Main application entry point
+ */
+
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import jwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
-import { env } from './config/env.js';
-import { authRoutes } from './modules/auth/routes.js';
-import { prisma } from './common/utils/prisma.js';
+import { registerRoomRoutes, setupErrorHandler } from './modules/rooms/routes.js';
 
-const fastify = Fastify({
+const app = Fastify({
   logger: {
-    level: env.NODE_ENV === 'development' ? 'info' : 'warn',
-    transport: env.NODE_ENV === 'development'
-      ? { target: 'pino-pretty', options: { colorize: true } }
-      : undefined,
+    level: process.env.LOG_LEVEL || 'info',
+    transport:
+      process.env.NODE_ENV === 'development'
+        ? {
+            target: 'pino-pretty',
+            options: {
+              colorize: true,
+              translateTime: 'HH:MM:ss Z',
+              ignore: 'pid,hostname',
+            },
+          }
+        : undefined,
   },
 });
 
-// Register plugins
-await fastify.register(cors, {
-  origin: env.CORS_ORIGIN,
-  credentials: true,
-});
+async function start() {
+  try {
+    // Register plugins
+    await app.register(cors, {
+      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+      credentials: true,
+    });
 
-await fastify.register(helmet, {
-  contentSecurityPolicy: false, // Allow for development
-});
+    await app.register(helmet, {
+      contentSecurityPolicy: false, // Disable for development
+    });
 
-await fastify.register(rateLimit, {
-  max: 100,
-  timeWindow: '1 minute',
-});
+    await app.register(jwt, {
+      secret: process.env.JWT_SECRET || 'development-secret-change-in-production',
+    });
 
-// Health check endpoint
-fastify.get('/health', async () => {
-  return { status: 'ok', timestamp: new Date().toISOString() };
-});
+    await app.register(rateLimit, {
+      max: 100,
+      timeWindow: '1 minute',
+    });
 
-// Register routes with rate limiting for auth endpoints
-await fastify.register(async (fastify) => {
-  await fastify.register(rateLimit, {
-    max: 10,
-    timeWindow: '1 minute',
-  });
+    // Setup error handler
+    setupErrorHandler(app);
 
-  await fastify.register(authRoutes, { prefix: '/api/auth' });
-});
+    // Register routes
+    await registerRoomRoutes(app);
 
-// Global error handler
-fastify.setErrorHandler((error, request, reply) => {
-  fastify.log.error(error);
+    // Health check endpoint
+    app.get('/health', async () => ({ status: 'ok', timestamp: new Date() }));
 
-  reply.status(error.statusCode || 500).send({
-    error: error.name || 'Internal Server Error',
-    message: error.message || 'An unexpected error occurred',
-  });
-});
+    // Start server
+    const port = parseInt(process.env.PORT || '4000', 10);
+    const host = process.env.HOST || '0.0.0.0';
 
-// Graceful shutdown
-const signals = ['SIGINT', 'SIGTERM'];
-signals.forEach((signal) => {
-  process.on(signal, async () => {
-    fastify.log.info(`Received ${signal}, closing server...`);
-    await fastify.close();
-    await prisma.$disconnect();
-    process.exit(0);
-  });
-});
-
-// Start server
-try {
-  const port = parseInt(env.PORT, 10);
-  await fastify.listen({ port, host: env.HOST });
-  fastify.log.info(`Server listening on http://${env.HOST}:${port}`);
-} catch (error) {
-  fastify.log.error(error);
-  await prisma.$disconnect();
-  process.exit(1);
+    await app.listen({ port, host });
+    app.log.info(`Server listening on http://${host}:${port}`);
+  } catch (error) {
+    app.log.error(error);
+    process.exit(1);
+  }
 }
+
+start();
