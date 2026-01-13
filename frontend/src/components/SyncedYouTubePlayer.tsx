@@ -11,7 +11,7 @@ import type { SyncCommand } from '@syncwatch/shared';
 export interface SyncedYouTubePlayerProps {
   videoUrl: string;
   isOwner?: boolean;
-  onSyncCommand?: (command: Omit<SyncCommand, 'sequenceNumber'>) => void;
+  onSyncCommand?: (command: SyncCommand) => void;
   onPlaybackReport?: (data: { currentTime: number; isPlaying: boolean }) => void;
   className?: string;
 }
@@ -34,17 +34,11 @@ export const SyncedYouTubePlayer = ({
   });
 
   const {
-    playerRef,
     isReady,
     currentState,
     currentTime,
     duration,
     playbackRate,
-    handlePlay,
-    handlePause,
-    handleSeek,
-    handleSetRate,
-    handleSyncCommand,
     getCurrentTime,
     getPlayerState,
     setPlayerReady,
@@ -54,6 +48,7 @@ export const SyncedYouTubePlayer = ({
         onSyncCommand({
           type: 'PLAY',
           atServerTime: Date.now(),
+          sequenceNumber: Date.now(),
         });
       }
     },
@@ -62,6 +57,7 @@ export const SyncedYouTubePlayer = ({
         onSyncCommand({
           type: 'PAUSE',
           atServerTime: Date.now(),
+          sequenceNumber: Date.now(),
         });
       }
     },
@@ -71,6 +67,7 @@ export const SyncedYouTubePlayer = ({
           type: 'SEEK',
           targetMediaTime: time * 1000, // Convert to ms
           atServerTime: Date.now(),
+          sequenceNumber: Date.now(),
         });
       }
     },
@@ -80,6 +77,7 @@ export const SyncedYouTubePlayer = ({
           type: 'SET_RATE',
           rate,
           atServerTime: Date.now(),
+          sequenceNumber: Date.now(),
         });
       }
     },

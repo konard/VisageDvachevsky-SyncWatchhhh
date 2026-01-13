@@ -3,7 +3,7 @@
  * Wrapper for YouTube IFrame API with React interface
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useYouTubeIframeAPI } from '../hooks/useYouTubeIframeAPI';
 import { extractYouTubeVideoId } from '../utils/youtube';
 
@@ -91,7 +91,7 @@ export const YouTubePlayer = ({
           origin: window.location.origin,
         },
         events: {
-          onReady: (event) => {
+          onReady: () => {
             setPlayerReady(true);
             setError(null);
             onReady?.();

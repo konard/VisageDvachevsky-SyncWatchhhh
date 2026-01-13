@@ -37,14 +37,14 @@ export interface UseYouTubePlayerResult {
 export function useYouTubePlayer(options: UseYouTubePlayerOptions = {}): UseYouTubePlayerResult {
   const playerRef = useRef<YT.Player | null>(null);
   const [isReady, setIsReady] = useState(false);
-  const [currentState, setCurrentState] = useState<YT.PlayerState>(YT.PlayerState.UNSTARTED);
+  const [currentState] = useState<YT.PlayerState>(YT.PlayerState.UNSTARTED);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
 
   // Update current time periodically when playing
   useEffect(() => {
-    if (currentState !== YT.PlayerState.PLAYING || !isReady) {
+    if (!isReady || !playerRef.current) {
       return;
     }
 
@@ -56,7 +56,7 @@ export function useYouTubePlayer(options: UseYouTubePlayerOptions = {}): UseYouT
     }, 100);
 
     return () => clearInterval(interval);
-  }, [currentState, isReady]);
+  }, [isReady]);
 
   // Handle play command
   const handlePlay = useCallback(() => {

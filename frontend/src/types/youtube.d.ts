@@ -140,8 +140,8 @@ declare namespace YT {
     getPlaylistIndex(): number;
 
     // Event listeners
-    addEventListener(event: string, listener: (event: any) => void): void;
-    removeEventListener(event: string, listener: (event: any) => void): void;
+    addEventListener(event: string, listener: (event: PlayerEvent) => void): void;
+    removeEventListener(event: string, listener: (event: PlayerEvent) => void): void;
 
     // DOM manipulation
     destroy(): void;
