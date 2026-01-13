@@ -10,15 +10,15 @@ export const prisma = new PrismaClient({
 });
 
 // Log Prisma queries in development
-prisma.$on('query', (e) => {
+prisma.$on('query', (e: any) => {
   logger.debug({ query: e.query, params: e.params, duration: e.duration }, 'Prisma query');
 });
 
-prisma.$on('error', (e) => {
+prisma.$on('error', (e: any) => {
   logger.error({ message: e.message, target: e.target }, 'Prisma error');
 });
 
-prisma.$on('warn', (e) => {
+prisma.$on('warn', (e: any) => {
   logger.warn({ message: e.message, target: e.target }, 'Prisma warning');
 });
 

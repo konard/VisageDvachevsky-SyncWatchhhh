@@ -1,4 +1,11 @@
-import { Socket, Server } from '../types/socket.js';
+import { Namespace } from 'socket.io';
+import {
+  Socket,
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData,
+} from '../types/socket.js';
 import {
   RoomJoinEvent,
   RoomJoinEventSchema,
@@ -14,12 +21,19 @@ import { roomStateService } from '../../modules/room/state.service.js';
 import { logger } from '../../config/logger.js';
 import { nanoid } from 'nanoid';
 
+type SyncNamespace = Namespace<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData
+>;
+
 /**
  * Handle room:join event
  */
 export const handleRoomJoin = async (
   socket: Socket,
-  io: Server,
+  _io: SyncNamespace,
   data: RoomJoinEvent
 ): Promise<void> => {
   try {
@@ -104,6 +118,7 @@ export const handleRoomJoin = async (
     // Create participant in database
     const dbParticipant = await roomService.createParticipant({
       roomId: room.id,
+      oderId,
       userId: socket.data.userId,
       guestName: validatedData.guestName,
       role,
@@ -190,7 +205,7 @@ export const handleRoomJoin = async (
  */
 export const handleRoomLeave = async (
   socket: Socket,
-  io: Server,
+  io: SyncNamespace,
   data: RoomLeaveEvent
 ): Promise<void> => {
   try {
@@ -231,7 +246,7 @@ export const handleRoomLeave = async (
 /**
  * Handle socket disconnect
  */
-export const handleDisconnect = async (socket: Socket, io: Server): Promise<void> => {
+export const handleDisconnect = async (socket: Socket, io: SyncNamespace): Promise<void> => {
   try {
     if (socket.data.roomCode) {
       await leaveRoom(socket, io);
@@ -255,7 +270,7 @@ export const handleDisconnect = async (socket: Socket, io: Server): Promise<void
 /**
  * Helper function to handle leaving a room
  */
-async function leaveRoom(socket: Socket, io: Server): Promise<void> {
+async function leaveRoom(socket: Socket, io: SyncNamespace): Promise<void> {
   const { roomCode, oderId } = socket.data;
 
   if (!roomCode || !oderId) {

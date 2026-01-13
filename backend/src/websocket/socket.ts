@@ -1,6 +1,12 @@
 import { Server as HTTPServer } from 'http';
-import { Server as IOServer } from 'socket.io';
-import { Server, Socket } from './types/socket.js';
+import { Server as IOServer, Namespace } from 'socket.io';
+import {
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData,
+  Socket,
+} from './types/socket.js';
 import { authMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/error.js';
 import { handleRoomJoin, handleRoomLeave, handleDisconnect } from './handlers/room.handler.js';
@@ -11,8 +17,10 @@ import { env } from '../config/env.js';
 /**
  * Initialize Socket.io server
  */
-export function createSocketServer(httpServer: HTTPServer): Server {
-  const io = new IOServer<any, any, any, any>(httpServer, {
+export function createSocketServer(
+  httpServer: HTTPServer
+): Namespace<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData> {
+  const io = new IOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(httpServer, {
     cors: {
       origin: env.CORS_ORIGIN,
       credentials: true,
@@ -48,56 +56,23 @@ export function createSocketServer(httpServer: HTTPServer): Server {
 
     // Heartbeat/ping-pong is handled automatically by Socket.io
     // with pingTimeout and pingInterval options
-
-    // Log reconnection attempts
-    socket.on('reconnect_attempt', () => {
-      logger.debug(
-        {
-          socketId: socket.id,
-          userId: socket.data.userId,
-          sessionId: socket.data.sessionId,
-        },
-        'Socket reconnection attempt'
-      );
-    });
-
-    socket.on('reconnect', () => {
-      logger.info(
-        {
-          socketId: socket.id,
-          userId: socket.data.userId,
-          sessionId: socket.data.sessionId,
-        },
-        'Socket reconnected'
-      );
-    });
-
-    socket.on('reconnect_error', (error) => {
-      logger.error(
-        {
-          error: error.message,
-          socketId: socket.id,
-          userId: socket.data.userId,
-          sessionId: socket.data.sessionId,
-        },
-        'Socket reconnection error'
-      );
-    });
   });
 
   logger.info('Socket.io server initialized with /sync namespace');
 
-  return syncNamespace as Server;
+  return syncNamespace;
 }
 
 /**
  * Close Socket.io server
  */
-export async function closeSocketServer(io: Server): Promise<void> {
+export async function closeSocketServer(
+  io: Namespace<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>
+): Promise<void> {
   return new Promise((resolve) => {
-    io.close(() => {
-      logger.info('Socket.io server closed');
-      resolve();
-    });
+    // Disconnect all sockets in the namespace
+    io.disconnectSockets();
+    logger.info('Socket.io server closed');
+    resolve();
   });
 }

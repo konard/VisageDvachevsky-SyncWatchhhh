@@ -71,6 +71,7 @@ export class RoomService {
    */
   async createParticipant(data: {
     roomId: string;
+    oderId: string;
     userId?: string;
     guestName?: string;
     role: 'owner' | 'participant' | 'guest';
@@ -80,6 +81,7 @@ export class RoomService {
       const participant = await prisma.roomParticipant.create({
         data: {
           roomId: data.roomId,
+          oderId: data.oderId,
           userId: data.userId,
           guestName: data.guestName,
           role: data.role,

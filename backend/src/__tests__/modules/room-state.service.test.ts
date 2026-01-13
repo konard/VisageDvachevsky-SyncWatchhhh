@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { roomStateService } from '../../modules/room/state.service.js';
-import { stateRedis } from '../../config/redis.js';
 import { PlaybackState, RoomParticipant } from '../../websocket/types/events.js';
 
 describe('RoomStateService', () => {
