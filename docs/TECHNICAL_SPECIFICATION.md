@@ -18,9 +18,24 @@
 5. [API Design](#5-api-design)
 6. [Database Schema](#6-database-schema)
 7. [Security Considerations](#7-security-considerations)
+   - [7.7 Security Hardening](#77-security-hardening-production-required)
+   - [7.8 Audit Logging](#78-audit-logging-production-required)
 8. [Observability (Production Required)](#8-observability-production-required)
+   - [8.6 Enhanced Health Checks](#86-enhanced-health-checks)
+   - [8.7 Resource Limits](#87-resource-limits)
 9. [Deployment Architecture](#9-deployment-architecture)
-10. [Work Plan](#10-work-plan)
+   - [9.3 Environment Configuration](#93-environment-configuration)
+   - [9.4 Secrets Management](#94-secrets-management)
+   - [9.5 Graceful Shutdown](#95-graceful-shutdown)
+10. [CI/CD Pipeline (Production Required)](#10-cicd-pipeline-production-required)
+   - [10.1 GitHub Actions Workflow](#101-github-actions-workflow)
+   - [10.2 Versioning & Release Strategy](#102-versioning--release-strategy)
+11. [Infrastructure as Code](#11-infrastructure-as-code)
+12. [Reliability & Disaster Recovery](#12-reliability--disaster-recovery)
+   - [12.1 Backup & Restore](#121-backup--restore)
+   - [12.2 Disaster Recovery Plan](#122-disaster-recovery-plan)
+13. [Operations Documentation](#13-operations-documentation)
+14. [Work Plan](#14-work-plan)
 
 ---
 
@@ -1227,6 +1242,260 @@ model RefreshToken {
 | File upload | 3/hour per user |
 | API requests | 100/minute per IP |
 
+### 7.7 Security Hardening (Production Required)
+
+> **For production maturity, security must go beyond basic auth and validation.**
+
+#### 7.7.1 CSP & CORS Configuration
+
+```typescript
+// Content Security Policy (strict)
+const cspPolicy = {
+  'default-src': ["'self'"],
+  'script-src': ["'self'", "'unsafe-inline'", 'https://www.youtube.com'],
+  'style-src': ["'self'", "'unsafe-inline'"],
+  'img-src': ["'self'", 'data:', 'https:'],
+  'media-src': ["'self'", 'blob:', 'https://storage.syncwatch.example'],
+  'frame-src': ['https://www.youtube.com'],
+  'connect-src': ["'self'", 'wss:', 'https:'],
+  'font-src': ["'self'"],
+  'object-src': ["'none'"],
+  'base-uri': ["'self'"],
+  'form-action': ["'self'"],
+};
+
+// CORS (strict origin validation)
+const corsConfig = {
+  origin: (origin, callback) => {
+    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+```
+
+#### 7.7.2 Upload Security
+
+```typescript
+interface UploadSecurityConfig {
+  // File validation
+  allowedMimeTypes: ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska'];
+  maxSizeBytes: 8 * 1024 * 1024 * 1024;  // 8 GB
+
+  // Signature verification (magic bytes)
+  magicBytes: {
+    'video/mp4': [0x00, 0x00, 0x00, null, 0x66, 0x74, 0x79, 0x70],
+    'video/webm': [0x1A, 0x45, 0xDF, 0xA3],
+    'video/quicktime': [0x00, 0x00, 0x00, null, 0x66, 0x74, 0x79, 0x70],
+  };
+
+  // Bandwidth throttling per user
+  uploadBandwidthLimitMbps: 50;  // 50 Mbps per user
+
+  // Scan for embedded content (optional)
+  scanForMalware: boolean;
+}
+
+async function validateUpload(file: Buffer, mimeType: string): Promise<ValidationResult> {
+  // 1. Check declared MIME type
+  if (!allowedMimeTypes.includes(mimeType)) {
+    return { valid: false, reason: 'unsupported_format' };
+  }
+
+  // 2. Verify magic bytes match declared type
+  const expectedMagic = magicBytes[mimeType];
+  if (!verifyMagicBytes(file, expectedMagic)) {
+    return { valid: false, reason: 'mime_mismatch' };
+  }
+
+  // 3. Check file size
+  if (file.length > maxSizeBytes) {
+    return { valid: false, reason: 'too_large' };
+  }
+
+  return { valid: true };
+}
+```
+
+#### 7.7.3 Room Brute-Force Protection
+
+```typescript
+interface RoomSecurityConfig {
+  // Room code protection
+  codeAttemptLimit: 5;          // Max wrong codes per IP per hour
+  codeBlockDurationMinutes: 60; // Block duration after limit reached
+
+  // Password protection
+  passwordAttemptLimit: 3;      // Max wrong passwords per IP per room
+  passwordBlockDurationMinutes: 30;
+
+  // Rate limiting per IP
+  roomJoinLimitPerMinute: 10;   // Max room join attempts per minute
+}
+
+// Implementation with Redis
+async function checkRoomAccessAttempt(ip: string, roomCode: string): Promise<boolean> {
+  const key = `room:access:${ip}:${roomCode}`;
+  const attempts = await redis.incr(key);
+
+  if (attempts === 1) {
+    await redis.expire(key, 3600);  // 1 hour TTL
+  }
+
+  if (attempts > ROOM_ACCESS_LIMIT) {
+    logger.warn({ ip, roomCode, attempts }, 'Room access limit exceeded');
+    return false;
+  }
+
+  return true;
+}
+```
+
+### 7.8 Audit Logging (Production Required)
+
+> **For incident investigation and compliance, all security-relevant actions must be logged.**
+
+#### 7.8.1 Audit Events
+
+```typescript
+type AuditEventType =
+  // Room events
+  | 'room.created'
+  | 'room.deleted'
+  | 'room.settings_changed'
+
+  // Participant events
+  | 'participant.joined'
+  | 'participant.left'
+  | 'participant.kicked'
+  | 'participant.banned'
+
+  // Permission events
+  | 'permission.granted'
+  | 'permission.revoked'
+  | 'ownership.transferred'
+
+  // Playback events
+  | 'playback.started'
+  | 'playback.paused'
+  | 'playback.video_changed'
+
+  // Auth events
+  | 'auth.login'
+  | 'auth.logout'
+  | 'auth.login_failed'
+  | 'auth.password_changed'
+
+  // Admin events
+  | 'admin.user_banned'
+  | 'admin.content_removed';
+
+interface AuditEvent {
+  id: string;
+  timestamp: Date;
+  eventType: AuditEventType;
+  actorId: string;           // User who performed the action
+  actorIp: string;
+  targetType: 'room' | 'user' | 'video';
+  targetId: string;
+  metadata: Record<string, unknown>;
+  success: boolean;
+}
+```
+
+#### 7.8.2 Audit Log Storage
+
+```typescript
+// Prisma schema addition
+model AuditLog {
+  id          String   @id @default(cuid())
+  timestamp   DateTime @default(now())
+  eventType   String
+  actorId     String?
+  actorIp     String
+  targetType  String
+  targetId    String
+  metadata    Json
+  success     Boolean  @default(true)
+
+  @@index([timestamp])
+  @@index([actorId])
+  @@index([targetId])
+  @@index([eventType])
+}
+
+// Audit logger service
+class AuditLogger {
+  async log(event: Omit<AuditEvent, 'id' | 'timestamp'>): Promise<void> {
+    // 1. Write to database for queryability
+    await prisma.auditLog.create({
+      data: {
+        ...event,
+        metadata: event.metadata,
+      },
+    });
+
+    // 2. Also emit structured log for log aggregation
+    logger.info({
+      audit: true,
+      ...event,
+    }, `Audit: ${event.eventType}`);
+  }
+}
+
+// Usage example
+await auditLogger.log({
+  eventType: 'participant.kicked',
+  actorId: ownerId,
+  actorIp: request.ip,
+  targetType: 'user',
+  targetId: kickedUserId,
+  metadata: {
+    roomId,
+    reason: 'inappropriate_behavior',
+  },
+  success: true,
+});
+```
+
+#### 7.8.3 Audit Log Retention
+
+```typescript
+interface AuditRetentionPolicy {
+  // Retention periods by event type
+  security: 365;    // Auth events, bans - 1 year
+  moderation: 90;   // Kicks, content removal - 90 days
+  activity: 30;     // Joins, leaves, playback - 30 days
+
+  // Cleanup job
+  cleanupSchedule: '0 2 * * *';  // Daily at 2 AM
+}
+
+async function cleanupOldAuditLogs(): Promise<void> {
+  const cutoffs = {
+    security: subDays(new Date(), RETENTION.security),
+    moderation: subDays(new Date(), RETENTION.moderation),
+    activity: subDays(new Date(), RETENTION.activity),
+  };
+
+  await prisma.auditLog.deleteMany({
+    where: {
+      OR: [
+        { eventType: { in: SECURITY_EVENTS }, timestamp: { lt: cutoffs.security } },
+        { eventType: { in: MODERATION_EVENTS }, timestamp: { lt: cutoffs.moderation } },
+        { eventType: { in: ACTIVITY_EVENTS }, timestamp: { lt: cutoffs.activity } },
+      ],
+    },
+  });
+}
+```
+
 ---
 
 ## 8. Observability (Production Required)
@@ -1454,6 +1723,268 @@ groups:
           description: "{{ $value }}% of connections using TURN"
 ```
 
+### 8.6 Enhanced Health Checks
+
+> **Each service must expose comprehensive health endpoints for orchestration and monitoring.**
+
+#### 8.6.1 Health Check Endpoints
+
+```typescript
+// All services must implement these endpoints
+
+// GET /health/live - Kubernetes liveness probe
+// Returns 200 if process is running
+// Should be lightweight and fast
+app.get('/health/live', async () => ({
+  status: 'ok',
+  timestamp: new Date().toISOString(),
+}));
+
+// GET /health/ready - Kubernetes readiness probe
+// Returns 200 only if service can accept traffic
+app.get('/health/ready', async () => {
+  const checks = await Promise.all([
+    checkPostgres(),
+    checkRedis(),
+    checkMinio(),
+    checkTurnServer(),
+  ]);
+
+  const allHealthy = checks.every(c => c.healthy);
+  const status = allHealthy ? 'ok' : 'degraded';
+
+  return {
+    status,
+    timestamp: new Date().toISOString(),
+    checks: {
+      postgres: checks[0],
+      redis: checks[1],
+      minio: checks[2],
+      turn: checks[3],
+    },
+  };
+});
+
+// Health check implementations
+async function checkPostgres(): Promise<HealthCheckResult> {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return { healthy: true, latencyMs: /* measured */ };
+  } catch (error) {
+    return { healthy: false, error: error.message };
+  }
+}
+
+async function checkTurnServer(): Promise<HealthCheckResult> {
+  try {
+    // Verify TURN server is reachable
+    const response = await fetch(`http://${TURN_HOST}:${TURN_REST_PORT}/status`);
+    return { healthy: response.ok, latencyMs: /* measured */ };
+  } catch (error) {
+    return { healthy: false, error: error.message };
+  }
+}
+```
+
+#### 8.6.2 FFmpeg Worker Health
+
+```typescript
+// Transcoder worker health check
+interface TranscoderHealth {
+  healthy: boolean;
+  activeJobs: number;
+  queueDepth: number;
+  ffmpegAvailable: boolean;
+  gpuAvailable?: boolean;
+  lastJobCompletedAt?: Date;
+  lastJobFailedAt?: Date;
+  cpuUsagePercent: number;
+  memoryUsageMB: number;
+}
+
+app.get('/health/transcoder', async (): Promise<TranscoderHealth> => {
+  const ffmpegCheck = await exec('ffmpeg -version').catch(() => null);
+  const activeJobs = await bullQueue.getActiveCount();
+  const waitingJobs = await bullQueue.getWaitingCount();
+  const memUsage = process.memoryUsage();
+
+  return {
+    healthy: ffmpegCheck !== null && activeJobs < MAX_CONCURRENT_JOBS,
+    activeJobs,
+    queueDepth: waitingJobs,
+    ffmpegAvailable: ffmpegCheck !== null,
+    cpuUsagePercent: await getCpuUsage(),
+    memoryUsageMB: Math.round(memUsage.heapUsed / 1024 / 1024),
+  };
+});
+```
+
+### 8.7 Resource Limits
+
+> **Production containers must have explicit resource limits to prevent runaway processes.**
+
+#### 8.7.1 Docker Compose Resource Limits
+
+```yaml
+# docker-compose.prod.yml
+version: '3.8'
+services:
+  backend:
+    image: syncwatch-backend:${VERSION}
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  transcoder:
+    image: syncwatch-transcoder:${VERSION}
+    deploy:
+      resources:
+        limits:
+          cpus: '4'          # FFmpeg is CPU intensive
+          memory: 8G         # Video processing needs RAM
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+  frontend:
+    image: syncwatch-frontend:${VERSION}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  redis:
+    image: redis:7-alpine
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    command: redis-server --maxmemory 800mb --maxmemory-policy allkeys-lru
+
+  postgres:
+    image: postgres:15-alpine
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    command: >
+      postgres
+        -c shared_buffers=1GB
+        -c effective_cache_size=3GB
+        -c maintenance_work_mem=256MB
+        -c max_connections=200
+```
+
+#### 8.7.2 FFmpeg Process Limits
+
+```typescript
+// FFmpeg spawn with resource limits
+import { spawn } from 'child_process';
+
+interface FFmpegResourceLimits {
+  maxCpuPercent: number;     // Use cpulimit or nice
+  maxMemoryMB: number;       // Monitor and kill if exceeded
+  timeoutMinutes: number;    // Max job duration
+  niceLevel: number;         // Process priority (19 = lowest)
+}
+
+function spawnFFmpegWithLimits(
+  args: string[],
+  limits: FFmpegResourceLimits
+): ChildProcess {
+  // Use nice to lower priority
+  const command = limits.niceLevel
+    ? ['nice', '-n', String(limits.niceLevel), 'ffmpeg', ...args]
+    : ['ffmpeg', ...args];
+
+  const proc = spawn(command[0], command.slice(1), {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  // Set up memory monitoring
+  const memoryWatcher = setInterval(async () => {
+    try {
+      const usage = await getProcessMemoryMB(proc.pid);
+      if (usage > limits.maxMemoryMB) {
+        logger.warn({ pid: proc.pid, usage }, 'FFmpeg exceeded memory limit');
+        proc.kill('SIGTERM');
+      }
+    } catch {
+      // Process may have exited
+    }
+  }, 5000);
+
+  // Set up timeout
+  const timeout = setTimeout(() => {
+    logger.warn({ pid: proc.pid }, 'FFmpeg exceeded time limit');
+    proc.kill('SIGTERM');
+  }, limits.timeoutMinutes * 60 * 1000);
+
+  proc.on('exit', () => {
+    clearInterval(memoryWatcher);
+    clearTimeout(timeout);
+  });
+
+  return proc;
+}
+```
+
+#### 8.7.3 Upload Throttling
+
+```typescript
+// Per-user upload bandwidth limiting
+import { RateLimiter } from 'limiter';
+
+const uploadLimiters = new Map<string, RateLimiter>();
+
+function getUploadLimiter(userId: string): RateLimiter {
+  if (!uploadLimiters.has(userId)) {
+    // 50 Mbps = 6.25 MB/s = 6250 KB/s
+    // Allow bursts of 10 MB
+    uploadLimiters.set(userId, new RateLimiter({
+      tokensPerInterval: 6250,  // KB per second
+      interval: 1000,
+    }));
+  }
+  return uploadLimiters.get(userId)!;
+}
+
+// Usage in upload handler
+async function handleChunkUpload(
+  userId: string,
+  chunk: Buffer
+): Promise<void> {
+  const limiter = getUploadLimiter(userId);
+  const chunkSizeKB = chunk.length / 1024;
+
+  // Wait for tokens (blocking if rate exceeded)
+  await limiter.removeTokens(chunkSizeKB);
+
+  // Process chunk
+  await saveChunk(chunk);
+}
+```
+
 ---
 
 ## 9. Deployment Architecture
@@ -1501,9 +2032,1136 @@ services:
 - Container orchestration (K8s or Docker Swarm)
 - TURN server for WebRTC NAT traversal
 
+### 9.3 Environment Configuration
+
+> **Production requires clear separation of environments with distinct configurations.**
+
+#### 9.3.1 Environment Matrix
+
+| Environment | Purpose | Auto-Deploy | Persistence |
+|-------------|---------|-------------|-------------|
+| `development` | Local dev & feature work | No | Ephemeral |
+| `staging` | Integration testing, QA | Yes (from `develop`) | Short-lived |
+| `production` | Live users | Manual (from `main`) | Persistent |
+
+#### 9.3.2 Environment-Specific Configuration
+
+```typescript
+// config/environments.ts
+interface EnvironmentConfig {
+  name: 'development' | 'staging' | 'production';
+
+  // API
+  apiUrl: string;
+  wsUrl: string;
+
+  // Database
+  databaseUrl: string;
+  databasePoolMin: number;
+  databasePoolMax: number;
+
+  // Redis
+  redisUrl: string;
+
+  // Storage
+  minioEndpoint: string;
+  minioBucket: string;
+
+  // TURN
+  turnServers: TurnServer[];
+  turnSecret: string;
+
+  // Features
+  enableDebugLogs: boolean;
+  enableMetrics: boolean;
+  enableTracing: boolean;
+}
+
+const environments: Record<string, EnvironmentConfig> = {
+  development: {
+    name: 'development',
+    apiUrl: 'http://localhost:4000',
+    wsUrl: 'ws://localhost:4000',
+    databaseUrl: process.env.DATABASE_URL_DEV,
+    databasePoolMin: 1,
+    databasePoolMax: 5,
+    enableDebugLogs: true,
+    enableMetrics: false,
+    enableTracing: false,
+    // ... other configs
+  },
+  staging: {
+    name: 'staging',
+    apiUrl: 'https://staging-api.syncwatch.example',
+    wsUrl: 'wss://staging-api.syncwatch.example',
+    databaseUrl: process.env.DATABASE_URL_STAGING,
+    databasePoolMin: 2,
+    databasePoolMax: 10,
+    enableDebugLogs: true,
+    enableMetrics: true,
+    enableTracing: true,
+    // ... other configs
+  },
+  production: {
+    name: 'production',
+    apiUrl: 'https://api.syncwatch.example',
+    wsUrl: 'wss://api.syncwatch.example',
+    databaseUrl: process.env.DATABASE_URL_PRODUCTION,
+    databasePoolMin: 5,
+    databasePoolMax: 50,
+    enableDebugLogs: false,
+    enableMetrics: true,
+    enableTracing: true,
+    // ... other configs
+  },
+};
+```
+
+#### 9.3.3 Environment Isolation Requirements
+
+| Resource | Dev | Staging | Production |
+|----------|-----|---------|------------|
+| PostgreSQL DB | `syncwatch_dev` | `syncwatch_staging` | `syncwatch_prod` |
+| Redis DB | 0-4 (shared) | Separate instance | Separate cluster |
+| MinIO Bucket | `syncwatch-dev` | `syncwatch-staging` | `syncwatch-prod` |
+| TURN Credentials | Shared test | Environment-specific | Rotated, environment-specific |
+| Domain | localhost | staging.syncwatch.example | syncwatch.example |
+
+### 9.4 Secrets Management
+
+> **Production secrets must NEVER be stored in the repository or Docker images.**
+
+#### 9.4.1 Secret Categories
+
+| Category | Examples | Rotation Frequency |
+|----------|----------|-------------------|
+| Database | `DATABASE_URL`, `POSTGRES_PASSWORD` | 90 days |
+| Auth | `JWT_SECRET`, `SESSION_SECRET` | 30 days |
+| Storage | `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` | 90 days |
+| TURN | `TURN_SECRET` | 7 days |
+| External | `GITHUB_TOKEN`, `SENTRY_DSN` | As needed |
+
+#### 9.4.2 Secrets Management Options
+
+**Option 1: Docker Secrets (Docker Swarm)**
+```yaml
+# docker-compose.prod.yml
+version: '3.8'
+services:
+  backend:
+    image: syncwatch-backend:${VERSION}
+    secrets:
+      - db_password
+      - jwt_secret
+      - turn_secret
+    environment:
+      DATABASE_URL_FILE: /run/secrets/db_password
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+
+secrets:
+  db_password:
+    external: true
+  jwt_secret:
+    external: true
+  turn_secret:
+    external: true
+```
+
+**Option 2: HashiCorp Vault**
+```typescript
+// Vault integration
+import Vault from 'node-vault';
+
+const vault = Vault({
+  endpoint: process.env.VAULT_ADDR,
+  token: process.env.VAULT_TOKEN,
+});
+
+async function getSecret(path: string): Promise<string> {
+  const result = await vault.read(`secret/data/${path}`);
+  return result.data.data.value;
+}
+
+// Usage
+const jwtSecret = await getSecret('syncwatch/jwt-secret');
+const dbPassword = await getSecret('syncwatch/database/password');
+```
+
+**Option 3: Kubernetes Secrets**
+```yaml
+# k8s/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: syncwatch-secrets
+  namespace: syncwatch
+type: Opaque
+stringData:
+  DATABASE_URL: postgresql://...  # Injected by CI/CD
+  JWT_SECRET: ...
+  TURN_SECRET: ...
+---
+apiVersion: v1
+kind: Deployment
+spec:
+  containers:
+    - name: backend
+      envFrom:
+        - secretRef:
+            name: syncwatch-secrets
+```
+
+#### 9.4.3 Secret Injection (CI/CD)
+
+```yaml
+# .github/workflows/deploy.yml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to production
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.PROD_JWT_SECRET }}
+          TURN_SECRET: ${{ secrets.PROD_TURN_SECRET }}
+        run: |
+          # Secrets injected via environment variables
+          # Never logged, never stored in artifacts
+```
+
+### 9.5 Graceful Shutdown
+
+> **Services must handle shutdown signals gracefully to prevent data loss and dropped connections.**
+
+#### 9.5.1 Shutdown Signal Handling
+
+```typescript
+// graceful-shutdown.ts
+import { Server } from 'http';
+import { Server as SocketServer } from 'socket.io';
+
+class GracefulShutdown {
+  private isShuttingDown = false;
+  private shutdownTimeout = 30000;  // 30 seconds max
+
+  constructor(
+    private httpServer: Server,
+    private io: SocketServer,
+    private prisma: PrismaClient,
+    private redis: RedisClient,
+    private bullQueues: Queue[],
+  ) {
+    // Handle termination signals
+    process.on('SIGTERM', () => this.shutdown('SIGTERM'));
+    process.on('SIGINT', () => this.shutdown('SIGINT'));
+  }
+
+  async shutdown(signal: string): Promise<void> {
+    if (this.isShuttingDown) {
+      logger.warn('Shutdown already in progress');
+      return;
+    }
+
+    this.isShuttingDown = true;
+    logger.info({ signal }, 'Graceful shutdown initiated');
+
+    // Set hard timeout
+    const forceExitTimer = setTimeout(() => {
+      logger.error('Forced exit after timeout');
+      process.exit(1);
+    }, this.shutdownTimeout);
+
+    try {
+      // 1. Stop accepting new connections
+      this.httpServer.close();
+      logger.info('HTTP server closed');
+
+      // 2. Notify all WebSocket clients
+      this.io.emit('server:shutdown', {
+        message: 'Server is shutting down for maintenance',
+        reconnectIn: 30000,
+      });
+
+      // 3. Wait for active WebSocket connections to close gracefully
+      await this.closeWebSocketConnections();
+
+      // 4. Pause job queues (finish active, don't start new)
+      for (const queue of this.bullQueues) {
+        await queue.pause();
+      }
+      logger.info('Job queues paused');
+
+      // 5. Wait for active jobs to complete (with timeout)
+      await this.waitForActiveJobs();
+
+      // 6. Close database connections
+      await this.prisma.$disconnect();
+      logger.info('Database disconnected');
+
+      // 7. Close Redis connections
+      await this.redis.quit();
+      logger.info('Redis disconnected');
+
+      clearTimeout(forceExitTimer);
+      logger.info('Graceful shutdown complete');
+      process.exit(0);
+    } catch (error) {
+      logger.error({ error }, 'Error during shutdown');
+      process.exit(1);
+    }
+  }
+
+  private async closeWebSocketConnections(): Promise<void> {
+    const sockets = await this.io.fetchSockets();
+
+    // Save room states before disconnecting
+    for (const socket of sockets) {
+      const roomId = socket.data.roomId;
+      if (roomId) {
+        await this.saveRoomState(roomId);
+      }
+    }
+
+    // Disconnect all sockets
+    this.io.disconnectSockets(true);
+    logger.info({ count: sockets.length }, 'WebSocket connections closed');
+  }
+
+  private async waitForActiveJobs(): Promise<void> {
+    const maxWaitMs = 15000;
+    const startTime = Date.now();
+
+    for (const queue of this.bullQueues) {
+      while (Date.now() - startTime < maxWaitMs) {
+        const activeCount = await queue.getActiveCount();
+        if (activeCount === 0) break;
+
+        logger.info({ queue: queue.name, activeCount }, 'Waiting for jobs');
+        await sleep(1000);
+      }
+    }
+  }
+
+  private async saveRoomState(roomId: string): Promise<void> {
+    // Persist room state to Redis/DB for recovery
+    const state = await getRoomState(roomId);
+    await redis.set(`room:${roomId}:shutdown_state`, JSON.stringify(state));
+  }
+}
+```
+
+#### 9.5.2 FFmpeg Job Graceful Termination
+
+```typescript
+// FFmpeg graceful shutdown
+class FFmpegJobHandler {
+  private activeProcesses = new Map<string, ChildProcess>();
+
+  async shutdown(): Promise<void> {
+    const processes = Array.from(this.activeProcesses.entries());
+
+    for (const [jobId, proc] of processes) {
+      logger.info({ jobId }, 'Sending SIGTERM to FFmpeg process');
+
+      // Send SIGTERM first
+      proc.kill('SIGTERM');
+
+      // Wait up to 10 seconds for graceful exit
+      await Promise.race([
+        new Promise<void>((resolve) => proc.on('exit', resolve)),
+        sleep(10000),
+      ]);
+
+      // Force kill if still running
+      if (!proc.killed) {
+        logger.warn({ jobId }, 'Force killing FFmpeg process');
+        proc.kill('SIGKILL');
+      }
+
+      // Mark job for retry on restart
+      await markJobForRetry(jobId);
+    }
+  }
+}
+```
+
 ---
 
-## 10. Work Plan
+## 10. CI/CD Pipeline (Production Required)
+
+> **Without CI/CD, production deployment is error-prone and not scalable for team development.**
+
+### 10.1 GitHub Actions Workflow
+
+#### 10.1.1 CI Pipeline
+
+```yaml
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint:frontend
+      - run: npm run lint:backend
+
+  typecheck:
+    name: TypeScript Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run typecheck
+
+  test-unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:unit
+      - uses: codecov/codecov-action@v3
+        with:
+          files: coverage/lcov.info
+
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: syncwatch_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:migrate:test
+      - run: npm run test:integration
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/syncwatch_test
+          REDIS_URL: redis://localhost:6379
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm audit --audit-level=high
+      - uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+  build-docker:
+    name: Build Docker Images
+    needs: [lint, typecheck, test-unit, test-integration]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./packages/backend
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./packages/frontend
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
+```
+
+#### 10.1.2 CD Pipeline
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' || inputs.environment == 'staging'
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to staging
+        run: |
+          # Deploy using Docker Compose or K8s
+          ssh staging "cd /app && docker-compose pull && docker-compose up -d"
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: inputs.environment == 'production'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run database migrations
+        run: npm run db:migrate:deploy
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+      - name: Deploy to production
+        run: |
+          # Rolling deployment
+          kubectl set image deployment/syncwatch-backend backend=ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+          kubectl rollout status deployment/syncwatch-backend
+```
+
+### 10.2 Versioning & Release Strategy
+
+#### 10.2.1 Semantic Versioning
+
+```
+MAJOR.MINOR.PATCH
+
+MAJOR - Breaking changes (API incompatibility, DB migrations with data loss)
+MINOR - New features (backward compatible)
+PATCH - Bug fixes (backward compatible)
+
+Examples:
+1.0.0 - Initial release
+1.1.0 - Add friend system
+1.1.1 - Fix friend request bug
+2.0.0 - Breaking change to sync protocol
+```
+
+#### 10.2.2 Conventional Commits
+
+```bash
+# Commit message format
+<type>(<scope>): <description>
+
+# Types
+feat:     New feature
+fix:      Bug fix
+docs:     Documentation only
+style:    Formatting, missing semicolons
+refactor: Code change without feature/fix
+perf:     Performance improvement
+test:     Adding tests
+chore:    Build process, auxiliary tools
+
+# Examples
+feat(rooms): add password protection for rooms
+fix(sync): correct drift calculation for slow connections
+docs(api): update WebSocket event documentation
+refactor(transcoder): extract FFmpeg process management
+```
+
+#### 10.2.3 Release Process
+
+```yaml
+# .github/workflows/release.yml
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        uses: conventional-changelog/conventional-changelog-action@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body: ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: ${{ contains(github.ref, '-rc') }}
+
+      - name: Build and push release images
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/backend:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}/backend:latest
+```
+
+#### 10.2.4 Changelog
+
+```markdown
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [Unreleased]
+
+### Added
+- Voice chat with PTT and VAD modes
+- Friend system
+
+### Changed
+- Improved sync algorithm for better drift correction
+
+### Fixed
+- Room join race condition
+
+## [1.0.0] - 2024-XX-XX
+
+### Added
+- Initial release
+- Room creation with invite links
+- Video upload with HLS transcoding
+- YouTube embed support
+- Real-time synchronization
+- Text chat
+```
+
+---
+
+## 11. Infrastructure as Code
+
+> **Production infrastructure must be declaratively defined and version-controlled.**
+
+### 11.1 Terraform Configuration
+
+```hcl
+# infrastructure/main.tf
+
+terraform {
+  required_providers {
+    digitalocean = {
+      source  = "digitalocean/digitalocean"
+      version = "~> 2.0"
+    }
+  }
+  backend "s3" {
+    bucket = "syncwatch-terraform-state"
+    key    = "production/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
+# Variables
+variable "environment" {
+  description = "Deployment environment"
+  type        = string
+  default     = "production"
+}
+
+variable "region" {
+  description = "Deployment region"
+  type        = string
+  default     = "nyc3"
+}
+
+# VPC
+resource "digitalocean_vpc" "main" {
+  name     = "syncwatch-${var.environment}"
+  region   = var.region
+  ip_range = "10.10.0.0/16"
+}
+
+# Database
+resource "digitalocean_database_cluster" "postgres" {
+  name       = "syncwatch-db-${var.environment}"
+  engine     = "pg"
+  version    = "15"
+  size       = "db-s-2vcpu-4gb"
+  region     = var.region
+  node_count = var.environment == "production" ? 2 : 1
+
+  private_network_uuid = digitalocean_vpc.main.id
+}
+
+# Redis
+resource "digitalocean_database_cluster" "redis" {
+  name       = "syncwatch-redis-${var.environment}"
+  engine     = "redis"
+  version    = "7"
+  size       = "db-s-1vcpu-2gb"
+  region     = var.region
+  node_count = 1
+
+  private_network_uuid = digitalocean_vpc.main.id
+}
+
+# Object Storage (Spaces)
+resource "digitalocean_spaces_bucket" "media" {
+  name   = "syncwatch-media-${var.environment}"
+  region = var.region
+  acl    = "private"
+
+  cors_rule {
+    allowed_origins = ["https://syncwatch.example"]
+    allowed_methods = ["GET", "PUT"]
+    allowed_headers = ["*"]
+    max_age_seconds = 3600
+  }
+}
+
+# TURN Server
+resource "digitalocean_droplet" "turn" {
+  name     = "syncwatch-turn-${var.environment}"
+  image    = "ubuntu-22-04-x64"
+  size     = "s-2vcpu-4gb"
+  region   = var.region
+  vpc_uuid = digitalocean_vpc.main.id
+
+  user_data = templatefile("${path.module}/scripts/turn-setup.sh", {
+    turn_secret = var.turn_secret
+    realm       = "syncwatch.example"
+  })
+}
+
+# Kubernetes Cluster
+resource "digitalocean_kubernetes_cluster" "main" {
+  name         = "syncwatch-${var.environment}"
+  region       = var.region
+  version      = "1.28.2-do.0"
+  vpc_uuid     = digitalocean_vpc.main.id
+
+  node_pool {
+    name       = "default"
+    size       = "s-4vcpu-8gb"
+    auto_scale = true
+    min_nodes  = 2
+    max_nodes  = 10
+  }
+}
+
+# CDN
+resource "digitalocean_cdn" "media" {
+  origin         = digitalocean_spaces_bucket.media.bucket_domain_name
+  custom_domain  = "cdn.syncwatch.example"
+  certificate_id = digitalocean_certificate.cdn.id
+}
+
+# Outputs
+output "database_uri" {
+  value     = digitalocean_database_cluster.postgres.private_uri
+  sensitive = true
+}
+
+output "redis_uri" {
+  value     = digitalocean_database_cluster.redis.private_uri
+  sensitive = true
+}
+
+output "turn_ip" {
+  value = digitalocean_droplet.turn.ipv4_address
+}
+```
+
+### 11.2 Environment Provisioning
+
+```bash
+# infrastructure/scripts/provision.sh
+
+#!/bin/bash
+set -euo pipefail
+
+ENVIRONMENT=${1:-staging}
+
+echo "Provisioning $ENVIRONMENT environment..."
+
+# Initialize Terraform
+cd infrastructure/
+terraform init -backend-config="key=${ENVIRONMENT}/terraform.tfstate"
+
+# Plan changes
+terraform plan -var="environment=${ENVIRONMENT}" -out=tfplan
+
+# Apply (requires manual approval for production)
+if [ "$ENVIRONMENT" == "production" ]; then
+  echo "Production deployment requires manual approval"
+  read -p "Apply changes? (yes/no): " confirm
+  if [ "$confirm" != "yes" ]; then
+    echo "Deployment cancelled"
+    exit 1
+  fi
+fi
+
+terraform apply tfplan
+
+# Output connection strings (stored securely)
+terraform output -json > outputs.json
+```
+
+---
+
+## 12. Reliability & Disaster Recovery
+
+### 12.1 Backup & Restore
+
+> **Production without backups is not production.**
+
+#### 12.1.1 Backup Strategy
+
+| Component | Backup Type | Frequency | Retention | Storage |
+|-----------|-------------|-----------|-----------|---------|
+| PostgreSQL | Full + WAL | Daily + Continuous | 30 days | S3 |
+| Redis | RDB Snapshot | Hourly | 7 days | S3 |
+| MinIO | Cross-region replication | Continuous | Indefinite | Secondary region |
+| Config | Git | On change | Indefinite | GitHub |
+
+#### 12.1.2 PostgreSQL Backup
+
+```bash
+# scripts/backup-postgres.sh
+#!/bin/bash
+set -euo pipefail
+
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_FILE="syncwatch_${TIMESTAMP}.sql.gz"
+S3_BUCKET="syncwatch-backups"
+
+# Create backup
+pg_dump -h $DB_HOST -U $DB_USER -d syncwatch \
+  --format=custom \
+  --compress=9 \
+  | aws s3 cp - "s3://${S3_BUCKET}/postgres/${BACKUP_FILE}"
+
+# Verify backup
+aws s3 ls "s3://${S3_BUCKET}/postgres/${BACKUP_FILE}"
+
+# Cleanup old backups (keep 30 days)
+aws s3 ls "s3://${S3_BUCKET}/postgres/" \
+  | awk '{print $4}' \
+  | sort -r \
+  | tail -n +31 \
+  | xargs -I {} aws s3 rm "s3://${S3_BUCKET}/postgres/{}"
+
+echo "Backup completed: ${BACKUP_FILE}"
+```
+
+#### 12.1.3 Backup Verification
+
+```typescript
+// scripts/verify-backup.ts
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { exec } from 'child_process';
+
+async function verifyBackup(backupKey: string): Promise<VerifyResult> {
+  // 1. Download backup to temp location
+  const tempFile = `/tmp/verify_${Date.now()}.sql.gz`;
+  await downloadFromS3(backupKey, tempFile);
+
+  // 2. Create test database
+  const testDb = `verify_${Date.now()}`;
+  await exec(`createdb ${testDb}`);
+
+  try {
+    // 3. Restore backup
+    await exec(`pg_restore -d ${testDb} ${tempFile}`);
+
+    // 4. Run integrity checks
+    const checks = await runIntegrityChecks(testDb);
+
+    return {
+      success: checks.every(c => c.passed),
+      checks,
+      restoredAt: new Date(),
+    };
+  } finally {
+    // 5. Cleanup
+    await exec(`dropdb ${testDb}`);
+    await fs.unlink(tempFile);
+  }
+}
+
+// Run weekly
+schedule.scheduleJob('0 4 * * 0', async () => {
+  const latestBackup = await getLatestBackup();
+  const result = await verifyBackup(latestBackup);
+
+  if (!result.success) {
+    await sendAlert('Backup verification failed', result);
+  }
+});
+```
+
+### 12.2 Disaster Recovery Plan
+
+#### 12.2.1 Failure Scenarios & Recovery
+
+| Scenario | Detection | Recovery Time | Recovery Steps |
+|----------|-----------|---------------|----------------|
+| Redis failure | Health check fails | 5-10 min | Failover to replica, warm cache |
+| PostgreSQL failure | Health check fails | 15-30 min | Failover to read replica, promote |
+| MinIO segment loss | 404 on HLS segments | 1-4 hours | Restore from backup region |
+| TURN unavailable | ICE failures spike | 5 min | DNS failover to backup TURN |
+| Full region outage | All health checks fail | 1-4 hours | Failover to secondary region |
+
+#### 12.2.2 Redis Failure Recovery
+
+```typescript
+// Redis failure handling
+class RedisFailoverHandler {
+  private readonly primaryUrl: string;
+  private readonly replicaUrl: string;
+  private currentConnection: RedisClient;
+
+  async handleFailure(): Promise<void> {
+    logger.warn('Primary Redis failed, initiating failover');
+
+    // 1. Switch to replica
+    this.currentConnection = await createRedisClient(this.replicaUrl);
+
+    // 2. Notify services to reconnect
+    await this.broadcastReconnect();
+
+    // 3. Rooms will be in "degraded" mode
+    // State is lost, but clients will resync on reconnect
+
+    // 4. Alert ops team
+    await sendAlert('Redis failover executed', {
+      fromPrimary: this.primaryUrl,
+      toReplica: this.replicaUrl,
+    });
+  }
+}
+```
+
+#### 12.2.3 MinIO Recovery
+
+```typescript
+// HLS segment recovery
+async function recoverMissingSegments(videoId: string): Promise<void> {
+  const manifest = await getManifest(videoId);
+  const segments = parseSegmentUrls(manifest);
+
+  const missingSegments: string[] = [];
+
+  // Check each segment
+  for (const segment of segments) {
+    const exists = await checkSegmentExists(segment);
+    if (!exists) {
+      missingSegments.push(segment);
+    }
+  }
+
+  if (missingSegments.length === 0) {
+    return;
+  }
+
+  logger.warn({ videoId, count: missingSegments.length }, 'Missing segments detected');
+
+  // Option 1: Restore from backup region
+  for (const segment of missingSegments) {
+    await restoreFromBackupRegion(segment);
+  }
+
+  // Option 2: Re-transcode (if original file exists)
+  if (missingSegments.length > segments.length * 0.5) {
+    // More than 50% missing - full re-transcode
+    await queueRetranscode(videoId);
+  }
+}
+```
+
+#### 12.2.4 TURN Failover
+
+```typescript
+// TURN server failover
+const turnServers = {
+  primary: {
+    urls: ['turn:turn1.syncwatch.example:3478'],
+    priority: 1,
+  },
+  backup: {
+    urls: ['turn:turn2.syncwatch.example:3478'],
+    priority: 2,
+  },
+};
+
+async function getTurnServers(): Promise<TurnServer[]> {
+  // Check primary health
+  const primaryHealthy = await checkTurnHealth(turnServers.primary.urls[0]);
+
+  if (primaryHealthy) {
+    return [turnServers.primary, turnServers.backup];
+  } else {
+    // Failover: return backup first
+    logger.warn('TURN primary unhealthy, using backup');
+    return [turnServers.backup, turnServers.primary];
+  }
+}
+```
+
+---
+
+## 13. Operations Documentation
+
+> **README is for developers. Operations needs dedicated documentation.**
+
+### 13.1 Required Documentation Files
+
+| File | Purpose | Audience |
+|------|---------|----------|
+| `docs/DEPLOYMENT.md` | Step-by-step deployment guide | DevOps, SRE |
+| `docs/OPERATIONS.md` | Day-to-day operational procedures | On-call engineers |
+| `docs/INCIDENTS.md` | Incident response playbooks | On-call engineers |
+| `docs/RUNBOOKS.md` | Troubleshooting guides | All engineers |
+
+### 13.2 Operations Checklist
+
+```markdown
+# docs/OPERATIONS.md
+
+## Daily Operations
+
+### Health Checks
+- [ ] Verify all services healthy: `curl https://api.syncwatch.example/health/ready`
+- [ ] Check Prometheus alerts: No firing alerts
+- [ ] Review error rates in Grafana: < 0.1% 5xx errors
+- [ ] Check transcoding queue depth: < 5 pending jobs
+
+### Monitoring
+- [ ] Check disk usage: < 80% on all volumes
+- [ ] Check memory usage: < 80% on all services
+- [ ] Check database connections: < 80% of pool
+- [ ] Check Redis memory: < 80% of maxmemory
+
+## Weekly Operations
+
+### Backups
+- [ ] Verify latest PostgreSQL backup exists
+- [ ] Run backup restoration test (staging)
+- [ ] Check backup retention policy
+
+### Security
+- [ ] Review access logs for anomalies
+- [ ] Check for security advisory updates
+- [ ] Rotate TURN credentials
+
+### Performance
+- [ ] Review p95 latency trends
+- [ ] Check sync drift metrics
+- [ ] Review transcoding durations
+```
+
+### 13.3 Incident Response
+
+```markdown
+# docs/INCIDENTS.md
+
+## Incident Severity Levels
+
+| Level | Definition | Response Time | Examples |
+|-------|------------|---------------|----------|
+| SEV1 | Complete outage | 15 min | All users affected |
+| SEV2 | Major degradation | 30 min | Sync broken, uploads failing |
+| SEV3 | Minor degradation | 2 hours | Slow transcoding |
+| SEV4 | Cosmetic/minor | 24 hours | UI glitches |
+
+## Incident Playbooks
+
+### Playbook: High Playback Drift
+
+**Symptoms**:
+- Alert: HighPlaybackDrift firing
+- User reports: "Video is out of sync"
+
+**Investigation**:
+1. Check sync command latency: `promql: syncwatch_sync_command_latency_ms{quantile="0.95"}`
+2. Check WebSocket connection health
+3. Check Redis latency
+
+**Resolution**:
+1. If Redis latency high: Scale Redis / check memory
+2. If WebSocket issues: Restart affected backend pod
+3. If client-side: Request user browser console logs
+
+### Playbook: Transcoding Jobs Stuck
+
+**Symptoms**:
+- Alert: TranscodingBacklog firing
+- Queue depth > 10 for > 10 minutes
+
+**Investigation**:
+1. Check worker health: `curl http://transcoder:4001/health/transcoder`
+2. Check FFmpeg processes: `docker exec transcoder ps aux | grep ffmpeg`
+3. Check disk space: `df -h /storage`
+
+**Resolution**:
+1. If stuck process: Kill and retry
+2. If disk full: Cleanup old segments, scale storage
+3. If worker unhealthy: Restart worker pod
+```
+
+---
+
+## 14. Work Plan
 
 ### Phase 1: Foundation (Infrastructure & Auth)
 1. Project setup (monorepo structure, TypeScript config)
