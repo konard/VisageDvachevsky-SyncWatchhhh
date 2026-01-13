@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// User Management
+// ============================================
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique
+  passwordHash String
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  ownedRooms             Room[]            @relation("RoomOwner")
+  roomParticipations     RoomParticipant[]
+  sentFriendRequests     Friendship[]      @relation("FriendshipRequester")
+  receivedFriendRequests Friendship[]      @relation("FriendshipAddressee")
+  messages               ChatMessage[]
+  uploadedVideos         Video[]
+  refreshTokens          RefreshToken[]
+
+  @@index([email])
+  @@index([username])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+// ============================================
+// Room Management
+// ============================================
+
+model Room {
+  id              String   @id @default(cuid())
+  code            String   @unique // 8-char invite code
+  name            String
+  ownerId         String
+  maxParticipants Int      @default(5)
+  passwordHash    String?
+  playbackControl String   @default("owner_only") // owner_only, all, selected
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime
+
+  // Current video (optional)
+  videoId String?
+  video   Video?  @relation(fields: [videoId], references: [id])
+
+  // YouTube source (if applicable)
+  youtubeVideoId String?
+
+  // External source URL (if applicable)
+  externalUrl String?
+
+  // Relations
+  owner        User              @relation("RoomOwner", fields: [ownerId], references: [id])
+  participants RoomParticipant[]
+  messages     ChatMessage[]
+
+  @@index([code])
+  @@index([ownerId])
+  @@index([expiresAt])
+}
+
+model RoomParticipant {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String? // null for guests
+  guestName String?
+  role      String   @default("participant") // owner, participant, guest
+  canControl Boolean @default(false) // for "selected" playback control
+  joinedAt  DateTime @default(now())
+
+  // Relations
+  room Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id])
+
+  @@unique([roomId, oderId])
+  @@index([roomId])
+}
+
+// ============================================
+// Video Management
+// ============================================
+
+model Video {
+  id           String   @id @default(cuid())
+  uploaderId   String
+  filename     String
+  originalSize BigInt // bytes
+  mimeType     String
+  duration     Int? // seconds
+  status       String   @default("pending") // pending, processing, ready, failed
+  progress     Int      @default(0) // 0-100
+  errorMessage String?
+
+  // Storage
+  storageKey  String // key in MinIO
+  manifestUrl String? // HLS manifest URL when ready
+
+  // Metadata
+  width  Int?
+  height Int?
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  // Relations
+  uploader User   @relation(fields: [uploaderId], references: [id])
+  rooms    Room[]
+
+  @@index([uploaderId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+// ============================================
+// Chat
+// ============================================
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String? // null for system messages
+  type      String   @default("user") // user, system
+  content   String
+  metadata  Json? // For system events: { kind, data }
+  createdAt DateTime @default(now())
+
+  // Relations
+  room Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([roomId, createdAt])
+}
+
+// ============================================
+// Friends
+// ============================================
+
+model Friendship {
+  id          String   @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status      String   @default("pending") // pending, accepted, blocked
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  requester User @relation("FriendshipRequester", fields: [requesterId], references: [id])
+  addressee User @relation("FriendshipAddressee", fields: [addresseeId], references: [id])
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId, status])
+  @@index([addresseeId, status])
+}
