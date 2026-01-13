@@ -94,7 +94,7 @@ model RoomParticipant {
   room Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user User? @relation(fields: [userId], references: [id])
 
-  @@unique([roomId, oderId])
+  @@unique([roomId, userId])
   @@index([roomId])
 }
 
