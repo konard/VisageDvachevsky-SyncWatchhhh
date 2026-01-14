@@ -1,0 +1,222 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  DOCKER_REGISTRY: ghcr.io/visagedvachevsky
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.version }}
+
+      - name: Validate version tag
+        run: |
+          if ! git describe --tags --exact-match HEAD 2>/dev/null; then
+            echo "Error: Version ${{ inputs.version }} is not a valid git tag"
+            exit 1
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/syncwatch-backend:${{ inputs.version }}
+            ${{ env.DOCKER_REGISTRY }}/syncwatch-backend:latest
+          cache-from: type=registry,ref=${{ env.DOCKER_REGISTRY }}/syncwatch-backend:latest
+          cache-to: type=inline
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/syncwatch-frontend:${{ inputs.version }}
+            ${{ env.DOCKER_REGISTRY }}/syncwatch-frontend:latest
+          cache-from: type=registry,ref=${{ env.DOCKER_REGISTRY }}/syncwatch-frontend:latest
+          cache-to: type=inline
+
+      - name: Build and push transcoder image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./transcoder
+          file: ./transcoder/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/syncwatch-transcoder:${{ inputs.version }}
+            ${{ env.DOCKER_REGISTRY }}/syncwatch-transcoder:latest
+          cache-from: type=registry,ref=${{ env.DOCKER_REGISTRY }}/syncwatch-transcoder:latest
+          cache-to: type=inline
+
+      - name: Create deployment checklist
+        run: |
+          cat << 'EOF' > deployment-checklist.md
+          # Production Deployment Checklist
+
+          ## Pre-Deployment
+          - [ ] All tests passing in CI
+          - [ ] Staging tested and verified
+          - [ ] Database migrations reviewed
+          - [ ] Backup created
+          - [ ] Secrets rotated (if scheduled)
+          - [ ] Rollback plan documented
+
+          ## Deployment
+          - [ ] Version: ${{ inputs.version }}
+          - [ ] Images built and pushed
+          - [ ] Docker stack deployed
+          - [ ] Services healthy
+
+          ## Post-Deployment
+          - [ ] Health checks passing
+          - [ ] Smoke tests completed
+          - [ ] Monitoring dashboards checked
+          - [ ] Error rates normal
+          - [ ] Performance metrics normal
+          - [ ] User-facing features verified
+
+          ## Rollback (if needed)
+          ```bash
+          export VERSION=<previous-version>
+          docker stack deploy -c docker-compose.prod.yml syncwatch-production
+          ```
+          EOF
+
+          cat deployment-checklist.md
+
+      - name: Deploy to production server
+        env:
+          # CRITICAL: Secrets injected via environment variables
+          # Never logged, never stored in artifacts
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          # Mask sensitive values
+          echo "::add-mask::$PROD_HOST"
+          echo "::add-mask::$PROD_SSH_KEY"
+
+          # Configure SSH
+          mkdir -p ~/.ssh
+          echo "$PROD_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # Deploy via SSH (secrets already created on production server)
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              $PROD_USER@$PROD_HOST << EOF
+            cd /opt/syncwatch
+
+            # Backup before deployment
+            ./scripts/backup.sh
+
+            # Deploy new version
+            export VERSION=$VERSION
+            export DOCKER_REGISTRY=$DOCKER_REGISTRY
+            docker stack deploy -c docker-compose.prod.yml syncwatch-production
+
+            echo "Production deployment completed: $VERSION"
+          EOF
+
+      - name: Wait for rollout
+        run: |
+          echo "Waiting 60s for services to roll out..."
+          sleep 60
+
+      - name: Verify deployment
+        env:
+          PROD_API_URL: ${{ secrets.PROD_API_URL }}
+        run: |
+          # Health check
+          if ! curl -f $PROD_API_URL/health; then
+            echo "Health check failed!"
+            exit 1
+          fi
+
+          # Smoke tests
+          if ! curl -f $PROD_API_URL/api/rooms; then
+            echo "API smoke test failed!"
+            exit 1
+          fi
+
+          echo "Production deployment verified successfully!"
+
+      - name: Create release
+        if: success()
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ inputs.version }}
+          release_name: Release ${{ inputs.version }}
+          body: |
+            ## Production Deployment
+
+            **Version**: ${{ inputs.version }}
+            **Deployed**: ${{ github.event.head_commit.timestamp }}
+            **Deployed by**: @${{ github.actor }}
+
+            ### Changes
+            See commit history for detailed changes.
+
+            ### Deployment Verification
+            - ✅ Health checks passing
+            - ✅ Smoke tests completed
+            - ✅ Services healthy
+
+          draft: false
+          prerelease: false
+
+      - name: Notify deployment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ job.status }}';
+            const version = '${{ inputs.version }}';
+
+            const message = status === 'success'
+              ? `✅ Production deployment successful: \`${version}\`\n\nAll health checks passed. Services are running normally.`
+              : `❌ Production deployment failed: \`${version}\`\n\n**IMMEDIATE ACTION REQUIRED**\n\nCheck workflow logs and consider rollback.`;
+
+            // Create issue if deployment failed
+            if (status !== 'success') {
+              github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 Production Deployment Failed: ${version}`,
+                body: message + '\n\n' +
+                      `Workflow: ${context.workflow}\n` +
+                      `Run: ${context.runId}\n` +
+                      `Logs: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                labels: ['production', 'deployment', 'critical']
+              });
+            }
