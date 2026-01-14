@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- Updated vite from 5.0.12 to 7.3.1 to address CVE-2024-67MH (moderate severity esbuild vulnerability)
+- Updated @fastify/jwt from 8.0.0 to 10.0.0 to address CVE-2024-GM45 (moderate severity fast-jwt vulnerability)
+- Updated vitest to latest version across all workspaces
+- All npm audit vulnerabilities resolved (0 vulnerabilities remaining)
+
 ### Added
 - CI/CD pipeline with GitHub Actions
 - Automated linting, type checking, and testing
@@ -20,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Enhanced package.json scripts for CI/CD compatibility
 - Improved build process with optimized Docker images
+
+### Fixed
+- Fixed JSX syntax error in ProfilePage.tsx
 
 ### Infrastructure
 - Production-ready Dockerfiles for backend, frontend, and transcoder
