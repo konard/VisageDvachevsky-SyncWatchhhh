@@ -1,6 +1,7 @@
-import { ReactNode, useState, useRef, useEffect } from 'react';
+import { ReactNode, useState, useRef, useEffect, CSSProperties } from 'react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useGlassColor } from '../../../contexts/GlassColorContext';
 
 export interface GlassDropdownOption {
   value: string;
@@ -17,6 +18,10 @@ export interface GlassDropdownProps {
   className?: string;
   disabled?: boolean;
   label?: string;
+  /** Override accent color */
+  accentColor?: string;
+  /** Disable all adaptive color features */
+  staticColors?: boolean;
 }
 
 export const GlassDropdown = ({
@@ -27,11 +32,22 @@ export const GlassDropdown = ({
   className,
   disabled = false,
   label,
+  accentColor,
+  staticColors = false,
 }: GlassDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const glassColor = useGlassColor();
 
   const selectedOption = options.find(opt => opt.value === value);
+
+  // Build adaptive CSS custom properties
+  const adaptiveStyle: CSSProperties = staticColors ? {} : {
+    '--glass-background': glassColor.glassBackground,
+    '--glass-border': glassColor.glassBorder,
+    '--glass-glow': glassColor.glassGlow,
+    '--glass-accent-color': accentColor || glassColor.accentColor,
+  } as CSSProperties;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -77,6 +93,7 @@ export const GlassDropdown = ({
           'glass-input flex items-center justify-between',
           disabled && 'opacity-50 cursor-not-allowed'
         )}
+        style={adaptiveStyle}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
@@ -105,6 +122,7 @@ export const GlassDropdown = ({
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.15 }}
             className="absolute z-50 w-full mt-2 glass-card p-2 max-h-60 overflow-y-auto"
+            style={adaptiveStyle}
             role="listbox"
           >
             {options.map((option) => (

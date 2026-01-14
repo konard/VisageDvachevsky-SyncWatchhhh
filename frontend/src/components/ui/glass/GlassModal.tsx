@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useRef, useMemo, CSSProperties } from 'react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGlassEffects } from './GlassEffectsProvider';
+import { useGlassColor } from '../../../contexts/GlassColorContext';
 
 export interface GlassModalProps {
   isOpen: boolean;
@@ -20,6 +21,10 @@ export interface GlassModalProps {
   specular?: boolean;
   /** Enable edge glow effect */
   edgeGlow?: boolean;
+  /** Override accent color */
+  accentColor?: string;
+  /** Disable all adaptive color features */
+  staticColors?: boolean;
 }
 
 export const GlassModal = ({
@@ -35,9 +40,12 @@ export const GlassModal = ({
   refraction,
   specular,
   edgeGlow,
+  accentColor,
+  staticColors = false,
 }: GlassModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const { lightPosition, config, isActive } = useGlassEffects();
+  const glassColor = useGlassColor();
 
   const sizeClasses = {
     sm: 'max-w-md',
@@ -70,6 +78,14 @@ export const GlassModal = ({
       '--glass-specular-intensity': intensity,
     } as CSSProperties;
   }, [enableSpecular, shouldAnimate, lightPosition, config.specularIntensity]);
+
+  // Build adaptive CSS custom properties
+  const adaptiveStyle: CSSProperties = staticColors ? {} : {
+    '--glass-background': glassColor.glassBackground,
+    '--glass-border': glassColor.glassBorder,
+    '--glass-glow': glassColor.glassGlow,
+    '--glass-accent-color': accentColor || glassColor.accentColor,
+  } as CSSProperties;
 
   // Build effect classes
   const effectClasses = clsx(
@@ -129,6 +145,7 @@ export const GlassModal = ({
               className
             )}
             style={{
+              ...adaptiveStyle,
               ...specularStyle,
               '--glass-refraction-intensity': thicknessIntensity[thickness],
             } as CSSProperties}

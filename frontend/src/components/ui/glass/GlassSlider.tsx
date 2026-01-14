@@ -1,6 +1,7 @@
-import { useState, useRef, InputHTMLAttributes, forwardRef, useEffect } from 'react';
+import { useState, useRef, InputHTMLAttributes, forwardRef, useEffect, useMemo } from 'react';
 import { clsx } from 'clsx';
 import { useGlassInteraction, useReducedMotion } from '@/hooks';
+import { useGlassColor } from '../../../contexts/GlassColorContext';
 
 export interface GlassSliderProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange'> {
   label?: string;
@@ -14,6 +15,10 @@ export interface GlassSliderProps extends Omit<InputHTMLAttributes<HTMLInputElem
   formatValue?: (value: number) => string;
   /** Enable interactive glass effects (stretch on drag) */
   interactive?: boolean;
+  /** Override accent color */
+  accentColor?: string;
+  /** Disable all adaptive color features */
+  staticColors?: boolean;
 }
 
 export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
@@ -28,6 +33,8 @@ export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
     className,
     formatValue = (val) => val.toString(),
     interactive = false,
+    accentColor,
+    staticColors = false,
     ...props
   }, ref) => {
     const [internalValue, setInternalValue] = useState(value);
@@ -42,6 +49,12 @@ export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
       enableScrollResponse: false,
       enableDragEffect: interactive,
     });
+
+    const glassColor = useGlassColor();
+
+    // Use accent color from context or override
+    const effectiveAccentColor = accentColor || glassColor.accentColor;
+    const accentGlow = glassColor.glassGlow;
 
     // Apply CSS custom properties for stretch effect
     useEffect(() => {
@@ -83,6 +96,19 @@ export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
 
     const isInteractive = interactive && !prefersReducedMotion;
 
+    // Generate unique ID for scoped styles
+    const sliderId = useMemo(() => `slider-${Math.random().toString(36).substr(2, 9)}`, []);
+
+    // Parse accent color for RGB values
+    const accentRgb = useMemo(() => {
+      const match = effectiveAccentColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      if (match) {
+        return `${match[1]}, ${match[2]}, ${match[3]}`;
+      }
+      // Default cyan if parsing fails
+      return '0, 229, 255';
+    }, [effectiveAccentColor]);
+
     return (
       <div
         ref={containerRef}
@@ -100,7 +126,10 @@ export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
             </label>
           )}
           {showValue && (
-            <span className="text-sm text-accent-cyan font-medium">
+            <span
+              className="text-sm font-medium"
+              style={{ color: staticColors ? '#00e5ff' : effectiveAccentColor }}
+            >
               {formatValue(internalValue)}
             </span>
           )}
@@ -115,11 +144,11 @@ export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
             value={internalValue}
             onChange={handleChange}
             onPointerDown={handlePointerDown}
-            className="slider-input w-full h-2 rounded-full appearance-none cursor-pointer"
+            className={`${sliderId} w-full h-2 rounded-full appearance-none cursor-pointer`}
             style={{
               background: `linear-gradient(to right,
-                rgba(0, 229, 255, 0.5) 0%,
-                rgba(0, 229, 255, 0.5) ${percentage}%,
+                rgba(${accentRgb}, 0.5) 0%,
+                rgba(${accentRgb}, 0.5) ${percentage}%,
                 rgba(255, 255, 255, 0.1) ${percentage}%,
                 rgba(255, 255, 255, 0.1) 100%)`
             }}
@@ -127,53 +156,53 @@ export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
           />
         </div>
         <style>{`
-          .slider-input::-webkit-slider-thumb {
+          .${sliderId}::-webkit-slider-thumb {
             appearance: none;
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: linear-gradient(135deg, rgba(0, 229, 255, 0.8), rgba(41, 121, 255, 0.8));
+            background: linear-gradient(135deg, rgba(${accentRgb}, 0.8), rgba(41, 121, 255, 0.8));
             border: 2px solid rgba(255, 255, 255, 0.3);
             cursor: pointer;
-            box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+            box-shadow: 0 0 10px ${staticColors ? 'rgba(0, 229, 255, 0.5)' : accentGlow};
             transition: all 0.2s ease;
           }
 
-          .slider-input::-webkit-slider-thumb:hover {
+          .${sliderId}::-webkit-slider-thumb:hover {
             transform: scale(1.1);
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.7);
+            box-shadow: 0 0 20px ${staticColors ? 'rgba(0, 229, 255, 0.7)' : accentGlow};
           }
 
-          .slider-input::-webkit-slider-thumb:active {
+          .${sliderId}::-webkit-slider-thumb:active {
             transform: scale(1.05);
           }
 
-          .slider-input::-moz-range-thumb {
+          .${sliderId}::-moz-range-thumb {
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: linear-gradient(135deg, rgba(0, 229, 255, 0.8), rgba(41, 121, 255, 0.8));
+            background: linear-gradient(135deg, rgba(${accentRgb}, 0.8), rgba(41, 121, 255, 0.8));
             border: 2px solid rgba(255, 255, 255, 0.3);
             cursor: pointer;
-            box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+            box-shadow: 0 0 10px ${staticColors ? 'rgba(0, 229, 255, 0.5)' : accentGlow};
             transition: all 0.2s ease;
           }
 
-          .slider-input::-moz-range-thumb:hover {
+          .${sliderId}::-moz-range-thumb:hover {
             transform: scale(1.1);
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.7);
+            box-shadow: 0 0 20px ${staticColors ? 'rgba(0, 229, 255, 0.7)' : accentGlow};
           }
 
-          .slider-input:focus {
+          .${sliderId}:focus {
             outline: none;
           }
 
-          .slider-input:focus::-webkit-slider-thumb {
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.8);
+          .${sliderId}:focus::-webkit-slider-thumb {
+            box-shadow: 0 0 20px ${staticColors ? 'rgba(0, 229, 255, 0.8)' : accentGlow};
           }
 
-          .slider-input:focus::-moz-range-thumb {
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.8);
+          .${sliderId}:focus::-moz-range-thumb {
+            box-shadow: 0 0 20px ${staticColors ? 'rgba(0, 229, 255, 0.8)' : accentGlow};
           }
 
           @media (prefers-reduced-motion: reduce) {

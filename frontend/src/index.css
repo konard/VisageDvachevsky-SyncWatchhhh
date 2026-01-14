@@ -3,6 +3,54 @@
 @tailwind utilities;
 
 @layer base {
+  /* Liquid Glass adaptive color custom properties */
+  :root {
+    /* Default dark theme colors */
+    --glass-dominant-color: rgba(15, 23, 42, 1);
+    --glass-brightness: 0.1;
+    --glass-accent-color: #00e5ff;
+    --glass-opacity: 0.05;
+    --glass-background: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-glow: rgba(0, 229, 255, 0.3);
+    --glass-tint: rgba(255, 255, 255, 0);
+
+    /* Transition for smooth color changes */
+    --glass-transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+
+    /* Color scheme indicator */
+    color-scheme: dark;
+  }
+
+  /* Light mode overrides */
+  @media (prefers-color-scheme: light) {
+    :root {
+      --glass-brightness: 0.9;
+      --glass-opacity: 0.1;
+      --glass-background: rgba(0, 0, 0, 0.05);
+      --glass-border: rgba(0, 0, 0, 0.1);
+      color-scheme: light;
+    }
+  }
+
+  /* Manual light mode class */
+  .light-mode {
+    --glass-brightness: 0.9;
+    --glass-opacity: 0.1;
+    --glass-background: rgba(0, 0, 0, 0.05);
+    --glass-border: rgba(0, 0, 0, 0.1);
+    color-scheme: light;
+  }
+
+  /* Manual dark mode class */
+  .dark-mode {
+    --glass-brightness: 0.1;
+    --glass-opacity: 0.05;
+    --glass-background: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    color-scheme: dark;
+  }
+
   html {
     font-family: 'Inter', system-ui, sans-serif;
   }
@@ -50,14 +98,27 @@
     --glass-orientation-y: 0;
   }
 
-  /* Liquid Glass Card */
+  /* Liquid Glass Card - Context-aware adaptive styling */
   .glass-card {
     @apply relative overflow-hidden rounded-2xl;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--glass-background, rgba(255, 255, 255, 0.05));
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    transition: var(--glass-transition);
+  }
+
+  /* Glass card with color tinting enabled */
+  .glass-card.glass-tinted {
+    background: var(--glass-background, rgba(255, 255, 255, 0.05));
+    border-color: var(--glass-border, rgba(255, 255, 255, 0.1));
+  }
+
+  /* Glass card with accent glow */
+  .glass-card.glass-glow {
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37),
+                0 0 20px var(--glass-glow, rgba(0, 229, 255, 0.3));
   }
 
   /* Interactive glass card with highlight following pointer */
@@ -114,19 +175,27 @@
     left: 100%;
   }
 
-  /* Liquid Glass Button */
+  /* Liquid Glass Button - Context-aware adaptive styling */
   .glass-button {
     @apply relative overflow-hidden rounded-xl transition-all duration-300;
-    background: linear-gradient(135deg, rgba(0, 229, 255, 0.2), rgba(41, 121, 255, 0.2));
+    --button-accent: var(--glass-accent-color, #00e5ff);
+    --button-accent-rgb: 0, 229, 255;
+    background: linear-gradient(135deg, rgba(var(--button-accent-rgb), 0.2), rgba(41, 121, 255, 0.2));
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    box-shadow: 0 4px 16px 0 rgba(0, 229, 255, 0.2);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.15));
+    box-shadow: 0 4px 16px 0 rgba(var(--button-accent-rgb), 0.2);
+  }
+
+  /* Glass button with accent color adaptation */
+  .glass-button.glass-adaptive {
+    background: linear-gradient(135deg, rgba(var(--button-accent-rgb), 0.2), rgba(41, 121, 255, 0.2));
+    box-shadow: 0 4px 16px 0 var(--glass-glow, rgba(0, 229, 255, 0.2));
   }
 
   .glass-button:hover {
-    background: linear-gradient(135deg, rgba(0, 229, 255, 0.3), rgba(41, 121, 255, 0.3));
-    box-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
+    background: linear-gradient(135deg, rgba(var(--button-accent-rgb), 0.3), rgba(41, 121, 255, 0.3));
+    box-shadow: 0 0 20px var(--glass-glow, rgba(0, 229, 255, 0.4));
     transform: translateY(-2px);
   }
 
@@ -215,32 +284,38 @@
     transition: transform 0.6s ease-out, opacity 0.6s ease-out;
   }
 
-  /* Glass Input */
+  /* Glass Input - Context-aware adaptive styling */
   .glass-input {
     @apply w-full px-4 py-3 rounded-xl transition-all duration-300;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--glass-background, rgba(255, 255, 255, 0.05));
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
   }
 
   .glass-input:focus {
     @apply outline-none;
-    border-color: rgba(0, 229, 255, 0.5);
-    box-shadow: 0 0 20px rgba(0, 229, 255, 0.2);
+    border-color: var(--glass-accent-color, rgba(0, 229, 255, 0.5));
+    box-shadow: 0 0 20px var(--glass-glow, rgba(0, 229, 255, 0.2));
   }
 
   .glass-input::placeholder {
     @apply text-gray-400;
   }
 
-  /* Glass Panel */
+  /* Glass Panel - Context-aware adaptive styling */
   .glass-panel {
     @apply rounded-2xl;
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(15, 23, 42, calc(0.7 + var(--glass-brightness, 0.1)));
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.05));
+    transition: var(--glass-transition);
+  }
+
+  /* Glass panel with tinting */
+  .glass-panel.glass-tinted {
+    background: var(--glass-background, rgba(15, 23, 42, 0.8));
   }
 
   /* Interactive Glass Panel with scroll-responsive blur */

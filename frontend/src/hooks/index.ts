@@ -40,3 +40,10 @@ export { useVoiceError, VoiceErrorType } from './useVoiceError';
 // WebSocket hooks
 export { useSocket, useRoom } from './websocket';
 export type { ConnectionStatus } from './websocket';
+
+// Glass color hooks (re-exported from contexts for convenience)
+export { useGlassColor, useColorScheme, useLocalGlassColor } from '../contexts/GlassColorContext';
+export type { GlassColorContextValue } from '../contexts/GlassColorContext';
+
+// Chat hook
+export { useChat } from './useChat';

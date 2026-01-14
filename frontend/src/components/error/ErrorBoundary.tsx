@@ -1,5 +1,6 @@
 import React, { Component, ReactNode } from 'react';
 import { ErrorFallback } from './ErrorFallback';
+import { errorLogger } from '@/utils/logger/errorLogger';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -50,8 +51,16 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       errorInfo,
     });
 
-    // TODO: Log to error tracking service (e.g., Sentry)
-    // logErrorToService(error, errorInfo);
+    // Log to error tracking service
+    errorLogger.error(
+      'React Error Boundary caught an error',
+      error,
+      'ErrorBoundary',
+      {
+        componentStack: errorInfo.componentStack,
+        digest: errorInfo.digest,
+      }
+    );
   }
 
   handleReset = (): void => {

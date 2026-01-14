@@ -2,6 +2,7 @@ import { ButtonHTMLAttributes, ReactNode, forwardRef, useRef, useEffect, useStat
 import { clsx } from 'clsx';
 import { useGlassInteraction } from '@/hooks';
 import { useGlassEffects } from './GlassEffectsProvider';
+import { useGlassColor } from '../../../contexts/GlassColorContext';
 
 export interface GlassButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
@@ -17,6 +18,12 @@ export interface GlassButtonProps extends ButtonHTMLAttributes<HTMLButtonElement
   specular?: boolean;
   /** Enable edge glow effect */
   edgeGlow?: boolean;
+  /** Enable adaptive accent colors */
+  adaptive?: boolean;
+  /** Override accent color */
+  accentColor?: string;
+  /** Disable all adaptive color features */
+  staticColors?: boolean;
 }
 
 export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
@@ -31,6 +38,9 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
     refraction,
     specular,
     edgeGlow,
+    adaptive = false,
+    accentColor,
+    staticColors = false,
     onClick,
     style,
     ...props
@@ -49,6 +59,7 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
 
     // Glass effects from provider (refraction, specular)
     const { lightPosition, config, isActive } = useGlassEffects();
+    const glassColor = useGlassColor();
 
     const sizeClasses = {
       sm: 'px-3 py-2 text-sm',
@@ -86,6 +97,13 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
       } as CSSProperties;
     }, [enableSpecular, shouldAnimate, lightPosition, config.specularIntensity]);
 
+    // Build adaptive CSS custom properties for glass variants
+    const adaptiveStyle: CSSProperties = (staticColors || variant !== 'default') ? {} : {
+      '--glass-border': glassColor.glassBorder,
+      '--glass-glow': glassColor.glassGlow,
+      '--glass-accent-color': accentColor || glassColor.accentColor,
+    } as CSSProperties;
+
     // Build effect classes
     const effectClasses = clsx(
       enableRefraction && shouldAnimate && 'glass-button-refraction',
@@ -122,9 +140,11 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
           sizeClasses[size],
           fullWidth && 'w-full',
           disabled && 'opacity-50 cursor-not-allowed',
+          adaptive && variant === 'default' && 'glass-adaptive',
           className
         )}
         style={{
+          ...adaptiveStyle,
           ...style,
           ...specularStyle,
         }}

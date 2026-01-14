@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   Copy,
@@ -20,6 +20,13 @@ import { Tabs } from '../components/common';
 import { AnimatedPage } from '../components/AnimatedPage';
 import { GlassAvatar, GlassModal, GlassButton, GlassInput } from '../components/ui/glass';
 import { SyncStatusIndicator } from '../components/sync/SyncStatusIndicator';
+import { YouTubeSourceModal, ExternalURLModal, UploadVideoModal } from '../components/video-sources';
+import { SyncedYouTubePlayer } from '../components/SyncedYouTubePlayer';
+import { HLSPlayer } from '../components/player/HLSPlayer';
+import { useVideoSourceStore, PlayerControls } from '../stores';
+import { apiClient } from '../utils/api/apiClient';
+import { useSocket } from '../hooks/useSocket';
+import { useVoice } from '../hooks/useVoice';
 
 /**
  * Room Page - Main watch room with liquid-glass design
@@ -28,7 +35,55 @@ export function RoomPage() {
   const { code } = useParams<{ code: string }>();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showSourceModal, setShowSourceModal] = useState(false);
+  const [showYouTubeModal, setShowYouTubeModal] = useState(false);
+  const [showExternalModal, setShowExternalModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const playerRef = useRef<PlayerControls | null>(null);
+
+  // Video source state
+  const {
+    source,
+    error: sourceError,
+    setVideoSource,
+    setError,
+    setCurrentPlayer,
+  } = useVideoSourceStore();
+
+  // Transcoding status polling for uploaded videos
+  useEffect(() => {
+    if (!source?.uploadVideoId || source.uploadStatus === 'ready' || source.uploadStatus === 'failed') {
+      return;
+    }
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await apiClient.get(`/videos/${source.uploadVideoId}/status`);
+        const { status, progress, manifestUrl } = response.data;
+
+        // Update video source with status
+        setVideoSource({
+          ...source,
+          uploadStatus: status,
+          uploadProgress: progress,
+          manifestUrl: manifestUrl || source.manifestUrl,
+        });
+
+        // Stop polling if done
+        if (status === 'ready' || status === 'failed') {
+          clearInterval(pollInterval);
+          if (status === 'failed') {
+            setError('Video transcoding failed. Please try another video.');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to poll video status:', error);
+      }
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [source?.uploadVideoId, source?.uploadStatus]);
 
   // Voice chat handlers (placeholder - to be implemented with WebRTC)
   const handleJoinVoice = () => {
@@ -38,14 +93,15 @@ export function RoomPage() {
   const handleLeaveVoice = () => {
     console.log('Leave voice chat');
   };
+  // Socket connection for voice chat
+  const { socket } = useSocket(import.meta.env.VITE_API_URL || 'http://localhost:3000', {
+    namespace: '/sync',
+    autoConnect: true,
+    showToasts: false, // Avoid duplicate toasts
+  });
 
-  const handleToggleMute = () => {
-    console.log('Toggle mute');
-  };
-
-  const handleSetPeerVolume = (peerId: string, volume: number) => {
-    console.log('Set peer volume', peerId, volume);
-  };
+  // Voice chat functionality
+  const { joinVoice, leaveVoice, toggleMute, setPeerVolume } = useVoice(socket);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(code || '');
@@ -54,6 +110,42 @@ export function RoomPage() {
   };
 
   const inviteUrl = `${window.location.origin}/room/${code}`;
+
+  // Video source handlers
+  const handleYouTubeSubmit = (videoId: string, url: string) => {
+    setVideoSource({
+      type: 'youtube',
+      youtubeVideoId: videoId,
+      youtubeUrl: url,
+    });
+    setShowYouTubeModal(false);
+    setShowSourceModal(false);
+  };
+
+  const handleExternalURLSubmit = (url: string) => {
+    setVideoSource({
+      type: 'external',
+      externalUrl: url,
+    });
+    setShowExternalModal(false);
+    setShowSourceModal(false);
+  };
+
+  const handleUploadComplete = (videoId: string) => {
+    setVideoSource({
+      type: 'upload',
+      uploadVideoId: videoId,
+      uploadStatus: 'pending',
+      uploadProgress: 0,
+    });
+    setShowUploadModal(false);
+    setShowSourceModal(false);
+  };
+
+  const handlePlayerControlsRef = useCallback((controls: PlayerControls) => {
+    playerRef.current = controls;
+    setCurrentPlayer(controls);
+  }, [setCurrentPlayer]);
 
   // Header component
   const header = (
@@ -107,33 +199,131 @@ export function RoomPage() {
 
   // Video player with source selection
   const video = (
-    <div className="w-full h-full bg-black/50 flex flex-col items-center justify-center relative group">
-      {/* Video placeholder */}
-      <div className="text-center px-4">
-        <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-accent-cyan/20 to-accent-blue/20 flex items-center justify-center">
-          <Play className="w-10 h-10 text-accent-cyan" />
+    <div className="w-full h-full bg-black/50 flex flex-col items-center justify-center relative">
+      {!source ? (
+        /* No source selected - show placeholder */
+        <div className="text-center px-4">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-accent-cyan/20 to-accent-blue/20 flex items-center justify-center">
+            <Play className="w-10 h-10 text-accent-cyan" />
+          </div>
+          <p className="text-white text-lg mb-2">No video source selected</p>
+          <p className="text-gray-400 text-sm mb-6">
+            Add a video to start watching together
+          </p>
+          <GlassButton onClick={() => setShowSourceModal(true)}>
+            <LinkIcon className="w-4 h-4 mr-2" />
+            Add Video Source
+          </GlassButton>
         </div>
-        <p className="text-white text-lg mb-2">No video source selected</p>
-        <p className="text-gray-400 text-sm mb-6">
-          Add a video to start watching together
-        </p>
-        <GlassButton onClick={() => setShowSourceModal(true)}>
-          <LinkIcon className="w-4 h-4 mr-2" />
-          Add Video Source
-        </GlassButton>
-      </div>
+      ) : source.type === 'youtube' && source.youtubeVideoId ? (
+        /* YouTube Player */
+        <div className="w-full h-full">
+          <SyncedYouTubePlayer
+            videoUrl={source.youtubeUrl || `https://www.youtube.com/watch?v=${source.youtubeVideoId}`}
+            className="w-full h-full"
+          />
+        </div>
+      ) : source.type === 'upload' && source.uploadStatus === 'ready' && source.manifestUrl ? (
+        /* HLS Player for uploaded video */
+        <div className="w-full h-full">
+          <HLSPlayer
+            manifestUrl={source.manifestUrl}
+            autoPlay={false}
+            controls={true}
+            className="w-full h-full"
+            ref={(ref) => {
+              if (ref) {
+                handlePlayerControlsRef(ref);
+              }
+            }}
+          />
+        </div>
+      ) : source.type === 'upload' && (source.uploadStatus === 'pending' || source.uploadStatus === 'processing') ? (
+        /* Show transcoding progress */
+        <div className="text-center px-4 max-w-md">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-accent-cyan/20 to-accent-blue/20 flex items-center justify-center">
+            <Upload className="w-10 h-10 text-accent-cyan animate-pulse" />
+          </div>
+          <p className="text-white text-lg mb-2">Processing video...</p>
+          <p className="text-gray-400 text-sm mb-6">
+            {source.uploadStatus === 'pending' ? 'Waiting to start transcoding' : 'Transcoding in progress'}
+          </p>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-400">Progress</span>
+              <span className="text-accent-cyan font-medium">{source.uploadProgress || 0}%</span>
+            </div>
+            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-accent-cyan to-accent-blue rounded-full transition-all duration-300"
+                style={{ width: `${source.uploadProgress || 0}%` }}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-4">
+            This typically takes 1-3x the video duration
+          </p>
+        </div>
+      ) : source.type === 'external' && source.externalUrl ? (
+        /* External URL - use HLS or video player based on URL */
+        <div className="w-full h-full">
+          {source.externalUrl.toLowerCase().includes('.m3u8') ? (
+            <HLSPlayer
+              manifestUrl={source.externalUrl}
+              autoPlay={false}
+              controls={true}
+              className="w-full h-full"
+              ref={(ref) => {
+                if (ref) {
+                  handlePlayerControlsRef(ref);
+                }
+              }}
+            />
+          ) : (
+            <video
+              src={source.externalUrl}
+              controls
+              className="w-full h-full object-contain"
+            />
+          )}
+        </div>
+      ) : (
+        /* Error state */
+        <div className="text-center px-4">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-red-500/20 flex items-center justify-center">
+            <Play className="w-10 h-10 text-red-400" />
+          </div>
+          <p className="text-white text-lg mb-2">Video unavailable</p>
+          <p className="text-gray-400 text-sm mb-6">
+            {sourceError || 'Unable to load video source'}
+          </p>
+          <GlassButton onClick={() => setShowSourceModal(true)}>
+            <LinkIcon className="w-4 h-4 mr-2" />
+            Choose Another Source
+          </GlassButton>
+        </div>
+      )}
 
-      {/* Video controls overlay - shown on hover */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="text-center text-sm text-gray-400">
-          Video controls will appear here
+      {/* Change source button overlay (shown when hovering and source is selected) */}
+      {source && (
+        <div className="absolute top-4 right-4">
+          <GlassButton onClick={() => setShowSourceModal(true)} className="text-sm">
+            <LinkIcon className="w-3.5 h-3.5 mr-1.5" />
+            Change Source
+          </GlassButton>
         </div>
-      </div>
+      )}
     </div>
   );
 
   // Controls component
-  const controls = <VideoControls showSyncStatus={false} />;
+  const controls = source ? (
+    <VideoControls showSyncStatus={false} />
+  ) : (
+    <div className="flex items-center justify-center p-4 text-sm text-gray-500">
+      Add a video source to see controls
+    </div>
+  );
 
   // Chat component
   const chat = <ChatPanel />;
@@ -141,10 +331,10 @@ export function RoomPage() {
   // Voice component
   const voice = (
     <VoicePanel
-      onJoinVoice={handleJoinVoice}
-      onLeaveVoice={handleLeaveVoice}
-      onToggleMute={handleToggleMute}
-      onSetPeerVolume={handleSetPeerVolume}
+      onJoinVoice={joinVoice}
+      onLeaveVoice={leaveVoice}
+      onToggleMute={toggleMute}
+      onSetPeerVolume={setPeerVolume}
     />
   );
 
@@ -167,10 +357,10 @@ export function RoomPage() {
           icon: <Headphones className="w-4 h-4" />,
           content: (
             <VoicePanel
-              onJoinVoice={handleJoinVoice}
-              onLeaveVoice={handleLeaveVoice}
-              onToggleMute={handleToggleMute}
-              onSetPeerVolume={handleSetPeerVolume}
+              onJoinVoice={joinVoice}
+              onLeaveVoice={leaveVoice}
+              onToggleMute={toggleMute}
+              onSetPeerVolume={setPeerVolume}
             />
           ),
         },
@@ -260,7 +450,7 @@ export function RoomPage() {
         </div>
       </GlassModal>
 
-      {/* Video Source Modal */}
+      {/* Video Source Selection Modal */}
       <GlassModal
         isOpen={showSourceModal}
         onClose={() => setShowSourceModal(false)}
@@ -274,7 +464,13 @@ export function RoomPage() {
 
           {/* Source options */}
           <div className="grid gap-3">
-            <button className="flex items-center gap-4 p-4 glass-card rounded-xl hover:bg-white/5 transition-colors text-left group">
+            <button
+              onClick={() => {
+                setShowSourceModal(false);
+                setShowYouTubeModal(true);
+              }}
+              className="flex items-center gap-4 p-4 glass-card rounded-xl hover:bg-white/5 transition-colors text-left group"
+            >
               <div className="w-12 h-12 rounded-xl bg-red-600/20 flex items-center justify-center text-red-400 group-hover:scale-110 transition-transform">
                 <Play className="w-6 h-6" />
               </div>
@@ -284,7 +480,13 @@ export function RoomPage() {
               </div>
             </button>
 
-            <button className="flex items-center gap-4 p-4 glass-card rounded-xl hover:bg-white/5 transition-colors text-left group">
+            <button
+              onClick={() => {
+                setShowSourceModal(false);
+                setShowUploadModal(true);
+              }}
+              className="flex items-center gap-4 p-4 glass-card rounded-xl hover:bg-white/5 transition-colors text-left group"
+            >
               <div className="w-12 h-12 rounded-xl bg-accent-cyan/20 flex items-center justify-center text-accent-cyan group-hover:scale-110 transition-transform">
                 <Upload className="w-6 h-6" />
               </div>
@@ -294,7 +496,13 @@ export function RoomPage() {
               </div>
             </button>
 
-            <button className="flex items-center gap-4 p-4 glass-card rounded-xl hover:bg-white/5 transition-colors text-left group">
+            <button
+              onClick={() => {
+                setShowSourceModal(false);
+                setShowExternalModal(true);
+              }}
+              className="flex items-center gap-4 p-4 glass-card rounded-xl hover:bg-white/5 transition-colors text-left group"
+            >
               <div className="w-12 h-12 rounded-xl bg-purple-600/20 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
                 <LinkIcon className="w-6 h-6" />
               </div>
@@ -306,6 +514,27 @@ export function RoomPage() {
           </div>
         </div>
       </GlassModal>
+
+      {/* YouTube Source Modal */}
+      <YouTubeSourceModal
+        isOpen={showYouTubeModal}
+        onClose={() => setShowYouTubeModal(false)}
+        onSubmit={handleYouTubeSubmit}
+      />
+
+      {/* External URL Modal */}
+      <ExternalURLModal
+        isOpen={showExternalModal}
+        onClose={() => setShowExternalModal(false)}
+        onSubmit={handleExternalURLSubmit}
+      />
+
+      {/* Upload Video Modal */}
+      <UploadVideoModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onUploadComplete={handleUploadComplete}
+      />
     </AnimatedPage>
   );
 }

@@ -1,5 +1,6 @@
-import { ImgHTMLAttributes, useState, forwardRef } from 'react';
+import { ImgHTMLAttributes, useState, forwardRef, CSSProperties, useMemo } from 'react';
 import { clsx } from 'clsx';
+import { useGlassColor } from '../../../contexts/GlassColorContext';
 
 export interface GlassAvatarProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'size'> {
   src?: string;
@@ -9,6 +10,10 @@ export interface GlassAvatarProps extends Omit<ImgHTMLAttributes<HTMLImageElemen
   fallback?: string;
   className?: string;
   isSpeaking?: boolean;
+  /** Override accent color */
+  accentColor?: string;
+  /** Disable all adaptive color features */
+  staticColors?: boolean;
 }
 
 export const GlassAvatar = forwardRef<HTMLImageElement, GlassAvatarProps>(
@@ -20,9 +25,17 @@ export const GlassAvatar = forwardRef<HTMLImageElement, GlassAvatarProps>(
     fallback,
     className,
     isSpeaking = false,
+    accentColor,
+    staticColors = false,
     ...props
   }, ref) => {
     const [imageError, setImageError] = useState(false);
+    const glassColor = useGlassColor();
+
+    // Use accent color from context or override
+    const effectiveAccentColor = accentColor || glassColor.accentColor;
+    const accentGlow = glassColor.glassGlow;
+    const glassBorder = glassColor.glassBorder;
 
     const sizeClasses = {
       xs: 'w-8 h-8 text-xs',
@@ -49,7 +62,38 @@ export const GlassAvatar = forwardRef<HTMLImageElement, GlassAvatarProps>(
         .slice(0, 2);
     };
 
+    // Parse accent color for styling
+    const accentStyles = useMemo(() => {
+      const match = effectiveAccentColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      if (match) {
+        const [, r, g, b] = match;
+        return {
+          borderColor: `rgb(${r}, ${g}, ${b})`,
+          gradient: `linear-gradient(to bottom right, rgba(${r}, ${g}, ${b}, 0.2), rgba(41, 121, 255, 0.2))`,
+        };
+      }
+      return {
+        borderColor: '#00e5ff',
+        gradient: 'linear-gradient(to bottom right, rgba(0, 229, 255, 0.2), rgba(41, 121, 255, 0.2))',
+      };
+    }, [effectiveAccentColor]);
+
     const showImage = src && !imageError;
+
+    // Build adaptive styles
+    const containerStyle: CSSProperties = !staticColors ? {
+      '--glass-background': glassColor.glassBackground,
+      '--glass-border': glassBorder,
+    } as CSSProperties : {};
+
+    const speakingStyle: CSSProperties = isSpeaking && !staticColors ? {
+      borderColor: accentStyles.borderColor,
+      boxShadow: `0 0 10px ${accentGlow}`,
+    } : {};
+
+    const fallbackStyle: CSSProperties = !showImage && !staticColors ? {
+      background: accentStyles.gradient,
+    } : {};
 
     return (
       <div className={clsx('relative inline-block', sizeClasses[size], className)}>
@@ -57,9 +101,14 @@ export const GlassAvatar = forwardRef<HTMLImageElement, GlassAvatarProps>(
           className={clsx(
             'w-full h-full rounded-full overflow-hidden',
             'glass-card border-2',
-            isSpeaking ? 'speaking-glow border-accent-cyan' : 'border-white/20',
+            isSpeaking
+              ? staticColors
+                ? 'speaking-glow border-accent-cyan'
+                : ''
+              : 'border-white/20',
             'transition-all duration-300'
           )}
+          style={{ ...containerStyle, ...speakingStyle }}
         >
           {showImage ? (
             <img
@@ -71,7 +120,13 @@ export const GlassAvatar = forwardRef<HTMLImageElement, GlassAvatarProps>(
               {...props}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-cyan/20 to-accent-blue/20 text-white font-semibold">
+            <div
+              className={clsx(
+                'w-full h-full flex items-center justify-center text-white font-semibold',
+                staticColors && 'bg-gradient-to-br from-accent-cyan/20 to-accent-blue/20'
+              )}
+              style={fallbackStyle}
+            >
               {fallback ? getInitials(fallback) : getInitials(alt)}
             </div>
           )}
