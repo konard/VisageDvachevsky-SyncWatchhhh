@@ -14,7 +14,14 @@ import {
   VoicePeerJoinedEvent,
   VoicePeerLeftEvent,
   VoiceSignalRelayEvent,
+  VoiceSpeakingRelayEvent,
   VoiceIceServersEvent,
+  SyncPlayEvent,
+  SyncPauseEvent,
+  SyncSeekEvent,
+  SyncRateEvent,
+  SyncCommandEvent,
+  SyncStateEvent,
 } from './events.js';
 
 // ============================================
@@ -28,6 +35,10 @@ export interface ClientToServerEvents {
   'voice:leave': (data: VoiceLeaveEvent) => void;
   'voice:signal': (data: VoiceSignalEvent) => void;
   'voice:speaking': (data: VoiceSpeakingEvent) => void;
+  'sync:play': (data: SyncPlayEvent) => void;
+  'sync:pause': (data: SyncPauseEvent) => void;
+  'sync:seek': (data: SyncSeekEvent) => void;
+  'sync:rate': (data: SyncRateEvent) => void;
 }
 
 export interface ServerToClientEvents {
@@ -39,8 +50,10 @@ export interface ServerToClientEvents {
   'voice:peer:joined': (data: VoicePeerJoinedEvent) => void;
   'voice:peer:left': (data: VoicePeerLeftEvent) => void;
   'voice:signal': (data: VoiceSignalRelayEvent) => void;
-  'voice:speaking': (data: VoiceSpeakingEvent) => void;
+  'voice:speaking': (data: VoiceSpeakingRelayEvent) => void;
   'voice:ice:servers': (data: VoiceIceServersEvent) => void;
+  'sync:command': (data: SyncCommandEvent) => void;
+  'sync:state': (data: SyncStateEvent) => void;
 }
 
 export interface InterServerEvents {

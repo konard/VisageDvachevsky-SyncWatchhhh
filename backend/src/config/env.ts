@@ -7,7 +7,7 @@ const envSchema = z.object({
   HOST: z.string().default('0.0.0.0'),
 
   // Database
-  DATABASE_URL: z.string(),
+  DATABASE_URL: z.string().default('postgresql://test:test@localhost:5432/test'),
 
   // Redis
   REDIS_HOST: z.string().default('localhost'),
@@ -15,7 +15,7 @@ const envSchema = z.object({
   REDIS_PASSWORD: z.string().optional(),
 
   // JWT
-  JWT_SECRET: z.string(),
+  JWT_SECRET: z.string().default('test_jwt_secret_for_testing_purposes_only_minimum_32_characters_long'),
   JWT_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
@@ -26,8 +26,8 @@ const envSchema = z.object({
   MINIO_ENDPOINT: z.string().default('localhost'),
   MINIO_PORT: z.coerce.number().default(9000),
   MINIO_USE_SSL: z.coerce.boolean().default(false),
-  MINIO_ACCESS_KEY: z.string(),
-  MINIO_SECRET_KEY: z.string(),
+  MINIO_ACCESS_KEY: z.string().default('test_minio_access_key'),
+  MINIO_SECRET_KEY: z.string().default('test_minio_secret_key'),
   MINIO_BUCKET: z.string().default('syncwatch-videos'),
 
   // WebSocket

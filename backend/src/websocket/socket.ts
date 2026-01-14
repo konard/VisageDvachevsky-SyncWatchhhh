@@ -17,6 +17,12 @@ import {
   handleVoiceSpeaking,
   handleVoiceDisconnect,
 } from './handlers/voice.handler.js';
+import {
+  handleSyncPlay,
+  handleSyncPause,
+  handleSyncSeek,
+  handleSyncRate,
+} from './handlers/sync.handler.js';
 import { ClientEvents } from './types/events.js';
 import { logger } from '../config/logger.js';
 import { env } from '../config/env.js';
@@ -65,6 +71,12 @@ export function createSocketServer(
     socket.on(ClientEvents.VOICE_LEAVE, (data) => handleVoiceLeave(socket, syncNamespace, data));
     socket.on(ClientEvents.VOICE_SIGNAL, (data) => handleVoiceSignal(socket, syncNamespace, data));
     socket.on(ClientEvents.VOICE_SPEAKING, (data) => handleVoiceSpeaking(socket, syncNamespace, data));
+
+    // Register sync event handlers
+    socket.on(ClientEvents.SYNC_PLAY, (data) => handleSyncPlay(socket, syncNamespace, data));
+    socket.on(ClientEvents.SYNC_PAUSE, (data) => handleSyncPause(socket, syncNamespace, data));
+    socket.on(ClientEvents.SYNC_SEEK, (data) => handleSyncSeek(socket, syncNamespace, data));
+    socket.on(ClientEvents.SYNC_RATE, (data) => handleSyncRate(socket, syncNamespace, data));
 
     // Handle disconnect
     socket.on('disconnect', () => {
