@@ -155,11 +155,17 @@ export interface SendChatMessageRequest {
 
 export type VoiceMode = 'push_to_talk' | 'voice_activity';
 
+export type NoiseSuppressionLevel = 'off' | 'low' | 'moderate' | 'high' | 'maximum';
+
+export type VoiceQuality = 'excellent' | 'good' | 'fair' | 'poor';
+
 export interface VoiceSettings {
   mode: VoiceMode;
   pttKey?: string;
+  pttMouseButton?: number; // Mouse button 3, 4, or 5
   vadThreshold?: number;
-  noiseSuppression: boolean;
+  noiseSuppressionLevel: NoiseSuppressionLevel;
+  noiseSuppression: boolean; // Legacy support
   echoCancellation: boolean;
   autoGainControl: boolean;
 }
@@ -169,8 +175,25 @@ export interface VoicePeer {
   username: string;
   avatarUrl?: string;
   isSpeaking: boolean;
-  isMuted: boolean;
-  volume: number;
+  isMuted: boolean; // Local mute (only affects playback)
+  isGloballyMuted: boolean; // Global mute (admin action)
+  volume: number; // 0-2 range (0-200%)
+  audioLevel: number; // Current audio level 0-1 for visualization
+  quality?: VoiceQuality; // Connection quality
+  bitrate?: number; // Current bitrate in kbps
+  packetLoss?: number; // Packet loss percentage
+  jitter?: number; // Jitter in ms
+  latency?: number; // Round-trip time in ms
+}
+
+export interface VoiceQualityStats {
+  peerId: string;
+  quality: VoiceQuality;
+  bitrate: number;
+  packetLoss: number;
+  jitter: number;
+  latency: number;
+  timestamp: number;
 }
 
 export interface RTCSignalMessage {

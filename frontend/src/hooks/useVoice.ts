@@ -18,12 +18,14 @@ export function useVoice(socket: Socket | null) {
     setPeers,
     addPeer,
     removePeer,
+    updatePeer,
     setPeerSpeaking,
     setIsMuted,
     setIsSpeaking,
     setIceServers,
     setError,
     setPeerVolume,
+    setPeerMuted,
     reset,
   } = useVoiceStore();
 
@@ -55,6 +57,20 @@ export function useVoice(socket: Socket | null) {
 
       onPeerStream: (peerId, stream) => {
         console.log('Received stream from peer:', peerId, stream);
+      },
+
+      onPeerAudioLevel: (peerId, level) => {
+        updatePeer(peerId, { audioLevel: level });
+      },
+
+      onPeerQuality: (peerId, qualityStats) => {
+        updatePeer(peerId, {
+          quality: qualityStats.quality,
+          bitrate: qualityStats.bitrate,
+          packetLoss: qualityStats.packetLoss,
+          jitter: qualityStats.jitter,
+          latency: qualityStats.latency,
+        });
       },
 
       onError: (error) => {
@@ -122,7 +138,7 @@ export function useVoice(socket: Socket | null) {
 
       reset();
     };
-  }, [socket, settings, setPeers, addPeer, removePeer, setPeerSpeaking, setIceServers, setError, setIsSpeaking, reset]);
+  }, [socket, settings, setPeers, addPeer, removePeer, updatePeer, setPeerSpeaking, setIceServers, setError, setIsSpeaking, reset]);
 
   /**
    * Update voice service settings when they change
@@ -151,6 +167,9 @@ export function useVoice(socket: Socket | null) {
         voiceServiceRef.current?.setupPushToTalk();
       }
 
+      // Start quality monitoring
+      voiceServiceRef.current?.startQualityMonitoring();
+
       // Emit join event to server
       socket.emit('voice:join', {});
 
@@ -174,6 +193,9 @@ export function useVoice(socket: Socket | null) {
     try {
       // Emit leave event to server
       socket.emit('voice:leave', {});
+
+      // Stop quality monitoring
+      voiceServiceRef.current?.stopQualityMonitoring();
 
       // Stop microphone
       voiceServiceRef.current?.stopMicrophone();
@@ -216,10 +238,22 @@ export function useVoice(socket: Socket | null) {
     [setPeerVolume]
   );
 
+  /**
+   * Set peer muted
+   */
+  const setPeerMutedControl = useCallback(
+    (peerId: string, isMuted: boolean) => {
+      voiceServiceRef.current?.setPeerMuted(peerId, isMuted);
+      setPeerMuted(peerId, isMuted);
+    },
+    [setPeerMuted]
+  );
+
   return {
     joinVoice,
     leaveVoice,
     toggleMute,
     setPeerVolume: setPeerVolumeControl,
+    setPeerMuted: setPeerMutedControl,
   };
 }
