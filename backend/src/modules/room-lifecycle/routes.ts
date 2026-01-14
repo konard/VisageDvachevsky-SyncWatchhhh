@@ -3,14 +3,13 @@
  * HTTP endpoints for smart ownership and room lifecycle features
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 import { authenticateRequired } from '../../common/middleware/auth.js';
 import { ValidationError } from '../../common/errors/index.js';
 import {
   TemporaryHostService,
   VotingService,
-  ParticipantMetricsService,
   ScheduledRoomService,
   RoomHistoryService,
   RoomTemplateService,
@@ -19,7 +18,6 @@ import * as schemas from './schemas.js';
 
 const tempHostService = new TemporaryHostService();
 const votingService = new VotingService();
-const metricsService = new ParticipantMetricsService();
 const scheduledRoomService = new ScheduledRoomService();
 const historyService = new RoomHistoryService();
 const templateService = new RoomTemplateService();
