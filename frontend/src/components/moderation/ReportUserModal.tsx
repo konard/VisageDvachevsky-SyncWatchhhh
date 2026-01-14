@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { GlassModal } from '../ui/glass/GlassModal';
 import { GlassButton } from '../ui/glass/GlassButton';
-import { GlassInput } from '../ui/glass/GlassInput';
 
 export interface ReportUserModalProps {
   isOpen: boolean;
