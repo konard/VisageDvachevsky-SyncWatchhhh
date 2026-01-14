@@ -59,10 +59,14 @@ export async function createApp() {
     };
   });
 
-  // TODO: Register API routes here
-  // app.register(authRoutes, { prefix: '/api/auth' });
-  // app.register(roomRoutes, { prefix: '/api/rooms' });
-  // app.register(userRoutes, { prefix: '/api/users' });
+  // Register API routes
+  const { authRoutes } = await import('./modules/auth/routes.js');
+  const { friendsRoutes } = await import('./modules/friends/routes.js');
+  const { usersRoutes } = await import('./modules/users/routes.js');
+
+  await app.register(authRoutes, { prefix: '/api/auth' });
+  await app.register(friendsRoutes, { prefix: '/api' });
+  await app.register(usersRoutes, { prefix: '/api' });
 
   return app;
 }
