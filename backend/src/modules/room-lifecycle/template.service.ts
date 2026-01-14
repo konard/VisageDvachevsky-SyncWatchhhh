@@ -7,7 +7,6 @@ import { prisma } from '../../database/client.js';
 import {
   NotFoundError,
   ForbiddenError,
-  BadRequestError,
 } from '../../common/errors/index.js';
 import type { RoomTemplate, CreateRoomTemplateInput } from './types.js';
 

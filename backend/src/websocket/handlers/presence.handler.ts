@@ -17,7 +17,7 @@ const presenceService = new PresenceService();
  */
 export async function handlePresenceUpdate(
   socket: Socket,
-  namespace: Namespace,
+  _namespace: Namespace,
   data: unknown
 ): Promise<void> {
   try {

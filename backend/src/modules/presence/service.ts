@@ -11,7 +11,6 @@ import {
   RichPresence,
   PresenceStatus,
   FriendInRoom,
-  PresenceUpdate,
 } from './types.js';
 
 const PRESENCE_TTL = 300; // 5 minutes
