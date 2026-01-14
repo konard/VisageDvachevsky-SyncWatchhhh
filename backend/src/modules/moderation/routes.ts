@@ -30,7 +30,6 @@ export async function moderationRoutes(fastify: FastifyInstance) {
     '/reports',
     {
       schema: {
-        description: 'Report a user for abuse or misconduct',
         body: createReportSchema,
       },
       preHandler: [authenticateRequired],
@@ -59,9 +58,6 @@ export async function moderationRoutes(fastify: FastifyInstance) {
   }>(
     '/reports',
     {
-      schema: {
-        description: 'Get all user reports (moderator only)',
-      },
       preHandler: [authenticateRequired],
     },
     async (request, reply: FastifyReply) => {
@@ -86,7 +82,6 @@ export async function moderationRoutes(fastify: FastifyInstance) {
     '/reports/:reportId',
     {
       schema: {
-        description: 'Update report status (moderator only)',
         body: updateReportStatusSchema,
       },
       preHandler: [authenticateRequired],
@@ -123,7 +118,6 @@ export async function moderationRoutes(fastify: FastifyInstance) {
     '/mute',
     {
       schema: {
-        description: 'Temporarily mute a user in a room',
         body: muteUserSchema,
       },
       preHandler: [authenticateRequired],
@@ -151,9 +145,6 @@ export async function moderationRoutes(fastify: FastifyInstance) {
   }>(
     '/mute',
     {
-      schema: {
-        description: 'Remove mute from a user',
-      },
       preHandler: [authenticateRequired],
     },
     async (request, reply: FastifyReply) => {
@@ -177,7 +168,6 @@ export async function moderationRoutes(fastify: FastifyInstance) {
     '/shadow-mute',
     {
       schema: {
-        description: 'Shadow mute a user (admin only)',
         body: shadowMuteSchema,
       },
       preHandler: [authenticateRequired],
@@ -205,9 +195,6 @@ export async function moderationRoutes(fastify: FastifyInstance) {
   }>(
     '/shadow-mute',
     {
-      schema: {
-        description: 'Remove shadow mute from a user',
-      },
       preHandler: [authenticateRequired],
     },
     async (request, reply: FastifyReply) => {
