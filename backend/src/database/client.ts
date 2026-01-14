@@ -26,7 +26,7 @@ export const prisma = globalForPrisma.prisma ?? basePrisma.$extends(
   process.env.NODE_ENV === 'development'
     ? createQueryLogger(1000) // Log queries slower than 1s in dev
     : createQueryLogger(5000)  // Log queries slower than 5s in prod
-);
+) as unknown as PrismaClient;
 
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;

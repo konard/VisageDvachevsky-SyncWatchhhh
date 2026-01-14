@@ -12,7 +12,6 @@ describe('Users Routes Integration', () => {
   let testUserId: string;
   let testAccessToken: string;
   let user2Id: string;
-  let user2AccessToken: string;
 
   const testEmail = `usertest-${Date.now()}@example.com`;
   const testUsername = `usertest${Date.now()}`;
@@ -57,7 +56,6 @@ describe('Users Routes Integration', () => {
       },
     });
     const body2 = JSON.parse(response2.body);
-    user2AccessToken = body2.accessToken;
     user2Id = body2.user.id;
   });
 

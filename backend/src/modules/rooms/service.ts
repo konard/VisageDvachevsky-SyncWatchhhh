@@ -85,7 +85,7 @@ export class RoomService {
     const privacySettings = PRIVACY_PRESETS[privacyPreset];
 
     // Create room and add owner as participant in a transaction
-    const room = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const room = await prisma.$transaction(async (tx) => {
       const newRoom = await tx.room.create({
         data: {
           code,
@@ -107,7 +107,7 @@ export class RoomService {
           userId: ownerId,
           role: 'owner',
           canControl: true,
-        },
+        } as Prisma.RoomParticipantCreateInput,
       });
 
       return newRoom;
@@ -240,7 +240,7 @@ export class RoomService {
         guestName,
         role,
         canControl: room.playbackControl === 'all',
-      },
+      } as Prisma.RoomParticipantCreateInput,
     });
 
     return { room, participant };

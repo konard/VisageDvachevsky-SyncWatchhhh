@@ -6,8 +6,9 @@ import { GlassSpinner } from './components/ui/glass';
 import { ErrorBoundary } from './components/error';
 import { ToastContainer } from './components/toast';
 import { soundManager } from './services';
-import { soundManager } from './services';
 import { AnimatedPage } from './components/AnimatedPage';
+import { DiagnosticsOverlay } from './components/diagnostics';
+import { useDiagnosticsKeyboard } from './hooks/useDiagnosticsKeyboard';
 
 // Lazy load pages for code splitting
 const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })));
@@ -67,6 +68,9 @@ function AnimatedRoutes() {
 }
 
 function App() {
+  // Enable diagnostics keyboard shortcuts (Ctrl+Shift+D)
+  useDiagnosticsKeyboard();
+
   // Preload sound effects on app initialization
   useEffect(() => {
     soundManager.preload().catch((error) => {
@@ -92,6 +96,7 @@ function App() {
           </Suspense>
         </BrowserRouter>
         <ToastContainer />
+        <DiagnosticsOverlay />
       </QueryClientProvider>
     </ErrorBoundary>
   );

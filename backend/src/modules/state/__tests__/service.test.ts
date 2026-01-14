@@ -9,18 +9,18 @@ import type Redis from 'ioredis';
 
 // Mock Redis clients
 const createMockRedis = (): Partial<Redis> => ({
-  get: vi.fn(),
-  setex: vi.fn(),
-  del: vi.fn(),
-  expire: vi.fn(),
-  sadd: vi.fn(),
-  srem: vi.fn(),
-  smembers: vi.fn(),
-  scard: vi.fn(),
-  publish: vi.fn(),
-  subscribe: vi.fn(),
-  unsubscribe: vi.fn(),
-  on: vi.fn(),
+  get: vi.fn() as any,
+  setex: vi.fn() as any,
+  del: vi.fn() as any,
+  expire: vi.fn() as any,
+  sadd: vi.fn() as any,
+  srem: vi.fn() as any,
+  smembers: vi.fn() as any,
+  scard: vi.fn() as any,
+  publish: vi.fn() as any,
+  subscribe: vi.fn() as any,
+  unsubscribe: vi.fn() as any,
+  on: vi.fn() as any,
 });
 
 describe('RoomStateService', () => {

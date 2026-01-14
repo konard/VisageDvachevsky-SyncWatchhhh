@@ -13,6 +13,27 @@ import { AnimatedPage } from '../components/AnimatedPage';
 export function RoomPage() {
   const { code } = useParams<{ code: string }>();
 
+  // Voice chat handlers (placeholder - to be implemented with WebRTC)
+  const handleJoinVoice = () => {
+    console.log('Join voice chat');
+    // TODO: Implement WebRTC voice connection
+  };
+
+  const handleLeaveVoice = () => {
+    console.log('Leave voice chat');
+    // TODO: Implement WebRTC voice disconnection
+  };
+
+  const handleToggleMute = () => {
+    console.log('Toggle mute');
+    // TODO: Implement microphone mute toggle
+  };
+
+  const handleSetPeerVolume = (peerId: string, volume: number) => {
+    console.log('Set peer volume', peerId, volume);
+    // TODO: Implement peer volume control
+  };
+
   // Header component
   const header = (
     <div className="flex items-center justify-between">
@@ -51,7 +72,14 @@ export function RoomPage() {
   const chat = <ChatPanel />;
 
   // Voice component
-  const voice = <VoicePanel />;
+  const voice = (
+    <VoicePanel
+      onJoinVoice={handleJoinVoice}
+      onLeaveVoice={handleLeaveVoice}
+      onToggleMute={handleToggleMute}
+      onSetPeerVolume={handleSetPeerVolume}
+    />
+  );
 
   // Participants component
   const participants = <ParticipantsList />;
@@ -70,7 +98,14 @@ export function RoomPage() {
           id: 'voice',
           label: 'Voice',
           icon: '🎤',
-          content: <VoicePanel />,
+          content: (
+            <VoicePanel
+              onJoinVoice={handleJoinVoice}
+              onLeaveVoice={handleLeaveVoice}
+              onToggleMute={handleToggleMute}
+              onSetPeerVolume={handleSetPeerVolume}
+            />
+          ),
         },
       ]}
       defaultTab="chat"

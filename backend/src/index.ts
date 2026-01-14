@@ -6,11 +6,6 @@ import { ensureBuckets } from './config/minio.js';
 import { closeQueue } from './config/queue.js';
 import { logger } from './config/logger.js';
 import { env } from './config/env.js';
-import { scheduleAuditLogCleanup } from './jobs/audit-cleanup.js';
-import {
-  startRoomLifecycleJobs,
-  stopRoomLifecycleJobs,
-} from './jobs/room-lifecycle.js';
 
 /**
  * Start the server
@@ -36,12 +31,6 @@ async function start() {
     // Create Socket.io server
     const io = createSocketServer(httpServer);
 
-    // Schedule audit log cleanup (runs daily at 2 AM)
-    scheduleAuditLogCleanup();
-
-    // Start room lifecycle background jobs
-    startRoomLifecycleJobs();
-
     logger.info(
       {
         port: env.PORT,
@@ -52,32 +41,57 @@ async function start() {
     );
 
     // Graceful shutdown
+    let isShuttingDown = false;
     const shutdown = async (signal: string) => {
-      logger.info({ signal }, 'Shutdown signal received');
+      // Prevent multiple shutdown attempts
+      if (isShuttingDown) {
+        logger.warn('Shutdown already in progress');
+        return;
+      }
+      isShuttingDown = true;
+
+      logger.info({ signal }, 'Graceful shutdown initiated');
+
+      // Set hard timeout (30 seconds)
+      const forceExitTimer = setTimeout(() => {
+        logger.error('Forced exit after timeout');
+        process.exit(1);
+      }, 30000);
 
       try {
-        // Stop background jobs
+        // 1. Stop background jobs
         stopRoomLifecycleJobs();
 
-        // Close Socket.io server
+        // 2. Stop accepting new HTTP connections
+        httpServer.close(() => {
+          logger.info('HTTP server stopped accepting new connections');
+        });
+
+        // 3. Notify WebSocket clients and close connections
         await closeSocketServer(io);
 
-        // Close Fastify server
+        // 4. Close Fastify server (wait for in-flight requests)
         await app.close();
+        logger.info('Fastify server closed');
 
-        // Close queue
+        // 5. Pause and wait for job queues to finish active jobs
         await closeQueue();
+        logger.info('Job queues closed');
 
-        // Close Redis connections
+        // 6. Close Redis connections
         await closeRedisConnections();
+        logger.info('Redis connections closed');
 
-        // Close Prisma connection
+        // 7. Close Prisma database connection
         await closePrisma();
+        logger.info('Database connection closed');
 
-        logger.info('Server shut down gracefully');
+        clearTimeout(forceExitTimer);
+        logger.info('Graceful shutdown complete');
         process.exit(0);
       } catch (error) {
-        logger.error({ error: (error as Error).message }, 'Error during shutdown');
+        logger.error({ error: (error as Error).message, stack: (error as Error).stack }, 'Error during shutdown');
+        clearTimeout(forceExitTimer);
         process.exit(1);
       }
     };

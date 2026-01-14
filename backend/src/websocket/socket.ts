@@ -119,15 +119,27 @@ export function createSocketServer(
 }
 
 /**
- * Close Socket.io server
+ * Close Socket.io server gracefully
+ * Notifies all clients before disconnecting
  */
 export async function closeSocketServer(
   io: Namespace<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>
 ): Promise<void> {
   return new Promise((resolve) => {
-    // Disconnect all sockets in the namespace
-    io.disconnectSockets();
-    logger.info('Socket.io server closed');
-    resolve();
+    logger.info('Notifying WebSocket clients of shutdown');
+
+    // Notify all connected clients
+    io.emit('server:shutdown', {
+      message: 'Server is shutting down for maintenance',
+      reconnectIn: 30000, // Suggest reconnect in 30 seconds
+    } as any);
+
+    // Give clients time to receive the notification (500ms)
+    setTimeout(() => {
+      // Disconnect all sockets in the namespace
+      io.disconnectSockets();
+      logger.info('Socket.io server closed');
+      resolve();
+    }, 500);
   });
 }
