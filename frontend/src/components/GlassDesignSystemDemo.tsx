@@ -12,6 +12,7 @@ import {
   GlassSpinner,
   GlassDropdownOption,
 } from './ui/glass';
+import { AnimatedPage } from './AnimatedPage';
 
 export const GlassDesignSystemDemo = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,7 +29,7 @@ export const GlassDesignSystemDemo = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-8">
+    <AnimatedPage className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center mb-12">
@@ -233,6 +234,6 @@ export const GlassDesignSystemDemo = () => {
           <p>Liquid Glass Design System - Built for SyncWatch</p>
         </footer>
       </div>
-    </div>
+    </AnimatedPage>
   );
 };

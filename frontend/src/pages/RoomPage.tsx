@@ -5,6 +5,7 @@ import { VoicePanel } from '../components/voice';
 import { VideoControls } from '../components/controls';
 import { ParticipantsList } from '../components/participants';
 import { Tabs } from '../components/common';
+import { AnimatedPage } from '../components/AnimatedPage';
 
 /**
  * Room Page - Responsive layout for watching videos together
@@ -77,14 +78,16 @@ export function RoomPage() {
   );
 
   return (
-    <ResponsiveLayout
-      header={header}
-      video={video}
-      controls={controls}
-      chat={chat}
-      voice={voice}
-      participants={participants}
-      tabContent={tabContent}
-    />
+    <AnimatedPage>
+      <ResponsiveLayout
+        header={header}
+        video={video}
+        controls={controls}
+        chat={chat}
+        voice={voice}
+        participants={participants}
+        tabContent={tabContent}
+      />
+    </AnimatedPage>
   );
 }

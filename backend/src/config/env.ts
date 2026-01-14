@@ -59,6 +59,10 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   ENABLE_METRICS: z.coerce.boolean().default(false),
   ENABLE_TRACING: z.coerce.boolean().default(false),
+  // TURN Server (for WebRTC NAT traversal)
+  TURN_SERVER_URL: z.string().default('turn:localhost:3478'),
+  TURN_SERVER_SECRET: z.string().default('syncwatch_turn_secret_change_in_production'),
+  TURN_CREDENTIAL_TTL: z.coerce.number().default(86400), // 24 hours
 });
 
 export type Env = z.infer<typeof envSchema>;

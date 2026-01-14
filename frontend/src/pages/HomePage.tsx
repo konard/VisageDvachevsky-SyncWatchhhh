@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBreakpoint } from '../hooks/useBreakpoint';
+import { AnimatedPage } from '../components/AnimatedPage';
 import clsx from 'clsx';
 
 /**
@@ -25,7 +26,7 @@ export function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 animated-gradient">
+    <AnimatedPage className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 animated-gradient">
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         {/* Logo and Title */}
         <div className={clsx('text-center mb-8', isMobile ? 'px-4' : 'px-8')}>
@@ -146,6 +147,6 @@ export function HomePage() {
           </div>
         </div>
       </div>
-    </div>
+    </AnimatedPage>
   );
 }

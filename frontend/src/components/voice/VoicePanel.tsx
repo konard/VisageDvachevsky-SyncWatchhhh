@@ -1,105 +1,90 @@
-import { useState } from 'react';
-import clsx from 'clsx';
-import { useSound } from '@/hooks';
-
-interface Participant {
-  id: string;
-  name: string;
-  isSpeaking: boolean;
-  isMuted: boolean;
-}
+import React from 'react';
+import { useVoiceStore } from '../../stores/voiceStore';
+import { VoicePeerItem } from './VoicePeerItem';
+import { VoiceControls } from './VoiceControls';
+import { VoiceSettings } from './VoiceSettings';
 
 interface VoicePanelProps {
-  className?: string;
+  onJoinVoice: () => void;
+  onLeaveVoice: () => void;
+  onToggleMute: () => void;
+  onSetPeerVolume: (peerId: string, volume: number) => void;
 }
 
 /**
- * Voice Panel Component
- * Displays voice chat participants and controls
+ * Voice panel component
+ * Displays voice chat status, peers, and controls
  */
-export function VoicePanel({ className }: VoicePanelProps) {
-  const [isMuted, setIsMuted] = useState(true);
-  const [participants] = useState<Participant[]>([
-    { id: '1', name: 'Alice', isSpeaking: true, isMuted: false },
-    { id: '2', name: 'Bob', isSpeaking: false, isMuted: false },
-    { id: '3', name: 'Charlie', isSpeaking: false, isMuted: true },
-  ]);
-  const { playMicOn, playMicOff } = useSound();
+export function VoicePanel({
+  onJoinVoice,
+  onLeaveVoice,
+  onToggleMute,
+  onSetPeerVolume,
+}: VoicePanelProps) {
+  const { isInVoice, peers, isMuted, isSpeaking, connectionState, error } = useVoiceStore();
 
-  const handleMicToggle = () => {
-    const newMutedState = !isMuted;
-    setIsMuted(newMutedState);
+  const [showSettings, setShowSettings] = React.useState(false);
 
-    // Play appropriate sound
-    if (newMutedState) {
-      playMicOff();
-    } else {
-      playMicOn();
-    }
-  };
+  const peersArray = Array.from(peers.values());
 
   return (
-    <div className={clsx('flex flex-col h-full', className)}>
-      {/* Voice Controls */}
-      <div className="flex-shrink-0 p-4 border-b border-white/10">
-        <div className="flex items-center gap-3">
+    <div className="voice-panel">
+      <div className="voice-panel-header">
+        <h3>Voice Chat</h3>
+        <button
+          className="settings-button"
+          onClick={() => setShowSettings(!showSettings)}
+          aria-label="Voice settings"
+        >
+          ⚙️
+        </button>
+      </div>
+
+      {error && (
+        <div className="voice-error" role="alert">
+          {error}
+        </div>
+      )}
+
+      {!isInVoice && (
+        <div className="voice-join-section">
           <button
-            onClick={handleMicToggle}
-            className={clsx(
-              'flex items-center gap-2 px-4 py-2 rounded-lg transition-all',
-              isMuted
-                ? 'bg-red-500/20 border border-red-500/50 text-red-300'
-                : 'glass-button text-white'
-            )}
+            className="join-voice-button"
+            onClick={onJoinVoice}
+            disabled={connectionState === 'connecting'}
           >
-            <span className="text-xl">{isMuted ? '🔇' : '🎤'}</span>
-            <span className="text-sm font-medium">
-              {isMuted ? 'Unmute' : 'Mute'}
-            </span>
+            {connectionState === 'connecting' ? 'Connecting...' : 'Join Voice Chat'}
           </button>
         </div>
-      </div>
+      )}
 
-      {/* Participants List */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <h3 className="text-sm font-medium text-gray-400 mb-3">
-          Participants ({participants.length})
-        </h3>
-        <div className="space-y-2">
-          {participants.map((participant) => (
-            <div
-              key={participant.id}
-              className={clsx(
-                'flex items-center gap-3 p-3 rounded-lg transition-all',
-                'bg-white/5 hover:bg-white/10',
-                participant.isSpeaking && 'speaking-glow'
-              )}
-            >
-              {/* Avatar */}
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-cyan to-accent-blue flex items-center justify-center text-white font-medium">
-                {participant.name.charAt(0)}
-              </div>
+      {isInVoice && (
+        <>
+          <VoiceControls
+            isMuted={isMuted}
+            isSpeaking={isSpeaking}
+            onToggleMute={onToggleMute}
+            onLeaveVoice={onLeaveVoice}
+          />
 
-              {/* Name */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">
-                  {participant.name}
-                </p>
-              </div>
-
-              {/* Status Icons */}
-              <div className="flex items-center gap-1">
-                {participant.isSpeaking && (
-                  <span className="text-green-400 text-sm">🔊</span>
-                )}
-                {participant.isMuted && (
-                  <span className="text-red-400 text-sm">🔇</span>
-                )}
-              </div>
+          <div className="voice-peers-section">
+            <h4>Participants ({peersArray.length})</h4>
+            <div className="voice-peers-list">
+              {peersArray.map((peer) => (
+                <VoicePeerItem
+                  key={peer.userId}
+                  peer={peer}
+                  onVolumeChange={(volume) => onSetPeerVolume(peer.userId, volume)}
+                />
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        </>
+      )}
+
+      {showSettings && (
+        <VoiceSettings onClose={() => setShowSettings(false)} />
+      )}
     </div>
   );
 }

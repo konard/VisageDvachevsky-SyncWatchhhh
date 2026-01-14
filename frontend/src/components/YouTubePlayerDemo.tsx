@@ -4,8 +4,13 @@
  */
 
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { SyncedYouTubePlayer } from './SyncedYouTubePlayer';
 import { extractYouTubeVideoId, isValidYouTubeUrl } from '../utils/youtube';
+import { AnimatedPage } from './AnimatedPage';
+import { AnimatedButton } from './AnimatedButton';
+import { AnimatedList, AnimatedListItem } from './AnimatedList';
+import { chatMessageVariants } from '../utils/animations';
 import type { SyncCommand } from '@syncwatch/shared';
 
 export const YouTubePlayerDemo = () => {
@@ -59,7 +64,7 @@ export const YouTubePlayerDemo = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-8">
+    <AnimatedPage className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-8">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-white mb-2">YouTube Player Demo</h1>
@@ -95,12 +100,13 @@ export const YouTubePlayerDemo = () => {
                     placeholder="Enter YouTube URL..."
                     className="flex-1 px-4 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg focus:outline-none focus:border-blue-500"
                   />
-                  <button
+                  <AnimatedButton
                     type="submit"
+                    variant="primary"
                     className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                   >
                     Load
-                  </button>
+                  </AnimatedButton>
                 </div>
                 {error && (
                   <p className="mt-2 text-red-400 text-sm">{error}</p>
@@ -112,7 +118,7 @@ export const YouTubePlayerDemo = () => {
                 <p className="text-gray-400 text-sm mb-2">Quick examples:</p>
                 <div className="flex flex-wrap gap-2">
                   {exampleVideos.map((video) => (
-                    <button
+                    <AnimatedButton
                       key={video.id}
                       onClick={() => {
                         const url = `https://www.youtube.com/watch?v=${video.id}`;
@@ -121,10 +127,11 @@ export const YouTubePlayerDemo = () => {
                         setError(null);
                         addSyncLog(`Video changed to: ${video.title}`);
                       }}
+                      variant="secondary"
                       className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded transition-colors"
                     >
                       {video.title}
-                    </button>
+                    </AnimatedButton>
                   ))}
                 </div>
               </div>
@@ -137,8 +144,9 @@ export const YouTubePlayerDemo = () => {
             <div className="bg-slate-800 rounded-lg p-6">
               <h3 className="text-white font-medium mb-4">Role</h3>
               <div className="flex gap-2">
-                <button
+                <AnimatedButton
                   onClick={() => setIsOwner(true)}
+                  variant="secondary"
                   className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
                     isOwner
                       ? 'bg-blue-600 text-white'
@@ -146,9 +154,10 @@ export const YouTubePlayerDemo = () => {
                   }`}
                 >
                   👑 Owner
-                </button>
-                <button
+                </AnimatedButton>
+                <AnimatedButton
                   onClick={() => setIsOwner(false)}
+                  variant="secondary"
                   className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
                     !isOwner
                       ? 'bg-blue-600 text-white'
@@ -156,7 +165,7 @@ export const YouTubePlayerDemo = () => {
                   }`}
                 >
                   👤 Participant
-                </button>
+                </AnimatedButton>
               </div>
               <p className="mt-3 text-gray-400 text-sm">
                 {isOwner
@@ -172,11 +181,20 @@ export const YouTubePlayerDemo = () => {
                 {syncLog.length === 0 ? (
                   <p className="text-gray-500 text-sm italic">No events yet...</p>
                 ) : (
-                  syncLog.map((log, index) => (
-                    <div key={index} className="text-gray-300 text-xs font-mono bg-slate-900 px-2 py-1 rounded">
-                      {log}
-                    </div>
-                  ))
+                  <AnimatedList className="space-y-1">
+                    {syncLog.map((log, index) => (
+                      <AnimatedListItem key={index}>
+                        <motion.div
+                          className="text-gray-300 text-xs font-mono bg-slate-900 px-2 py-1 rounded"
+                          variants={chatMessageVariants}
+                          initial="initial"
+                          animate="animate"
+                        >
+                          {log}
+                        </motion.div>
+                      </AnimatedListItem>
+                    ))}
+                  </AnimatedList>
                 )}
               </div>
             </div>
@@ -219,6 +237,6 @@ export const YouTubePlayerDemo = () => {
           </div>
         </div>
       </div>
-    </div>
+    </AnimatedPage>
   );
 };
