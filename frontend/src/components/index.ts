@@ -9,3 +9,5 @@ export { SyncedYouTubePlayer, useSyncedYouTubePlayer } from './SyncedYouTubePlay
 export type { SyncedYouTubePlayerProps } from './SyncedYouTubePlayer';
 
 export { YouTubePlayerDemo } from './YouTubePlayerDemo';
+
+export { GlassDesignSystemDemo } from './GlassDesignSystemDemo';
