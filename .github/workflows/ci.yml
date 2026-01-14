@@ -68,7 +68,8 @@ jobs:
         run: npm run build --workspace=shared
 
       - name: Run unit tests
-        run: npm run test:unit
+        # Run frontend and transcoder tests only - backend tests need database (run in integration job)
+        run: npm run test --workspace=frontend --workspace=transcoder
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
