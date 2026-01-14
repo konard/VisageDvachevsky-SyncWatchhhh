@@ -33,8 +33,9 @@ RUN npm run build --workspace=transcoder
 # Production stage
 FROM node:20-alpine
 
-# Install FFmpeg
-RUN apk add --no-cache ffmpeg
+# Install FFmpeg and OpenSSL 1.1 compatibility for Prisma
+# Prisma's query engine requires libssl.so.1.1 which is not included in Alpine 3.17+
+RUN apk add --no-cache ffmpeg openssl1-compat-dev
 
 WORKDIR /app
 

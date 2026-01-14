@@ -2,8 +2,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies for native modules
-RUN apk add --no-cache python3 make g++
+# Install dependencies for native modules and OpenSSL 1.1 compatibility for Prisma
+# Prisma's query engine requires libssl.so.1.1 which is not included in Alpine 3.17+
+RUN apk add --no-cache python3 make g++ openssl1-compat-dev
 
 # Copy package files
 COPY package*.json ./
