@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { YouTubePlayerDemo } from './components/YouTubePlayerDemo';
+import { GlassDesignSystemDemo } from './components/GlassDesignSystemDemo';
 
 // Placeholder pages - to be implemented
 const HomePage = () => {
@@ -17,6 +18,12 @@ const HomePage = () => {
         <div className="space-y-3">
           <button className="glass-button px-6 py-3 text-white font-medium w-full">
             Create Room
+          </button>
+          <button
+            onClick={() => navigate('/design-system')}
+            className="glass-button px-6 py-3 text-white font-medium w-full"
+          >
+            Design System Demo
           </button>
           <button
             onClick={() => navigate('/youtube-demo')}
@@ -67,6 +74,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/youtube-demo" element={<YouTubePlayerDemo />} />
+          <Route path="/design-system" element={<GlassDesignSystemDemo />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
