@@ -4,9 +4,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GlassSpinner } from './components/ui/glass';
 import { ErrorBoundary } from './components/error';
 import { ToastContainer } from './components/toast';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { soundManager } from './services';
 import { DiagnosticsOverlay } from './components/diagnostics';
 import { useDiagnosticsKeyboard } from './hooks/useDiagnosticsKeyboard';
+import { useAuthStore } from './stores';
 
 // Lazy load pages for code splitting
 const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })));
@@ -35,8 +37,15 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  const { initialize, isInitialized } = useAuthStore();
+
   // Enable diagnostics keyboard shortcuts (Ctrl+Shift+D)
   useDiagnosticsKeyboard();
+
+  // Initialize auth on app startup
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
 
   // Preload sound effects on app initialization
   useEffect(() => {
@@ -44,6 +53,11 @@ function App() {
       console.warn('Failed to preload sounds:', error);
     });
   }, []);
+
+  // Show loading spinner while auth is initializing
+  if (!isInitialized) {
+    return <LoadingFallback />;
+  }
 
   return (
     <ErrorBoundary>
@@ -53,7 +67,14 @@ function App() {
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/room/:code" element={<RoomPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <ProfilePage />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/youtube-demo" element={<YouTubePlayerDemo />} />

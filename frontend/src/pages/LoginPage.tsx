@@ -1,45 +1,47 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, LogIn, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { AnimatedPage } from '../components/AnimatedPage';
 import { GlassButton, GlassInput } from '../components/ui/glass';
+import { useAuthStore } from '../stores';
 import clsx from 'clsx';
-import api from '../lib/api';
 
 /**
  * Login Page - Authentication page with liquid-glass design
  */
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login, isLoading, error, clearError, isAuthenticated } = useAuthStore();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // Get the redirect path from location state, or default to home
+  const from = (location.state as any)?.from?.pathname || '/';
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, from]);
+
+  // Clear error when component unmounts
+  useEffect(() => {
+    return () => clearError();
+  }, [clearError]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setIsLoading(true);
 
     try {
-      // Call the login API
-      const response = await api.post('/api/auth/login', {
-        email,
-        password,
-      });
-
-      // Store tokens in localStorage
-      localStorage.setItem('accessToken', response.data.accessToken);
-      localStorage.setItem('refreshToken', response.data.refreshToken);
-
-      // Redirect to home on success
-      navigate('/');
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Invalid email or password. Please try again.';
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
+      await login({ email, password }, rememberMe);
+      // Navigation will happen via the useEffect above when isAuthenticated becomes true
+    } catch (err) {
+      // Error is already set in the store
     }
   };
 
@@ -130,8 +132,17 @@ export function LoginPage() {
                 </div>
               </div>
 
-              {/* Forgot Password Link */}
-              <div className="flex justify-end">
+              {/* Remember Me & Forgot Password */}
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded border-white/20 bg-white/5 text-accent-cyan focus:ring-accent-cyan focus:ring-offset-0 cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-400">Remember me</span>
+                </label>
                 <Link
                   to="/forgot-password"
                   className="text-sm text-accent-cyan hover:text-white transition-colors"

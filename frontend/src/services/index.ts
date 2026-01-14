@@ -4,3 +4,11 @@ export { SyncCheckerService } from './syncChecker.service';
 export type { SyncCheckResult } from './syncChecker.service';
 export { soundManager } from './soundManager.service';
 export type { SoundName } from './soundManager.service';
+export { authService, AuthService } from './auth.service';
+export type {
+  User,
+  LoginRequest,
+  RegisterRequest,
+  AuthResponse,
+  RefreshResponse,
+} from './auth.service';

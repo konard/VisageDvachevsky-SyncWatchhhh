@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Mail,
   Lock,
@@ -12,22 +12,24 @@ import {
 } from 'lucide-react';
 import { AnimatedPage } from '../components/AnimatedPage';
 import { GlassButton, GlassInput } from '../components/ui/glass';
+import { useAuthStore } from '../stores';
 import clsx from 'clsx';
-import api from '../lib/api';
 
 /**
  * Register Page - Sign up page with liquid-glass design
  */
 export function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { register, isLoading, error, clearError, isAuthenticated } = useAuthStore();
+
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [clientError, setClientError] = useState<string | null>(null);
 
   // Password validation
   const passwordRequirements = {
@@ -40,43 +42,48 @@ export function RegisterPage() {
   const isPasswordValid = Object.values(passwordRequirements).every(Boolean);
   const doPasswordsMatch = password === confirmPassword && password !== '';
 
+  // Get the redirect path from location state, or default to home
+  const from = (location.state as any)?.from?.pathname || '/';
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, from]);
+
+  // Clear error when component unmounts
+  useEffect(() => {
+    return () => {
+      clearError();
+      setClientError(null);
+    };
+  }, [clearError]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setClientError(null);
 
     if (!isPasswordValid) {
-      setError('Please ensure your password meets all requirements.');
+      setClientError('Please ensure your password meets all requirements.');
       return;
     }
 
     if (!doPasswordsMatch) {
-      setError('Passwords do not match.');
+      setClientError('Passwords do not match.');
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      // Call the register API
-      const response = await api.post('/api/auth/register', {
-        username,
-        email,
-        password,
-      });
-
-      // Store tokens in localStorage
-      localStorage.setItem('accessToken', response.data.accessToken);
-      localStorage.setItem('refreshToken', response.data.refreshToken);
-
-      // Redirect to home on success (user is now logged in)
-      navigate('/');
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Registration failed. Please try again.';
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
+      await register({ username, email, password });
+      // Navigation will happen via the useEffect above when isAuthenticated becomes true
+    } catch (err) {
+      // Error is already set in the store
     }
   };
+
+  // Display either client-side or server-side error
+  const displayError = clientError || error;
 
   return (
     <AnimatedPage className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 animated-gradient flex flex-col">
@@ -109,9 +116,9 @@ export function RegisterPage() {
             </div>
 
             {/* Error Message */}
-            {error && (
+            {displayError && (
               <div className="mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                <p className="text-sm text-red-400 text-center">{error}</p>
+                <p className="text-sm text-red-400 text-center">{displayError}</p>
               </div>
             )}
 
