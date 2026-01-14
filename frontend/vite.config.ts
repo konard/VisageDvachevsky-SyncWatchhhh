@@ -1,11 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import path from 'path';
 
 export default defineConfig({
   plugins: [
     react(),
+
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'logo.png', 'robots.txt'],
@@ -91,7 +93,24 @@ export default defineConfig({
         ],
       },
     }),
-  ],
+
+    // Sentry source maps upload plugin
+    // Only enable in production builds with SENTRY_AUTH_TOKEN set
+    process.env.SENTRY_AUTH_TOKEN &&
+      sentryVitePlugin({
+        org: process.env.SENTRY_ORG,
+        project: process.env.SENTRY_PROJECT,
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+
+        // Upload source maps during build
+        sourcemaps: {
+          assets: './dist/**',
+        },
+
+        // Other plugin options
+        telemetry: false,
+      }),
+  ].filter(Boolean),
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
