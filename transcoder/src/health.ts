@@ -6,7 +6,7 @@
 
 import http from 'http';
 import { logger } from './logger.js';
-import { Worker } from 'bullmq';
+import { Worker, Queue } from 'bullmq';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -24,11 +24,16 @@ export interface TranscoderHealth {
 }
 
 let transcoderWorker: Worker | null = null;
+let transcoderQueue: Queue | null = null;
 let lastJobCompleted: Date | null = null;
 let lastJobFailed: Date | null = null;
 
 export function setTranscoderWorker(worker: Worker) {
   transcoderWorker = worker;
+}
+
+export function setTranscoderQueue(queue: Queue) {
+  transcoderQueue = queue;
 }
 
 export function setLastJobCompleted(date: Date) {
@@ -66,10 +71,10 @@ async function getTranscoderHealth(): Promise<TranscoderHealth> {
   let activeJobs = 0;
   let queueDepth = 0;
 
-  if (transcoderWorker) {
+  if (transcoderQueue) {
     try {
-      activeJobs = await transcoderWorker.getActiveCount();
-      queueDepth = await transcoderWorker.getWaitingCount();
+      activeJobs = await transcoderQueue.getActiveCount();
+      queueDepth = await transcoderQueue.getWaitingCount();
     } catch (error) {
       logger.warn({ error: (error as Error).message }, 'Failed to get queue metrics');
     }

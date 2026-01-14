@@ -5,7 +5,7 @@
  * Outputs HLS segments to MinIO storage
  */
 
-import { Worker, Job } from 'bullmq';
+import { Worker, Job, Queue } from 'bullmq';
 import ffmpeg from 'fluent-ffmpeg';
 import { Client as MinioClient } from 'minio';
 import { Redis } from 'ioredis';
@@ -14,7 +14,7 @@ import fs from 'fs/promises';
 import { spawn, ChildProcess } from 'child_process';
 import { logger } from './logger.js';
 import { prisma, closePrisma } from './db.js';
-import { createHealthServer, setTranscoderWorker, setLastJobCompleted, setLastJobFailed } from './health.js';
+import { createHealthServer, setTranscoderWorker, setTranscoderQueue, setLastJobCompleted, setLastJobFailed } from './health.js';
 import { FFmpegProcessMonitor, DEFAULT_FFMPEG_LIMITS, applyNiceLevel } from './ffmpeg-limits.js';
 
 interface TranscodeJob {
@@ -420,8 +420,14 @@ async function main(): Promise<void> {
     },
   });
 
-  // Set worker instance for health checks
+  // Create queue instance for health check metrics
+  const queue = new Queue<TranscodeJob>('transcode', {
+    connection: redis,
+  });
+
+  // Set worker and queue instances for health checks
   setTranscoderWorker(worker);
+  setTranscoderQueue(queue);
 
   worker.on('completed', (job, result) => {
     setLastJobCompleted(new Date());

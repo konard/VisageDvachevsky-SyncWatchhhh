@@ -19,7 +19,7 @@ export async function healthRoutes(app: FastifyInstance) {
    * Kubernetes readiness probe - returns 200 only if service can accept traffic
    * Checks all critical dependencies
    */
-  app.get('/health/ready', async (request, reply) => {
+  app.get('/health/ready', async (_request, reply) => {
     const result = await performReadinessChecks();
 
     const statusCode = result.status === 'ok' ? 200 : 503;
