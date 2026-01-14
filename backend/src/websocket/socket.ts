@@ -10,6 +10,7 @@ import {
 import { authMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/error.js';
 import { handleRoomJoin, handleRoomLeave, handleDisconnect } from './handlers/room.handler.js';
+import { handleTimePing } from './handlers/time.handler.js';
 import {
   handleVoiceJoin,
   handleVoiceLeave,
@@ -66,6 +67,7 @@ export function createSocketServer(
     socket.on(ClientEvents.ROOM_LEAVE, (data) => handleRoomLeave(socket, syncNamespace, data));
 
     // Register sync event handlers
+    socket.on(ClientEvents.TIME_PING, (data) => handleTimePing(socket, data));
     socket.on(ClientEvents.SYNC_PLAY, (data) => handleSyncPlay(socket, syncNamespace, data));
     socket.on(ClientEvents.SYNC_PAUSE, (data) => handleSyncPause(socket, syncNamespace, data));
     socket.on(ClientEvents.SYNC_SEEK, (data) => handleSyncSeek(socket, syncNamespace, data));

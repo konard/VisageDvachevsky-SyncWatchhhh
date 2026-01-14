@@ -16,6 +16,8 @@ import {
   VoiceSignalReceivedEvent,
   VoiceSpeakingStatusEvent,
   VoiceErrorEvent,
+  TimePingEvent,
+  TimePongEvent,
   SyncPlayEvent,
   SyncPauseEvent,
   SyncSeekEvent,
@@ -35,6 +37,7 @@ export interface ClientToServerEvents {
   'voice:leave': (data: VoiceLeaveEvent) => void;
   'voice:signal': (data: VoiceSignalEvent) => void;
   'voice:speaking': (data: VoiceSpeakingEvent) => void;
+  'time:ping': (data: TimePingEvent) => void;
   'sync:play': (data: SyncPlayEvent) => void;
   'sync:pause': (data: SyncPauseEvent) => void;
   'sync:seek': (data: SyncSeekEvent) => void;
@@ -52,6 +55,7 @@ export interface ServerToClientEvents {
   'voice:signal': (data: VoiceSignalReceivedEvent) => void;
   'voice:speaking': (data: VoiceSpeakingStatusEvent) => void;
   'voice:error': (data: VoiceErrorEvent) => void;
+  'time:pong': (data: TimePongEvent) => void;
   'sync:command': (data: SyncCommandEvent) => void;
   'sync:state': (data: SyncStateEvent) => void;
 }
