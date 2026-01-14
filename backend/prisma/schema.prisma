@@ -92,8 +92,10 @@ model Room {
   maxParticipants Int      @default(5)
   passwordHash    String?
   playbackControl String   @default("owner_only") // owner_only, all, selected
+  ownerLock       Boolean  @default(true) // Prevent owner from being kicked
   createdAt       DateTime @default(now())
   expiresAt       DateTime
+  lastActivityAt  DateTime @default(now()) // For idle room detection
 
   // Current video (optional)
   videoId String?
@@ -115,14 +117,19 @@ model Room {
   forceRelayMode    Boolean @default(false) // Force TURN-only connections
 
   // Relations
-  owner        User              @relation("RoomOwner", fields: [ownerId], references: [id])
-  participants RoomParticipant[]
-  messages     ChatMessage[]
-  reports      UserReport[]
+  owner              User                  @relation("RoomOwner", fields: [ownerId], references: [id])
+  participants       RoomParticipant[]
+  messages           ChatMessage[]
+  reports            UserReport[]
+  temporaryHosts     TemporaryHost[]
+  playbackVotes      PlaybackVote[]
+  participantMetrics ParticipantMetrics[]
+  historyEntries     RoomHistory[]
 
   @@index([code])
   @@index([ownerId])
   @@index([expiresAt])
+  @@index([lastActivityAt])
 }
 
 model RoomParticipant {
@@ -270,4 +277,143 @@ model UserReport {
   @@index([roomId])
   @@index([status])
   @@index([createdAt])
+}
+
+// ============================================
+// Smart Ownership & Room Lifecycle
+// ============================================
+
+// Temporary Host Sessions
+model TemporaryHost {
+  id              String   @id @default(cuid())
+  roomId          String
+  permanentOwnerId String
+  temporaryHostId String
+  grantedAt       DateTime @default(now())
+  expiresAt       DateTime? // null = until revoked
+  permissions     Json // Array of HostPermission strings
+  revoked         Boolean  @default(false)
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, temporaryHostId])
+  @@index([roomId])
+  @@index([temporaryHostId])
+  @@index([expiresAt])
+}
+
+// Playback Voting System
+model PlaybackVote {
+  id           String   @id @default(cuid())
+  roomId       String
+  type         String // 'pause' | 'resume'
+  initiatedBy  String
+  initiatedAt  DateTime @default(now())
+  expiresAt    DateTime
+  threshold    Int // Number of votes needed to pass
+  votes        Json // Map of userId to 'yes' | 'no'
+  resolved     Boolean  @default(false)
+  passed       Boolean  @default(false)
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([resolved])
+  @@index([expiresAt])
+}
+
+// Participant Network Metrics for Auto-Host Selection
+model ParticipantMetrics {
+  id                String   @id @default(cuid())
+  roomId            String
+  userId            String
+  avgLatencyMs      Float    @default(0)
+  packetLossPercent Float    @default(0)
+  connectionUptime  BigInt   @default(0) // milliseconds
+  stabilityScore    Float    @default(0) // Computed score
+  lastUpdated       DateTime @default(now())
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@index([userId])
+}
+
+// Scheduled Rooms
+model ScheduledRoom {
+  id            String   @id @default(cuid())
+  creatorId     String
+  scheduledFor  DateTime
+  timezone      String   @default("UTC")
+  name          String
+  code          String   @unique // Pre-generated invite code
+  maxParticipants Int    @default(5)
+  passwordHash  String?
+  playbackControl String @default("owner_only")
+
+  // Video source (optional, can be set later)
+  videoId        String?
+  youtubeVideoId String?
+  externalUrl    String?
+
+  // Lifecycle
+  status         String   @default("scheduled") // scheduled, active, cancelled, expired
+  remindersSent  Boolean  @default(false)
+  invitedUsers   Json     @default("[]") // Array of user IDs
+
+  // Activation
+  activatedRoomId String? // ID of the actual Room when activated
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([creatorId])
+  @@index([scheduledFor])
+  @@index([status])
+  @@index([code])
+}
+
+// Room Watch History
+model RoomHistory {
+  id              String   @id @default(cuid())
+  roomId          String
+  userId          String
+  roomName        String
+
+  // Source information
+  sourceType      String // 'upload', 'youtube', 'external'
+  sourceData      Json // Stores video metadata or URL
+
+  // Session data
+  watchedAt       DateTime @default(now())
+  watchDurationMs BigInt // How long the user watched
+  participants    Json // Array of participant names/IDs
+  thumbnail       String? // Thumbnail URL if available
+
+  // Privacy
+  isVisible       Boolean  @default(true) // User can hide history entries
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([userId, watchedAt])
+  @@index([roomId])
+}
+
+// Room Templates
+model RoomTemplate {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  isDefault Boolean  @default(false)
+  settings  Json // RoomSettings object
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, isDefault])
 }

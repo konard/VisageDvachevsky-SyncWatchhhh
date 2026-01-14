@@ -79,7 +79,7 @@ export async function createApp() {
     redis: rateLimitRedis,
   });
 
-  // Health check endpoint
+  // Health check endpoints (legacy endpoint for backward compatibility)
   app.get('/health', async () => {
     return {
       status: 'ok',
@@ -97,8 +97,15 @@ export async function createApp() {
     };
   });
 
+  // Register health check routes
+  const { healthRoutes } = await import('./modules/health/routes.js');
+  await app.register(healthRoutes);
+
   // Register API routes
   const { friendsRoutes } = await import('./modules/friends/routes.js');
+  const { registerRoomLifecycleRoutes } = await import(
+    './modules/room-lifecycle/routes.js'
+  );
 
   await app.register(authRoutes, { prefix: '/api/auth' });
   await app.register(friendsRoutes, { prefix: '/api' });
@@ -106,6 +113,7 @@ export async function createApp() {
   await app.register(registerRoomRoutes, { prefix: '/api/rooms' });
   await app.register(videoRoutes, { prefix: '/api/videos' });
   await app.register(moderationRoutes, { prefix: '/api/moderation' });
+  await app.register(registerRoomLifecycleRoutes);
 
   return app;
 }

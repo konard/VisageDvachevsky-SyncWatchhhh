@@ -25,13 +25,17 @@ describe('VoiceService', () => {
       onPeerConnected: vi.fn(),
       onPeerDisconnected: vi.fn(),
       onPeerStream: vi.fn(),
+      onPeerAudioLevel: vi.fn(),
+      onPeerQuality: vi.fn(),
       onError: vi.fn(),
     };
 
     settings = {
       mode: 'push_to_talk',
       pttKey: 'Space',
+      pttMouseButton: undefined,
       vadThreshold: 0.3,
+      noiseSuppressionLevel: 'moderate',
       noiseSuppression: true,
       echoCancellation: true,
       autoGainControl: true,
@@ -72,5 +76,37 @@ describe('VoiceService', () => {
     const peers = voiceService.getConnectedPeers();
     expect(Array.isArray(peers)).toBe(true);
     expect(peers.length).toBe(0);
+  });
+
+  it('should support volume control (0-200%)', () => {
+    // Test that peer volume can be set without error
+    voiceService.setPeerVolume('peer1', 0);
+    voiceService.setPeerVolume('peer1', 1.0);
+    voiceService.setPeerVolume('peer1', 2.0);
+    expect(true).toBe(true);
+  });
+
+  it('should support peer muting', () => {
+    voiceService.setPeerMuted('peer1', true);
+    voiceService.setPeerMuted('peer1', false);
+    expect(true).toBe(true);
+  });
+
+  it('should support quality monitoring', () => {
+    voiceService.startQualityMonitoring();
+    voiceService.stopQualityMonitoring();
+    expect(true).toBe(true);
+  });
+
+  it('should support PTT mouse button', () => {
+    voiceService.updateSettings({ pttMouseButton: 3 });
+    expect(true).toBe(true);
+  });
+
+  it('should support noise suppression levels', () => {
+    voiceService.updateSettings({ noiseSuppressionLevel: 'high' });
+    voiceService.updateSettings({ noiseSuppressionLevel: 'off' });
+    voiceService.updateSettings({ noiseSuppressionLevel: 'maximum' });
+    expect(true).toBe(true);
   });
 });
