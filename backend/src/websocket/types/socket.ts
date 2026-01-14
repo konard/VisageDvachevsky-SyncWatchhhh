@@ -6,6 +6,8 @@ import {
   RoomParticipantJoinedEvent,
   RoomParticipantLeftEvent,
   RoomErrorEvent,
+  TimePingEvent,
+  TimePongEvent,
 } from './events.js';
 
 // ============================================
@@ -15,6 +17,7 @@ import {
 export interface ClientToServerEvents {
   'room:join': (data: RoomJoinEvent) => void;
   'room:leave': (data: RoomLeaveEvent) => void;
+  'time:ping': (data: TimePingEvent) => void;
 }
 
 export interface ServerToClientEvents {
@@ -22,6 +25,7 @@ export interface ServerToClientEvents {
   'room:participant:joined': (data: RoomParticipantJoinedEvent) => void;
   'room:participant:left': (data: RoomParticipantLeftEvent) => void;
   'room:error': (data: RoomErrorEvent) => void;
+  'time:pong': (data: TimePongEvent) => void;
 }
 
 export interface InterServerEvents {

@@ -12,8 +12,13 @@ export const RoomJoinEventSchema = z.object({
 
 export const RoomLeaveEventSchema = z.object({});
 
+export const TimePingEventSchema = z.object({
+  clientTime: z.number(),
+});
+
 export type RoomJoinEvent = z.infer<typeof RoomJoinEventSchema>;
 export type RoomLeaveEvent = z.infer<typeof RoomLeaveEventSchema>;
+export type TimePingEvent = z.infer<typeof TimePingEventSchema>;
 
 // ============================================
 // Server Events (Server → Client)
@@ -72,6 +77,11 @@ export interface RoomErrorEvent {
   message: string;
 }
 
+export interface TimePongEvent {
+  clientTime: number;
+  serverTime: number;
+}
+
 // Error codes
 export const ErrorCodes = {
   ROOM_NOT_FOUND: 'ROOM_NOT_FOUND',
@@ -91,6 +101,7 @@ export const ErrorCodes = {
 export const ClientEvents = {
   ROOM_JOIN: 'room:join',
   ROOM_LEAVE: 'room:leave',
+  TIME_PING: 'time:ping',
 } as const;
 
 export const ServerEvents = {
@@ -98,4 +109,5 @@ export const ServerEvents = {
   ROOM_PARTICIPANT_JOINED: 'room:participant:joined',
   ROOM_PARTICIPANT_LEFT: 'room:participant:left',
   ROOM_ERROR: 'room:error',
+  TIME_PONG: 'time:pong',
 } as const;
