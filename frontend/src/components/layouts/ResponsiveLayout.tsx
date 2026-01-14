@@ -27,7 +27,7 @@ export function ResponsiveLayout({
   participants,
   tabContent,
 }: ResponsiveLayoutProps) {
-  const { isDesktop, isTablet, isMobile } = useBreakpoint();
+  const { isDesktop, isTablet } = useBreakpoint();
 
   // Desktop layout (≥1024px)
   if (isDesktop) {

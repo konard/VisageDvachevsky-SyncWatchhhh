@@ -109,8 +109,23 @@ syncwatch/
 
 ## Documentation
 
-- [Technical Specification](docs/TECHNICAL_SPECIFICATION.md)
-- [Architecture](docs/ARCHITECTURE.md)
+### Overview & Architecture
+- [Technical Specification](docs/TECHNICAL_SPECIFICATION.md) - Complete system specification
+- [Architecture](docs/ARCHITECTURE.md) - System architecture overview
+
+### Developer Documentation
+- [API Documentation](docs/API.md) - REST API endpoints reference
+- [OpenAPI Specification](docs/openapi.yaml) - OpenAPI/Swagger spec
+- [WebSocket Events](docs/WEBSOCKET.md) - Real-time events documentation
+- [Contributing Guide](CONTRIBUTING.md) - How to contribute to the project
+- [Code Style Guide](CODE_STYLE.md) - Coding standards and best practices
+- [Environment Variables](ENVIRONMENT.md) - Configuration reference
+
+### Operations Documentation
+- [Deployment Guide](docs/DEPLOYMENT.md) - Step-by-step deployment instructions
+- [Operations Guide](docs/OPERATIONS.md) - Day-to-day operational procedures
+- [Incident Response](docs/INCIDENTS.md) - Incident response playbooks
+- [Troubleshooting Runbooks](docs/RUNBOOKS.md) - Detailed troubleshooting guides
 
 ## Contributing
 
