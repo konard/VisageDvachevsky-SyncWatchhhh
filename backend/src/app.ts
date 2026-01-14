@@ -22,15 +22,48 @@ export async function createApp() {
     disableRequestLogging: false,
   });
 
-  // CORS
+  // CORS - Strict origin validation
   await app.register(cors, {
-    origin: env.CORS_ORIGIN,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      // Parse allowed origins from env (comma-separated)
+      const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim());
+
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        callback(null, true);
+      } else {
+        logger.warn({ origin, allowedOrigins }, 'CORS origin rejected');
+        callback(new Error('CORS not allowed'), false);
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
   });
 
-  // Security headers
+  // Security headers with strict CSP
   await app.register(helmet, {
-    contentSecurityPolicy: false, // Disable CSP for API
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", 'https://www.youtube.com'],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        mediaSrc: ["'self'", 'blob:', 'https://storage.syncwatch.example'],
+        frameSrc: ['https://www.youtube.com'],
+        connectSrc: ["'self'", 'wss:', 'https:'],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false, // Allow embedding YouTube videos
   });
 
   // JWT authentication

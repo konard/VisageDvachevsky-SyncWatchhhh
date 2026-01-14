@@ -6,6 +6,7 @@ import { ensureBuckets } from './config/minio.js';
 import { closeQueue } from './config/queue.js';
 import { logger } from './config/logger.js';
 import { env } from './config/env.js';
+import { scheduleAuditLogCleanup } from './jobs/audit-cleanup.js';
 
 /**
  * Start the server
@@ -30,6 +31,9 @@ async function start() {
 
     // Create Socket.io server
     const io = createSocketServer(httpServer);
+
+    // Schedule audit log cleanup (runs daily at 2 AM)
+    scheduleAuditLogCleanup();
 
     logger.info(
       {
