@@ -13,7 +13,6 @@
  */
 
 import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
 
 /**
  * Read a secret from Docker Secrets or environment variable

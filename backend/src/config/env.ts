@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { getSecret, getOptionalSecret } from './secrets';
+import { getSecret } from './secrets';
 import { getCurrentEnvironment, getEnvironmentConfig } from './environments';
 
 /**
