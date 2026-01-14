@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { YouTubePlayerDemo } from './components/YouTubePlayerDemo';
+import { GlassDesignSystemDemo } from './components/GlassDesignSystemDemo';
 import { HomePage, RoomPage, ProfilePage } from './pages';
 
 const LoginPage = () => (
