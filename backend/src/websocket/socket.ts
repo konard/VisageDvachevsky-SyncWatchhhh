@@ -88,10 +88,10 @@ export function createSocketServer(
     socket.on(ClientEvents.READY_RESPOND, (data) => handleReadyRespond(socket, syncNamespace, data));
 
     // Register voice event handlers
-    socket.on('voice:join', (data: unknown) => handleVoiceJoin(socket, syncNamespace, data as any));
-    socket.on('voice:leave', (data: unknown) => handleVoiceLeave(socket, syncNamespace, data as any));
-    socket.on('voice:signal', (data: unknown) => handleVoiceSignal(socket, syncNamespace, data as any));
-    socket.on('voice:speaking', (data: unknown) => handleVoiceSpeaking(socket, syncNamespace, data as any));
+    socket.on('voice:join', (data) => handleVoiceJoin(socket, syncNamespace, data));
+    socket.on('voice:leave', (data) => handleVoiceLeave(socket, syncNamespace, data));
+    socket.on('voice:signal', (data) => handleVoiceSignal(socket, syncNamespace, data));
+    socket.on('voice:speaking', (data) => handleVoiceSpeaking(socket, syncNamespace, data));
 
     // Handle disconnect
     socket.on('disconnect', () => handleDisconnect(socket, syncNamespace));

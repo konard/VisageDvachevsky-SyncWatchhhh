@@ -1,7 +1,6 @@
 import type { Namespace } from 'socket.io';
 import type {
   Socket,
-  Server,
   ClientToServerEvents,
   ServerToClientEvents,
 } from '../types/socket.js';
@@ -47,7 +46,6 @@ export function handleReadyInitiate(
 
   const roomCode = socket.data.roomCode;
   const userId = socket.data.userId || socket.data.sessionId;
-  const username = socket.data.guestName || socket.data.userId || 'Unknown';
   const role = socket.data.role;
 
   if (!roomCode) {

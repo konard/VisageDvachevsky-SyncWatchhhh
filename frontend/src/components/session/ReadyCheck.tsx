@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import type { ReadyCheck as ReadyCheckType, ReadyCheckParticipant } from '@syncwatch/shared';
+import { motion } from 'framer-motion';
+import type { ReadyCheck as ReadyCheckType } from '@syncwatch/shared';
 import { GlassPanel } from '../ui/glass/GlassPanel';
 import { GlassButton } from '../ui/glass/GlassButton';
 import { CheckCircle, XCircle, Clock, Loader } from 'lucide-react';
