@@ -31,13 +31,26 @@ export const redisConfig = {
   },
 } as const;
 
-const createRedisClient = (db: number, keyPrefix?: string) => {
+interface RedisClientOptions {
+  db: number;
+  keyPrefix?: string;
+  /**
+   * BullMQ requires maxRetriesPerRequest to be null.
+   * Set this to true for Redis clients used with BullMQ.
+   */
+  forBullMQ?: boolean;
+}
+
+const createRedisClient = (options: RedisClientOptions) => {
+  const { db, keyPrefix, forBullMQ } = options;
   return new Redis({
     host: env.REDIS_HOST,
     port: env.REDIS_PORT,
     password: env.REDIS_PASSWORD,
     db,
     keyPrefix,
+    // BullMQ requires maxRetriesPerRequest to be null
+    maxRetriesPerRequest: forBullMQ ? null : undefined,
     retryStrategy: (times) => {
       const delay = Math.min(times * 50, 2000);
       return delay;
@@ -50,29 +63,33 @@ const createRedisClient = (db: number, keyPrefix?: string) => {
 };
 
 // State management (room state, playback, presence)
-export const stateRedis = createRedisClient(
-  redisConfig.state.db,
-  redisConfig.state.keyPrefix
-);
+export const stateRedis = createRedisClient({
+  db: redisConfig.state.db,
+  keyPrefix: redisConfig.state.keyPrefix,
+});
 
 // Pub/Sub for cross-instance communication
-export const pubRedis = createRedisClient(redisConfig.pubsub.db);
-export const subRedis = createRedisClient(redisConfig.pubsub.db);
+export const pubRedis = createRedisClient({ db: redisConfig.pubsub.db });
+export const subRedis = createRedisClient({ db: redisConfig.pubsub.db });
 
 // Session storage (socket sessions, refresh tokens)
-export const sessionRedis = createRedisClient(
-  redisConfig.session.db,
-  redisConfig.session.keyPrefix
-);
+export const sessionRedis = createRedisClient({
+  db: redisConfig.session.db,
+  keyPrefix: redisConfig.session.keyPrefix,
+});
 
 // Rate limiting
-export const rateLimitRedis = createRedisClient(
-  redisConfig.rateLimit.db,
-  redisConfig.rateLimit.keyPrefix
-);
+export const rateLimitRedis = createRedisClient({
+  db: redisConfig.rateLimit.db,
+  keyPrefix: redisConfig.rateLimit.keyPrefix,
+});
 
 // BullMQ queue (without keyPrefix - BullMQ handles prefixes internally)
-export const queueRedis = createRedisClient(redisConfig.queue.db);
+// forBullMQ: true sets maxRetriesPerRequest to null as required by BullMQ
+export const queueRedis = createRedisClient({
+  db: redisConfig.queue.db,
+  forBullMQ: true,
+});
 
 // Graceful shutdown
 export const closeRedisConnections = async () => {

@@ -33,6 +33,10 @@ RUN npm run build --workspace=backend
 # Production stage
 FROM node:20-alpine
 
+# Install OpenSSL 1.1 compatibility for Prisma
+# Prisma's query engine requires libssl.so.1.1 which is not included in Alpine 3.17+
+RUN apk add --no-cache openssl1-compat-dev
+
 WORKDIR /app
 
 # Copy workspace root package files (exclude lock file to get platform-specific deps)

@@ -38,8 +38,11 @@ interface BitrateVariant {
   bufsize: string;
 }
 
-// Initialize Redis connection
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+// Initialize Redis connection for BullMQ
+// BullMQ requires maxRetriesPerRequest to be null
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  maxRetriesPerRequest: null,
+});
 
 // Initialize MinIO client
 const minio = new MinioClient({

@@ -104,6 +104,31 @@ function loadSecretsIntoEnv(): void {
 // Load secrets before parsing environment
 loadSecretsIntoEnv();
 
+/**
+ * Parse REDIS_HOST and REDIS_PORT from REDIS_URL if REDIS_URL is set
+ * but REDIS_HOST is not explicitly set.
+ * This ensures config/redis.ts uses the correct host when REDIS_URL is provided.
+ */
+function parseRedisUrlIntoEnv(): void {
+  const redisUrl = process.env.REDIS_URL;
+  if (redisUrl && !process.env.REDIS_HOST) {
+    try {
+      const url = new URL(redisUrl);
+      process.env.REDIS_HOST = url.hostname;
+      if (url.port) {
+        process.env.REDIS_PORT = url.port;
+      }
+      if (url.password) {
+        process.env.REDIS_PASSWORD = url.password;
+      }
+    } catch {
+      // Invalid REDIS_URL, will fall back to defaults
+    }
+  }
+}
+
+parseRedisUrlIntoEnv();
+
 export const env = envSchema.parse(process.env);
 
 // Validate environment configuration
