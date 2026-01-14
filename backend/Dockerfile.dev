@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install dependencies for native modules and OpenSSL 1.1 compatibility for Prisma
 # Prisma's query engine requires libssl.so.1.1 which is not included in Alpine 3.17+
-RUN apk add --no-cache python3 make g++ openssl1-compat-dev
+RUN apk add --no-cache python3 make g++ openssl1-compat-dev bash
 
 # Copy package files
 COPY package*.json ./
@@ -21,8 +21,12 @@ RUN npx prisma generate
 # Copy source code (will be overwritten by volume mount in dev)
 COPY . .
 
+# Copy entrypoint script
+COPY entrypoint.dev.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Expose port
 EXPOSE 4000
 
-# Start development server with hot reload
-CMD ["npm", "run", "dev"]
+# Start development server with migrations
+ENTRYPOINT ["/entrypoint.sh"]
