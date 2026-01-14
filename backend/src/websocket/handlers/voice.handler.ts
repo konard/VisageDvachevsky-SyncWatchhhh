@@ -21,6 +21,7 @@ import { voiceStateService } from '../../modules/voice/state.service.js';
 import { roomService } from '../../modules/room/room.service.js';
 import { logger } from '../../config/logger.js';
 import * as analyticsTracker from '../analytics-tracker.js';
+import { getIceServers } from '../../services/turn.service.js';
 
 type SyncNamespace = Namespace<
   ClientToServerEvents,
@@ -79,6 +80,14 @@ export const handleVoiceJoin = async (
     // Get all existing voice participants (excluding the new joiner)
     const allPeers = await voiceStateService.getVoicePeerIds(room.id);
     const existingPeers = allPeers.filter((peerId) => peerId !== socket.data.oderId);
+
+    // Get ICE servers configuration (STUN/TURN) for WebRTC
+    const iceServers = getIceServers(socket.data.oderId);
+
+    // Send ICE servers to the joining user
+    socket.emit('voice:ice:servers', {
+      iceServers,
+    });
 
     // Send list of existing peers to the joining user
     socket.emit('voice:peers', {

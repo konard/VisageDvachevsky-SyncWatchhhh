@@ -38,3 +38,59 @@ export interface UpdateSettingsInput {
   notificationsEnabled?: boolean;
   theme?: 'dark' | 'light' | 'auto';
 }
+
+// Friend-related types
+export interface Friend {
+  id: string;
+  status: 'pending' | 'accepted' | 'blocked';
+  createdAt: string;
+  friend: {
+    id: string;
+    username: string;
+    avatarUrl: string | null;
+  };
+}
+
+export interface FriendRequest {
+  id: string;
+  status: 'pending';
+  createdAt: string;
+  requester?: {
+    id: string;
+    username: string;
+    avatarUrl: string | null;
+  };
+  addressee?: {
+    id: string;
+    username: string;
+    avatarUrl: string | null;
+  };
+}
+
+export interface FriendRequestsResponse {
+  sent: FriendRequest[];
+  received: FriendRequest[];
+}
+
+export interface SendFriendRequestInput {
+  addresseeId: string;
+}
+
+// Watch history types
+export interface VideoSource {
+  type: 'youtube' | 'file' | 'external';
+  youtubeVideoId?: string;
+  fileUrl?: string;
+  externalUrl?: string;
+}
+
+export interface WatchHistoryEntry {
+  id: string;
+  roomId: string;
+  userId: string;
+  source: VideoSource;
+  watchedAt: string;
+  watchDurationMs: number;
+  participants: string[];
+  thumbnail?: string;
+}
