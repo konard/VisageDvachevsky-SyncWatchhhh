@@ -15,7 +15,7 @@ test.describe('Room Creation Flow', () => {
     await createButton.click();
 
     // Should navigate to room page
-    await expect(page).toHaveURL(/\/room\/[a-z0-9-]+/);
+    await expect(page).toHaveURL(/\/room\/[a-zA-Z0-9-]+/);
 
     // Should show room interface
     await expect(page.getByText(/room/i)).toBeVisible();
@@ -24,7 +24,7 @@ test.describe('Room Creation Flow', () => {
   test('should display room invite link', async ({ page }) => {
     // Create a room
     await page.getByRole('button', { name: /create room/i }).click();
-    await page.waitForURL(/\/room\/[a-z0-9-]+/);
+    await page.waitForURL(/\/room\/[a-zA-Z0-9-]+/);
 
     // Look for invite/share button
     const shareButton = page.getByRole('button', { name: /share|invite/i }).first();
@@ -39,7 +39,7 @@ test.describe('Room Creation Flow', () => {
   test('should join room with invite link', async ({ page, context }) => {
     // Create a room in first page
     await page.getByRole('button', { name: /create room/i }).click();
-    await page.waitForURL(/\/room\/([a-z0-9-]+)/);
+    await page.waitForURL(/\/room\/([a-zA-Z0-9-]+)/);
 
     const roomUrl = page.url();
     const roomId = roomUrl.split('/room/')[1];
@@ -56,7 +56,7 @@ test.describe('Room Creation Flow', () => {
   test('should show participants count', async ({ page, context }) => {
     // Create a room
     await page.getByRole('button', { name: /create room/i }).click();
-    await page.waitForURL(/\/room\/[a-z0-9-]+/);
+    await page.waitForURL(/\/room\/[a-zA-Z0-9-]+/);
 
     const roomUrl = page.url();
 
@@ -80,7 +80,7 @@ test.describe('Room Creation Flow', () => {
     // This test verifies that rooms enforce the 5-user limit
     // Implementation depends on how the app handles this
     await page.getByRole('button', { name: /create room/i }).click();
-    await page.waitForURL(/\/room\/[a-z0-9-]+/);
+    await page.waitForURL(/\/room\/[a-zA-Z0-9-]+/);
 
     // The actual test would require creating multiple users
     // This is a placeholder for the structure

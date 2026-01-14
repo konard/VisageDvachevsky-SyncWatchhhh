@@ -5,7 +5,7 @@ test.describe('Video Upload and Playback', () => {
     // Create a room for testing
     await page.goto('/');
     await page.getByRole('button', { name: /create room/i }).click();
-    await page.waitForURL(/\/room\/[a-z0-9-]+/);
+    await page.waitForURL(/\/room\/[a-zA-Z0-9-]+/);
   });
 
   test('should display video source options', async ({ page }) => {

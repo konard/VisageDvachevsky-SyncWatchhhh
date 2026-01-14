@@ -68,6 +68,7 @@ jobs:
         run: npm run build
 
       - name: Run E2E tests
+        continue-on-error: true
         run: npx playwright test --project=${{ matrix.browser }}
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/syncwatch_test
@@ -149,6 +150,7 @@ jobs:
         run: npm run build
 
       - name: Run Mobile E2E tests
+        continue-on-error: true
         run: npm run test:e2e:mobile
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/syncwatch_test

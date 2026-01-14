@@ -3,7 +3,7 @@
  * Displays real-time sync metrics
  */
 
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Activity } from 'lucide-react';
 import { useDiagnosticsStore } from '../../stores/diagnostics.store';
 import { MetricsSection } from './MetricsSection';

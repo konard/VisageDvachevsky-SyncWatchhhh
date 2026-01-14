@@ -81,7 +81,7 @@ describe('Sync Handler', () => {
         playbackRate: 1.0,
         anchorServerTimeMs: 1000,
         anchorMediaTimeMs: 5000,
-        sequenceNumber: 1,
+        sequenceNumber: 0,
       };
 
       await roomStateService.setPlaybackState(testRoomId, initialState);
@@ -107,7 +107,7 @@ describe('Sync Handler', () => {
 
       expect(retrieved?.isPlaying).toBe(false);
       expect(retrieved?.anchorMediaTimeMs).toBe(7000); // 5000 + 2000
-      expect(retrieved?.sequenceNumber).toBe(2);
+      expect(retrieved?.sequenceNumber).toBe(1);
     });
 
     it('should update playback rate and recalculate media time', async () => {
@@ -119,7 +119,7 @@ describe('Sync Handler', () => {
         playbackRate: 1.0,
         anchorServerTimeMs: 1000,
         anchorMediaTimeMs: 5000,
-        sequenceNumber: 1,
+        sequenceNumber: 0,
       };
 
       await roomStateService.setPlaybackState(testRoomId, initialState);
@@ -146,7 +146,7 @@ describe('Sync Handler', () => {
 
       expect(retrieved?.playbackRate).toBe(1.5);
       expect(retrieved?.anchorMediaTimeMs).toBe(7000);
-      expect(retrieved?.sequenceNumber).toBe(2);
+      expect(retrieved?.sequenceNumber).toBe(1);
     });
 
     it('should handle seek by updating anchor points', async () => {
@@ -158,7 +158,7 @@ describe('Sync Handler', () => {
         playbackRate: 1.0,
         anchorServerTimeMs: 1000,
         anchorMediaTimeMs: 5000,
-        sequenceNumber: 1,
+        sequenceNumber: 0,
       };
 
       await roomStateService.setPlaybackState(testRoomId, initialState);
@@ -180,7 +180,7 @@ describe('Sync Handler', () => {
 
       expect(retrieved?.anchorMediaTimeMs).toBe(10000);
       expect(retrieved?.anchorServerTimeMs).toBe(2000);
-      expect(retrieved?.sequenceNumber).toBe(2);
+      expect(retrieved?.sequenceNumber).toBe(1);
     });
   });
 

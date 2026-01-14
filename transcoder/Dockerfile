@@ -3,15 +3,17 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy workspace root package files
-COPY package*.json ./
+# Copy workspace root package files (exclude lock file to get platform-specific deps)
+COPY package.json ./
 
-# Copy workspace package files
-COPY transcoder/package*.json ./transcoder/
-COPY shared/package*.json ./shared/
+# Copy workspace package files (exclude lock files)
+COPY transcoder/package.json ./transcoder/
+COPY shared/package.json ./shared/
 
 # Install all dependencies (including devDependencies for build)
-RUN npm ci
+# npm install without lock file resolves platform-specific optional dependencies
+# correctly (e.g., @rollup/rollup-linux-x64-musl for Alpine Linux)
+RUN npm install
 
 # Copy shared package source
 COPY shared ./shared
@@ -36,20 +38,20 @@ RUN apk add --no-cache ffmpeg
 
 WORKDIR /app
 
-# Copy workspace root package files
-COPY package*.json ./
+# Copy workspace root package files (exclude lock file to get platform-specific deps)
+COPY package.json ./
 
-# Copy workspace package files
-COPY transcoder/package*.json ./transcoder/
-COPY shared/package*.json ./shared/
+# Copy workspace package files (exclude lock files)
+COPY transcoder/package.json ./transcoder/
+COPY shared/package.json ./shared/
 
 # Install production dependencies only
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Copy built files from builder
 COPY --from=builder /app/shared/dist ./shared/dist
 COPY --from=builder /app/transcoder/dist ./transcoder/dist
-COPY --from=builder /app/transcoder/node_modules/.prisma ./transcoder/node_modules/.prisma
+# Prisma client is hoisted to root node_modules in npm workspaces
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # Copy Prisma schema

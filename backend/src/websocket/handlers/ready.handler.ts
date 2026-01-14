@@ -45,22 +45,13 @@ export function handleReadyInitiate(
   }
 
   const roomCode = socket.data.roomCode;
+  const oderId = socket.data.oderId;
   const userId = socket.data.userId || socket.data.sessionId;
-  const role = socket.data.role;
 
   if (!roomCode) {
     socket.emit('room:error', {
       code: ErrorCodes.NOT_IN_ROOM,
       message: 'You must be in a room to initiate a ready check',
-    });
-    return;
-  }
-
-  // Only room owner can initiate ready check
-  if (role !== 'owner') {
-    socket.emit('room:error', {
-      code: ErrorCodes.UNAUTHORIZED,
-      message: 'Only the room owner can initiate a ready check',
     });
     return;
   }
@@ -78,13 +69,27 @@ export function handleReadyInitiate(
     return;
   }
 
-  // Get all participants in the room
+  // Get all participants in the room to check role and create ready check
   roomStateService.getParticipants(roomCode)
     .then((participants) => {
+      // Find the current user's participant to check their role
+      const currentParticipant = participants.find(
+        (p) => p.oderId === oderId || p.userId === userId
+      );
+
+      // Only room owner can initiate ready check
+      if (!currentParticipant || currentParticipant.role !== 'owner') {
+        socket.emit('room:error', {
+          code: ErrorCodes.UNAUTHORIZED,
+          message: 'Only the room owner can initiate a ready check',
+        });
+        return;
+      }
+
       // Create ready check participants with pending status
       const readyCheckParticipants: ReadyCheckParticipant[] = participants.map((p) => ({
-        userId: p.userId || p.socketId,
-        username: p.username,
+        userId: p.userId || p.oderId,
+        username: p.username || p.guestName || 'Anonymous',
         status: 'pending' as ReadyStatus,
       }));
 

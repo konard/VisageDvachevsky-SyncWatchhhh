@@ -16,6 +16,7 @@ export interface TranscodeJobData {
 // Create transcode queue
 export const transcodeQueue = new Queue<TranscodeJobData>('transcode', {
   connection: queueRedis,
+  prefix: 'bull',
   defaultJobOptions: {
     attempts: 3,
     backoff: {

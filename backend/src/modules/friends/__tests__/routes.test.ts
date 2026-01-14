@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import Fastify, { FastifyInstance } from 'fastify';
+import jwt from '@fastify/jwt';
 import { friendsRoutes } from '../routes.js';
 import { authRoutes } from '../../auth/routes.js';
 import { prisma } from '../../../common/utils/prisma.js';
+import { env } from '../../../config/env.js';
 
 describe('Friends Routes Integration', () => {
   let app: FastifyInstance;
@@ -13,16 +15,20 @@ describe('Friends Routes Integration', () => {
   let user2Id: string;
   let user3Id: string;
 
-  const testEmail1 = `friend-test-1-${Date.now()}@example.com`;
-  const testEmail2 = `friend-test-2-${Date.now()}@example.com`;
-  const testEmail3 = `friend-test-3-${Date.now()}@example.com`;
-  const testUsername1 = `friendtest1${Date.now()}`;
-  const testUsername2 = `friendtest2${Date.now()}`;
-  const testUsername3 = `friendtest3${Date.now()}`;
+  // Use shorter unique suffix (last 6 digits of timestamp) to stay within 20 char limit
+  const suffix = Date.now().toString().slice(-6);
+  const testEmail1 = `frt1-${suffix}@example.com`;
+  const testEmail2 = `frt2-${suffix}@example.com`;
+  const testEmail3 = `frt3-${suffix}@example.com`;
+  const testUsername1 = `frt1${suffix}`;
+  const testUsername2 = `frt2${suffix}`;
+  const testUsername3 = `frt3${suffix}`;
   const testPassword = 'testPassword123';
 
   beforeAll(async () => {
     app = Fastify();
+    // Register JWT plugin before routes that use authenticateRequired
+    await app.register(jwt, { secret: env.JWT_SECRET });
     await app.register(authRoutes, { prefix: '/auth' });
     await app.register(friendsRoutes, { prefix: '/api' });
     await app.ready();

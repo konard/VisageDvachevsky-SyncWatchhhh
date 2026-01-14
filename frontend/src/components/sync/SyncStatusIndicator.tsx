@@ -1,6 +1,6 @@
 import { Activity, AlertCircle, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
+import type { Socket } from 'socket.io-client';
 import { usePlaybackStore } from '../../stores/playback.store';
-import { useSocket } from '../../hooks/useSocket';
 import { clsx } from 'clsx';
 import { SYNC_THRESHOLDS } from '@syncwatch/shared';
 
@@ -8,6 +8,10 @@ import { SYNC_THRESHOLDS } from '@syncwatch/shared';
  * Props for SyncStatusIndicator component
  */
 interface SyncStatusIndicatorProps {
+  /** Socket instance for resync functionality */
+  socket?: Socket | null;
+  /** Whether the socket is connected */
+  isConnected?: boolean;
   /** Whether to show detailed drift information */
   showDetails?: boolean;
   /** Whether to show resync button when needed */
@@ -21,12 +25,13 @@ interface SyncStatusIndicatorProps {
  * Shows an icon and optional drift information
  */
 export function SyncStatusIndicator({
+  socket = null,
+  isConnected = false,
   showDetails = false,
   showResyncButton = true,
   className,
 }: SyncStatusIndicatorProps) {
   const { syncStatus, drift } = usePlaybackStore();
-  const { socket, isConnected } = useSocket();
 
   // Determine if resync button should be shown
   const shouldShowResync = showResyncButton &&

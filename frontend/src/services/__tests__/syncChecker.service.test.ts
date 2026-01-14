@@ -113,7 +113,8 @@ describe('SyncCheckerService', () => {
       const result = service.checkSync(state, player, 0);
 
       expect(result.drift).toBeCloseTo(-500, -1);
-      expect(result.action).toBe('hard_sync');
+      // 500ms is within soft resync threshold (< 1000ms), so soft_sync is used
+      expect(result.action).toBe('soft_sync');
     });
   });
 

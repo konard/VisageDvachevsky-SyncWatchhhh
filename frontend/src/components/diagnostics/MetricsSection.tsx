@@ -5,7 +5,6 @@
 
 import React, { memo } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { GlassPanel } from '../ui/glass/GlassPanel';
 
 interface MetricsSectionProps {
   title: string;

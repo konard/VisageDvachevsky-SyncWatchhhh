@@ -23,7 +23,6 @@ export { AnimatedPage } from './AnimatedPage';
 export { AnimatedButton } from './AnimatedButton';
 export { AnimatedModal } from './AnimatedModal';
 export { AnimatedToast } from './AnimatedToast';
-export type { ToastType } from './AnimatedToast';
 export { AnimatedSkeleton, SkeletonText, SkeletonAvatar, SkeletonCard } from './AnimatedSkeleton';
 export { AnimatedList, AnimatedListItem } from './AnimatedList';
 export { SpeakingIndicator, VoiceBars } from './SpeakingIndicator';

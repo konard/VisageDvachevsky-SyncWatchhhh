@@ -3,7 +3,7 @@
  * Main debug overlay with draggable, resizable panel showing all diagnostics
  */
 
-import React, { memo, useEffect, useCallback, useRef } from 'react';
+import React, { memo, useCallback, useRef } from 'react';
 import { motion, PanInfo } from 'framer-motion';
 import { X, Bug, Maximize2, Minimize2 } from 'lucide-react';
 import { useDiagnosticsStore } from '../../stores/diagnostics.store';

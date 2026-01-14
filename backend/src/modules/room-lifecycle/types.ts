@@ -68,15 +68,15 @@ export interface ScheduledRoom {
   name: string;
   code: string;
   maxParticipants: number;
-  passwordHash?: string;
+  passwordHash: string | null;
   playbackControl: string;
-  videoId?: string;
-  youtubeVideoId?: string;
-  externalUrl?: string;
+  videoId: string | null;
+  youtubeVideoId: string | null;
+  externalUrl: string | null;
   status: ScheduledRoomStatus;
   remindersSent: boolean;
   invitedUsers: string[];
-  activatedRoomId?: string;
+  activatedRoomId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -104,9 +104,9 @@ export interface RoomHistoryEntry {
   sourceType: SourceType;
   sourceData: Record<string, any>;
   watchedAt: Date;
-  watchDurationMs: number;
+  watchDurationMs: bigint;
   participants: string[];
-  thumbnail?: string;
+  thumbnail: string | null;
   isVisible: boolean;
 }
 

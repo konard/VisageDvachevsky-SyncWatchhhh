@@ -3,7 +3,7 @@
  * Displays a single metric with label and value
  */
 
-import React, { memo } from 'react';
+import { memo } from 'react';
 import clsx from 'clsx';
 
 interface MetricRowProps {

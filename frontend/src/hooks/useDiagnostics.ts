@@ -64,7 +64,8 @@ export interface UseDiagnosticsOptions {
  */
 export function useDiagnostics(options: UseDiagnosticsOptions) {
   const {
-    socket,
+    // socket is available for future use if needed
+    socket: _socket,
     connectionStatus,
     clockOffset,
     rtt,
@@ -84,7 +85,6 @@ export function useDiagnostics(options: UseDiagnosticsOptions) {
 
   const playbackState = usePlaybackStore((state) => state.playbackState);
   const drift = usePlaybackStore((state) => state.drift);
-  const syncStatus = usePlaybackStore((state) => state.syncStatus);
   const commandBuffer = usePlaybackStore((state) => state.commandBuffer);
 
   const voiceConnectionState = useVoiceStore((state) => state.connectionState);
@@ -189,8 +189,8 @@ export function useDiagnostics(options: UseDiagnosticsOptions) {
 
       peers.forEach((peer) => {
         totalAudioLevel += peer.audioLevel || 0;
-        // Use the most advanced ICE state
-        if (peer.quality?.latency !== undefined) {
+        // Use the most advanced ICE state - check if peer has latency data
+        if (peer.latency !== undefined) {
           iceState = 'connected';
         }
       });

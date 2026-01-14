@@ -3,15 +3,17 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy workspace root package files
-COPY package*.json ./
+# Copy workspace root package files (exclude lock file to get platform-specific deps)
+COPY package.json ./
 
-# Copy workspace package files
-COPY frontend/package*.json ./frontend/
-COPY shared/package*.json ./shared/
+# Copy workspace package files (exclude lock files)
+COPY frontend/package.json ./frontend/
+COPY shared/package.json ./shared/
 
 # Install all dependencies (including devDependencies for build)
-RUN npm ci
+# npm install without lock file resolves platform-specific optional dependencies
+# correctly (e.g., @rollup/rollup-linux-x64-musl for Alpine Linux)
+RUN npm install
 
 # Copy shared package source
 COPY shared ./shared

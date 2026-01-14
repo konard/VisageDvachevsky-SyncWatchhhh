@@ -71,6 +71,7 @@ export class VotingService {
 
     return {
       ...vote,
+      type: vote.type as PlaybackVoteType,
       votes: {},
     };
   }
@@ -132,6 +133,7 @@ export class VotingService {
 
     return {
       ...updatedVote,
+      type: updatedVote.type as PlaybackVoteType,
       votes,
     };
   }
@@ -156,6 +158,7 @@ export class VotingService {
 
     return {
       ...vote,
+      type: vote.type as PlaybackVoteType,
       votes: JSON.parse(vote.votes as string) as Record<string, VoteChoice>,
     };
   }
@@ -186,6 +189,7 @@ export class VotingService {
 
     return {
       ...updatedVote,
+      type: updatedVote.type as PlaybackVoteType,
       votes,
     };
   }
