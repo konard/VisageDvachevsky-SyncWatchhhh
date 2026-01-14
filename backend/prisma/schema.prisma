@@ -202,3 +202,25 @@ model Friendship {
   @@index([requesterId, status])
   @@index([addresseeId, status])
 }
+
+// ============================================
+// Security & Audit Logging
+// ============================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  timestamp  DateTime @default(now())
+  eventType  String // e.g., 'room.created', 'auth.login', 'participant.kicked'
+  actorId    String? // User who performed the action (null for system events)
+  actorIp    String // IP address of the actor
+  targetType String // 'room', 'user', 'video', 'system'
+  targetId   String // ID of the target entity
+  metadata   Json // Additional event-specific data
+  success    Boolean  @default(true) // Whether the action succeeded
+
+  @@index([timestamp])
+  @@index([actorId])
+  @@index([targetId])
+  @@index([eventType])
+  @@index([eventType, timestamp])
+}

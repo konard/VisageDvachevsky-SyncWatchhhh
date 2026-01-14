@@ -21,7 +21,10 @@ import {
   TooManyRequestsError,
 } from '../../common/errors/index.js';
 import {
-  isSupportedVideoMime,
+  uploadSecurityService,
+} from '../../common/services/upload-security.js';
+import { auditLogger } from '../../common/services/audit-logger.js';
+import {
   MAX_FILE_SIZE,
   VideoStatus,
   UPLOAD_RATE_LIMIT,
@@ -72,20 +75,32 @@ export class VideoService {
   }
 
   /**
-   * Validate video file
+   * Validate video file with enhanced security checks
    */
-  validateVideoFile(file: MultipartFile): void {
-    // Check MIME type
-    if (!file.mimetype || !isSupportedVideoMime(file.mimetype)) {
-      throw new ValidationError(
-        `Unsupported video format. Supported formats: MP4, MKV, AVI, MOV, WMV, FLV, WebM`,
-        { mimeType: file.mimetype }
-      );
-    }
+  validateVideoFile(file: MultipartFile, ip: string): void {
+    // Use security service for validation
+    uploadSecurityService.validateDuringUpload(
+      file.mimetype,
+      file.file.readableLength || 0,
+      MAX_FILE_SIZE
+    );
 
     // Check file size (if available from headers)
-    // Note: For multipart streams, we'll check size during upload
     if (file.file.readableLength && file.file.readableLength > MAX_FILE_SIZE) {
+      // Log security event
+      auditLogger.log({
+        eventType: 'security.upload_rejected',
+        actorIp: ip,
+        targetType: 'video',
+        targetId: 'unknown',
+        metadata: {
+          reason: 'file_too_large',
+          size: file.file.readableLength,
+          maxSize: MAX_FILE_SIZE,
+        },
+        success: false,
+      });
+
       throw new ValidationError(
         `File size exceeds maximum allowed size of 8GB`,
         { size: file.file.readableLength }
@@ -107,7 +122,11 @@ export class VideoService {
    * Upload file to MinIO via temporary file
    * Returns the file size
    */
-  async uploadToMinio(file: MultipartFile, storageKey: string): Promise<number> {
+  async uploadToMinio(
+    file: MultipartFile,
+    storageKey: string,
+    ip: string
+  ): Promise<number> {
     // Create temporary file path
     const tempFilePath = join(tmpdir(), `upload-${nanoid(12)}`);
 
@@ -115,10 +134,21 @@ export class VideoService {
       // Stream file to temporary location and track size
       let uploadedSize = 0;
       const writeStream = createWriteStream(tempFilePath);
+      const firstChunk: Buffer[] = [];
+      let firstChunkCollected = false;
 
-      // Track upload size
+      // Track upload size and collect first chunk for magic bytes verification
       file.file.on('data', (chunk: Buffer) => {
         uploadedSize += chunk.length;
+
+        // Collect first 16 bytes for magic bytes verification
+        if (!firstChunkCollected && firstChunk.length === 0) {
+          firstChunk.push(chunk.slice(0, 16));
+          if (firstChunk[0].length >= 16) {
+            firstChunkCollected = true;
+          }
+        }
+
         if (uploadedSize > MAX_FILE_SIZE) {
           file.file.destroy(new Error('File size exceeds 8GB limit'));
           writeStream.destroy();
@@ -134,6 +164,36 @@ export class VideoService {
         throw new ValidationError('File size exceeds maximum allowed size of 8GB', {
           size: stats.size,
         });
+      }
+
+      // Verify magic bytes if we collected the first chunk
+      if (firstChunk.length > 0 && firstChunk[0].length >= 8) {
+        const validationResult = await uploadSecurityService.validateUpload(
+          firstChunk[0],
+          file.mimetype,
+          stats.size
+        );
+
+        if (!validationResult.valid) {
+          // Log security event
+          await auditLogger.log({
+            eventType: 'security.upload_rejected',
+            actorIp: ip,
+            targetType: 'video',
+            targetId: storageKey,
+            metadata: {
+              reason: validationResult.reason,
+              message: validationResult.message,
+              mimeType: file.mimetype,
+            },
+            success: false,
+          });
+
+          throw new ValidationError(
+            validationResult.message || 'Upload validation failed',
+            validationResult.details
+          );
+        }
       }
 
       // Upload to MinIO
@@ -197,21 +257,22 @@ export class VideoService {
    */
   async uploadVideo(
     userId: string,
-    file: MultipartFile
+    file: MultipartFile,
+    ip: string = 'unknown'
   ): Promise<VideoUploadResponse> {
     // Check rate limit
     await this.checkUploadRateLimit(userId);
 
     // Validate file
-    this.validateVideoFile(file);
+    this.validateVideoFile(file, ip);
 
     const filename = file.filename;
 
     // Generate storage key
     const storageKey = this.generateStorageKey(userId, filename);
 
-    // Upload to MinIO
-    const fileSize = await this.uploadToMinio(file, storageKey);
+    // Upload to MinIO with security validation
+    const fileSize = await this.uploadToMinio(file, storageKey, ip);
 
     // Create database record
     const videoId = await this.createVideoRecord(
