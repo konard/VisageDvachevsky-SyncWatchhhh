@@ -11,7 +11,9 @@ COPY frontend/package*.json ./frontend/
 COPY shared/package*.json ./shared/
 
 # Install all dependencies (including devDependencies for build)
-RUN npm ci
+# Use npm install instead of npm ci to get platform-specific optional deps
+# (npm ci uses lock file which may not have Alpine-specific native binaries)
+RUN npm install
 
 # Copy shared package source
 COPY shared ./shared

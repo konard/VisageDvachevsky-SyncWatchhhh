@@ -11,7 +11,9 @@ COPY transcoder/package*.json ./transcoder/
 COPY shared/package*.json ./shared/
 
 # Install all dependencies (including devDependencies for build)
-RUN npm ci
+# Use npm install instead of npm ci to get platform-specific optional deps
+# (npm ci uses lock file which may not have Alpine-specific native binaries)
+RUN npm install
 
 # Copy shared package source
 COPY shared ./shared
@@ -44,7 +46,7 @@ COPY transcoder/package*.json ./transcoder/
 COPY shared/package*.json ./shared/
 
 # Install production dependencies only
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Copy built files from builder
 COPY --from=builder /app/shared/dist ./shared/dist
