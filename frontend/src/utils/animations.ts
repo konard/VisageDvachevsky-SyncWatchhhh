@@ -221,3 +221,183 @@ export const getTransition = (
   }
   return transition;
 };
+
+// ============================================================================
+// Liquid Glass Morph Transitions
+// ============================================================================
+
+/**
+ * Spring config optimized for liquid-glass morphing
+ * Creates smooth, fluid motion that feels natural
+ */
+export const morphSpring = {
+  type: 'spring' as const,
+  stiffness: 350,
+  damping: 35,
+  mass: 1,
+};
+
+/**
+ * Morph transition for modal expansion from button
+ * Implements FLIP animation technique
+ */
+export const morphExpandVariants: Variants = {
+  initial: {
+    opacity: 0.5,
+    scale: 0.3,
+    borderRadius: 12,
+  },
+  animate: {
+    opacity: 1,
+    scale: 1,
+    borderRadius: 16,
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.95,
+    y: 20,
+  },
+};
+
+/**
+ * Morph transition for button that transforms into modal
+ */
+export const morphSourceVariants: Variants = {
+  initial: {
+    opacity: 1,
+    scale: 1,
+  },
+  morphing: {
+    opacity: 0,
+    scale: 1.1,
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.95,
+  },
+};
+
+/**
+ * Content fade animation during morph transitions
+ * Content fades out quickly, then fades in after morph completes
+ */
+export const morphContentVariants: Variants = {
+  initial: {
+    opacity: 0,
+  },
+  animate: {
+    opacity: 1,
+    transition: {
+      delay: 0.15,
+      duration: 0.2,
+    },
+  },
+  exit: {
+    opacity: 0,
+    transition: {
+      duration: 0.1,
+    },
+  },
+};
+
+/**
+ * Shape morph variants for transitioning between shapes
+ */
+export const shapeMorphVariants = {
+  circle: {
+    borderRadius: '50%',
+    transition: morphSpring,
+  },
+  pill: {
+    borderRadius: '9999px',
+    transition: morphSpring,
+  },
+  rounded: {
+    borderRadius: '1rem',
+    transition: morphSpring,
+  },
+  square: {
+    borderRadius: '0.5rem',
+    transition: morphSpring,
+  },
+};
+
+/**
+ * Multi-element coordination animations
+ * For merging multiple elements into one or splitting one into many
+ */
+export const mergeVariants: Variants = {
+  initial: () => ({
+    opacity: 1,
+    scale: 1,
+    x: 0,
+    y: 0,
+  }),
+  merge: (custom: { index: number; total: number }) => ({
+    opacity: 0,
+    scale: 0.5,
+    x: custom.index < custom.total / 2 ? 20 : -20,
+    y: 0,
+    transition: {
+      ...morphSpring,
+      delay: custom.index * 0.05,
+    },
+  }),
+};
+
+export const splitVariants: Variants = {
+  initial: {
+    opacity: 0,
+    scale: 0.5,
+  },
+  animate: (custom: { index: number; total: number }) => ({
+    opacity: 1,
+    scale: 1,
+    transition: {
+      ...morphSpring,
+      delay: custom.index * 0.05,
+    },
+  }),
+};
+
+/**
+ * Backdrop blur animation for morph modals
+ */
+export const morphBackdropVariants: Variants = {
+  initial: {
+    opacity: 0,
+    backdropFilter: 'blur(0px)',
+  },
+  animate: {
+    opacity: 1,
+    backdropFilter: 'blur(8px)',
+  },
+  exit: {
+    opacity: 0,
+    backdropFilter: 'blur(0px)',
+  },
+};
+
+/**
+ * Get morph variants with reduced motion support
+ */
+export const getMorphVariants = (variants: Variants, prefersReducedMotion: boolean): Variants => {
+  if (prefersReducedMotion) {
+    return {
+      initial: { opacity: 0 },
+      animate: { opacity: 1 },
+      exit: { opacity: 0 },
+    };
+  }
+  return variants;
+};
+
+/**
+ * Get morph transition with reduced motion support
+ */
+export const getMorphTransition = (prefersReducedMotion: boolean) => {
+  if (prefersReducedMotion) {
+    return { duration: 0 };
+  }
+  return morphSpring;
+};

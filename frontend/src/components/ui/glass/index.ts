@@ -34,3 +34,13 @@ export type { GlassAvatarProps } from './GlassAvatar';
 
 export { GlassSpinner } from './GlassSpinner';
 export type { GlassSpinnerProps } from './GlassSpinner';
+
+// Morph Transition Components
+export { GlassMorphModal } from './GlassMorphModal';
+export type { GlassMorphModalProps } from './GlassMorphModal';
+
+export { GlassMorphButton } from './GlassMorphButton';
+export type { GlassMorphButtonProps, GlassMorphButtonRef } from './GlassMorphButton';
+
+export { MorphTarget } from './MorphTarget';
+export type { MorphTargetProps, MorphTargetRef } from './MorphTarget';
