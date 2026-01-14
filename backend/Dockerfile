@@ -46,7 +46,7 @@ RUN npm ci --omit=dev
 # Copy built files from builder
 COPY --from=builder /app/shared/dist ./shared/dist
 COPY --from=builder /app/backend/dist ./backend/dist
-COPY --from=builder /app/backend/node_modules/.prisma ./backend/node_modules/.prisma
+# Prisma client is hoisted to root node_modules in npm workspaces
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # Copy Prisma schema for migrations

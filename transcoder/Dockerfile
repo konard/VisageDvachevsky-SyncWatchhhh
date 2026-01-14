@@ -49,7 +49,7 @@ RUN npm ci --omit=dev
 # Copy built files from builder
 COPY --from=builder /app/shared/dist ./shared/dist
 COPY --from=builder /app/transcoder/dist ./transcoder/dist
-COPY --from=builder /app/transcoder/node_modules/.prisma ./transcoder/node_modules/.prisma
+# Prisma client is hoisted to root node_modules in npm workspaces
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # Copy Prisma schema
