@@ -276,6 +276,129 @@
     width: 200%;
     height: 200%;
   }
+
+  /* Liquid Glass Morph Transitions */
+  .glass-morph-source,
+  .glass-morph-target {
+    --morph-delta-x: 0px;
+    --morph-delta-y: 0px;
+    --morph-scale-x: 1;
+    --morph-scale-y: 1;
+    --morph-source-radius: 12px;
+    will-change: transform, opacity, border-radius;
+  }
+
+  .glass-morph-source {
+    transform-origin: center center;
+  }
+
+  .glass-morph-target {
+    transform-origin: center center;
+  }
+
+  /* Morph animating state */
+  .morph-animating {
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  /* Morph expand animation */
+  @keyframes morph-expand {
+    0% {
+      transform: translate(var(--morph-delta-x), var(--morph-delta-y))
+                 scale(var(--morph-scale-x), var(--morph-scale-y));
+      border-radius: var(--morph-source-radius);
+      opacity: 0.8;
+    }
+    100% {
+      transform: translate(0, 0) scale(1, 1);
+      border-radius: 1rem;
+      opacity: 1;
+    }
+  }
+
+  /* Morph collapse animation */
+  @keyframes morph-collapse {
+    0% {
+      transform: translate(0, 0) scale(1, 1);
+      border-radius: 1rem;
+      opacity: 1;
+    }
+    100% {
+      transform: translate(var(--morph-delta-x), var(--morph-delta-y))
+                 scale(var(--morph-scale-x), var(--morph-scale-y));
+      border-radius: var(--morph-source-radius);
+      opacity: 0;
+    }
+  }
+
+  /* Glass flow effect for liquid-like transitions */
+  .glass-flow {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0.1) 100%
+    );
+    background-size: 200% 200%;
+    animation: glass-flow-shimmer 2s ease-in-out infinite;
+  }
+
+  @keyframes glass-flow-shimmer {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  /* Shape morphing utilities */
+  .morph-circle {
+    border-radius: 50%;
+  }
+
+  .morph-pill {
+    border-radius: 9999px;
+  }
+
+  .morph-rounded {
+    border-radius: 1rem;
+  }
+
+  .morph-square {
+    border-radius: 0.5rem;
+  }
+
+  /* Clip path morphing for complex shapes */
+  .clip-circle {
+    clip-path: circle(50%);
+  }
+
+  .clip-pill {
+    clip-path: inset(0 round 9999px);
+  }
+
+  .clip-rounded {
+    clip-path: inset(0 round 1rem);
+  }
+
+  /* Morph transition timing */
+  .morph-ease {
+    transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Content fade during morph */
+  .morph-content-fade {
+    transition: opacity 0.15s ease-out;
+  }
+
+  .morph-animating .morph-content-fade {
+    opacity: 0;
+  }
 }
 
 @layer utilities {
