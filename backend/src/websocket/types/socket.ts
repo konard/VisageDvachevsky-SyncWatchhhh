@@ -6,6 +6,16 @@ import {
   RoomParticipantJoinedEvent,
   RoomParticipantLeftEvent,
   RoomErrorEvent,
+  VoiceJoinEvent,
+  VoiceLeaveEvent,
+  VoiceSignalEvent,
+  VoiceSpeakingEvent,
+  VoicePeersEvent,
+  VoicePeerJoinedEvent,
+  VoicePeerLeftEvent,
+  VoiceSignalReceivedEvent,
+  VoiceSpeakingStatusEvent,
+  VoiceErrorEvent,
   TimePingEvent,
   TimePongEvent,
   SyncPlayEvent,
@@ -23,6 +33,10 @@ import {
 export interface ClientToServerEvents {
   'room:join': (data: RoomJoinEvent) => void;
   'room:leave': (data: RoomLeaveEvent) => void;
+  'voice:join': (data: VoiceJoinEvent) => void;
+  'voice:leave': (data: VoiceLeaveEvent) => void;
+  'voice:signal': (data: VoiceSignalEvent) => void;
+  'voice:speaking': (data: VoiceSpeakingEvent) => void;
   'time:ping': (data: TimePingEvent) => void;
   'sync:play': (data: SyncPlayEvent) => void;
   'sync:pause': (data: SyncPauseEvent) => void;
@@ -35,6 +49,12 @@ export interface ServerToClientEvents {
   'room:participant:joined': (data: RoomParticipantJoinedEvent) => void;
   'room:participant:left': (data: RoomParticipantLeftEvent) => void;
   'room:error': (data: RoomErrorEvent) => void;
+  'voice:peers': (data: VoicePeersEvent) => void;
+  'voice:peer:joined': (data: VoicePeerJoinedEvent) => void;
+  'voice:peer:left': (data: VoicePeerLeftEvent) => void;
+  'voice:signal': (data: VoiceSignalReceivedEvent) => void;
+  'voice:speaking': (data: VoiceSpeakingStatusEvent) => void;
+  'voice:error': (data: VoiceErrorEvent) => void;
   'time:pong': (data: TimePongEvent) => void;
   'sync:command': (data: SyncCommandEvent) => void;
   'sync:state': (data: SyncStateEvent) => void;
@@ -51,6 +71,7 @@ export interface SocketData {
   oderId?: string; // Participant order ID in room
   isGuest: boolean; // Whether this is a guest connection
   guestName?: string; // Guest display name
+  inVoice?: boolean; // Whether user is in voice chat
 }
 
 export type Socket = IOSocket<
