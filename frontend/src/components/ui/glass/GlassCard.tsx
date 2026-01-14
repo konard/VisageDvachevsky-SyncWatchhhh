@@ -1,6 +1,7 @@
-import { ReactNode, HTMLAttributes, forwardRef, useMemo, CSSProperties } from 'react';
+import { ReactNode, HTMLAttributes, forwardRef, useRef, useEffect, useMemo, CSSProperties } from 'react';
 import { clsx } from 'clsx';
 import { useGlassEffects } from './GlassEffectsProvider';
+import { useGlassColor } from '../../../contexts/GlassColorContext';
 
 export interface GlassCardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
@@ -18,6 +19,14 @@ export interface GlassCardProps extends HTMLAttributes<HTMLDivElement> {
   edgeGlow?: boolean;
   /** Custom refraction intensity override (0-1) */
   refractionIntensity?: number;
+  /** Enable context-aware color tinting */
+  tinted?: boolean;
+  /** Enable accent glow effect */
+  glow?: boolean;
+  /** Override accent color */
+  accentColor?: string;
+  /** Disable all adaptive color features */
+  staticColors?: boolean;
 }
 
 export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
@@ -32,12 +41,19 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
       chromaticAberration,
       edgeGlow,
       refractionIntensity,
+      tinted = false,
+      glow = false,
+      accentColor,
+      staticColors = false,
       style,
       ...props
     },
     ref
   ) => {
     const { lightPosition, config, isActive } = useGlassEffects();
+    const glassColor = useGlassColor();
+    const internalRef = useRef<HTMLDivElement>(null);
+    const resolvedRef = (ref as React.RefObject<HTMLDivElement>) || internalRef;
 
     const paddingClasses = {
       none: '',
@@ -77,6 +93,22 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
       } as CSSProperties;
     }, [enableSpecular, shouldAnimate, lightPosition, config.specularIntensity]);
 
+    // Build adaptive CSS custom properties
+    const adaptiveStyle: CSSProperties = staticColors ? {} : {
+      '--glass-background': glassColor.glassBackground,
+      '--glass-border': glassColor.glassBorder,
+      '--glass-glow': glassColor.glassGlow,
+      '--glass-accent-color': accentColor || glassColor.accentColor,
+    } as CSSProperties;
+
+    // Sample local background on mount if enabled
+    useEffect(() => {
+      if (!staticColors && glassColor.enabled && resolvedRef.current) {
+        // Optional: sample local background for per-component adaptation
+        // This can be enabled for more granular color adaptation
+      }
+    }, [staticColors, glassColor.enabled, resolvedRef]);
+
     // Build effect classes
     const effectClasses = clsx(
       enableRefraction && shouldAnimate && 'glass-refraction-effect',
@@ -88,9 +120,17 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
 
     return (
       <div
-        ref={ref}
-        className={clsx('glass-card', effectClasses, paddingClasses[padding], className)}
+        ref={resolvedRef}
+        className={clsx(
+          'glass-card',
+          effectClasses,
+          paddingClasses[padding],
+          tinted && 'glass-tinted',
+          glow && 'glass-glow',
+          className
+        )}
         style={{
+          ...adaptiveStyle,
           ...style,
           ...specularStyle,
           '--glass-refraction-intensity': effectIntensity,

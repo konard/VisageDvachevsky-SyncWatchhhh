@@ -1,6 +1,7 @@
 import { ReactNode, HTMLAttributes, forwardRef, useMemo, CSSProperties } from 'react';
 import { clsx } from 'clsx';
 import { useGlassEffects } from './GlassEffectsProvider';
+import { useGlassColor } from '../../../contexts/GlassColorContext';
 
 export interface GlassPanelProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
@@ -16,6 +17,12 @@ export interface GlassPanelProps extends HTMLAttributes<HTMLDivElement> {
   specular?: boolean;
   /** Enable edge glow effect */
   edgeGlow?: boolean;
+  /** Enable context-aware color tinting */
+  tinted?: boolean;
+  /** Override accent color */
+  accentColor?: string;
+  /** Disable all adaptive color features */
+  staticColors?: boolean;
 }
 
 export const GlassPanel = forwardRef<HTMLDivElement, GlassPanelProps>(
@@ -30,12 +37,16 @@ export const GlassPanel = forwardRef<HTMLDivElement, GlassPanelProps>(
       refraction,
       specular,
       edgeGlow,
+      tinted = false,
+      accentColor,
+      staticColors = false,
       style,
       ...props
     },
     ref
   ) => {
     const { lightPosition, config, isActive, scrollProgress } = useGlassEffects();
+    const glassColor = useGlassColor();
 
     const paddingClasses = {
       none: '',
@@ -74,6 +85,14 @@ export const GlassPanel = forwardRef<HTMLDivElement, GlassPanelProps>(
       } as CSSProperties;
     }, [enableSpecular, shouldAnimate, lightPosition, scrollProgress, config.specularIntensity]);
 
+    // Build adaptive CSS custom properties
+    const adaptiveStyle: CSSProperties = staticColors ? {} : {
+      '--glass-background': glassColor.glassBackground,
+      '--glass-border': glassColor.glassBorder,
+      '--glass-brightness': glassColor.brightness,
+      '--glass-accent-color': accentColor || glassColor.accentColor,
+    } as CSSProperties;
+
     // Build effect classes
     const effectClasses = clsx(
       enableRefraction && shouldAnimate && 'glass-panel-refraction',
@@ -84,8 +103,9 @@ export const GlassPanel = forwardRef<HTMLDivElement, GlassPanelProps>(
     return (
       <div
         ref={ref}
-        className={clsx('glass-panel', effectClasses, className)}
+        className={clsx('glass-panel', effectClasses, tinted && 'glass-tinted', className)}
         style={{
+          ...adaptiveStyle,
           ...style,
           ...specularStyle,
           '--glass-refraction-intensity': thicknessIntensity[thickness],

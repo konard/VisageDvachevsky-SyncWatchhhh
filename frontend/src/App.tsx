@@ -9,6 +9,7 @@ import { soundManager } from './services';
 import { DiagnosticsOverlay } from './components/diagnostics';
 import { useDiagnosticsKeyboard } from './hooks/useDiagnosticsKeyboard';
 import { useAuthStore } from './stores';
+import { GlassColorProvider } from './contexts/GlassColorContext';
 
 // Lazy load pages for code splitting
 const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })));
@@ -62,29 +63,31 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <Suspense fallback={<LoadingFallback />}>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/room/:code" element={<RoomPage />} />
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <ProfilePage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/youtube-demo" element={<YouTubePlayerDemo />} />
-              <Route path="/design-system" element={<GlassDesignSystemDemo />} />
-              <Route path="/sound-demo" element={<SoundEffectsDemo />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-        <ToastContainer />
-        <DiagnosticsOverlay />
+        <GlassColorProvider>
+          <BrowserRouter>
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/room/:code" element={<RoomPage />} />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/youtube-demo" element={<YouTubePlayerDemo />} />
+                <Route path="/design-system" element={<GlassDesignSystemDemo />} />
+                <Route path="/sound-demo" element={<SoundEffectsDemo />} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+          <ToastContainer />
+          <DiagnosticsOverlay />
+        </GlassColorProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

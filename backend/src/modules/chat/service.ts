@@ -124,6 +124,50 @@ export class ChatService {
   }
 
   /**
+   * Get chat history with pagination (messages before a certain timestamp)
+   */
+  async getChatHistoryPaginated(
+    roomId: string,
+    limit: number = 50,
+    before?: Date
+  ): Promise<ChatMessage[]> {
+    try {
+      const messages = await prisma.chatMessage.findMany({
+        where: {
+          roomId,
+          ...(before && { createdAt: { lt: before } }),
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        include: {
+          user: {
+            select: {
+              username: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      });
+
+      // Reverse to get chronological order (oldest first)
+      const chronologicalMessages = messages.reverse();
+
+      return chronologicalMessages.map((msg: {
+        id: string;
+        type: string;
+        userId: string | null;
+        content: string;
+        metadata: unknown;
+        createdAt: Date;
+        user: { username: string; avatarUrl: string | null } | null;
+      }) => this.toChatMessage(msg));
+    } catch (error) {
+      logger.error({ error: (error as Error).message, roomId, before }, 'Failed to get paginated chat history');
+      throw error;
+    }
+  }
+
+  /**
    * Delete all messages for a room
    */
   async deleteRoomMessages(roomId: string): Promise<void> {
