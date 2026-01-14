@@ -1,19 +1,34 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { AnimatedPage } from '../components/AnimatedPage';
+import { CreateRoomModal, type RoomOptions } from '../components/room';
+import {
+  Play,
+  Users,
+  Zap,
+  MessageCircle,
+  Mic,
+  ArrowRight,
+  Youtube,
+  LogIn,
+  UserPlus,
+} from 'lucide-react';
 import clsx from 'clsx';
 
 /**
- * Home Page - Responsive landing page
+ * Home Page - Responsive landing page with liquid-glass design
  */
 export function HomePage() {
   const navigate = useNavigate();
   const { isMobile } = useBreakpoint();
   const [roomCode, setRoomCode] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const handleCreateRoom = () => {
+  const handleCreateRoom = (options: RoomOptions) => {
     // Generate random room code (placeholder)
+    // In production, this would call the API with options
+    console.log('Creating room with options:', options);
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     navigate(`/room/${code}`);
   };
@@ -27,17 +42,51 @@ export function HomePage() {
 
   return (
     <AnimatedPage className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 animated-gradient">
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      {/* Navigation Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.svg"
+              alt="SyncWatch"
+              className="w-10 h-10"
+            />
+            <span className="text-xl font-bold text-gradient hidden sm:block">SyncWatch</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/login"
+              className="flex items-center gap-2 px-4 py-2 text-sm text-white/80 hover:text-white transition-colors"
+            >
+              <LogIn className="w-4 h-4" />
+              <span className="hidden sm:inline">Login</span>
+            </Link>
+            <Link
+              to="/register"
+              className="flex items-center gap-2 px-4 py-2 glass-button text-sm text-white"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span className="hidden sm:inline">Sign Up</span>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 pt-20">
         {/* Logo and Title */}
         <div className={clsx('text-center mb-8', isMobile ? 'px-4' : 'px-8')}>
-          <img
-            src="/logo.png"
-            alt="SyncWatch"
-            className={clsx(
-              'mx-auto mb-6 animate-float',
-              isMobile ? 'w-24 h-24' : 'w-32 h-32'
-            )}
-          />
+          <div className="relative inline-block">
+            <img
+              src="/logo.svg"
+              alt="SyncWatch"
+              className={clsx(
+                'mx-auto mb-6 animate-float drop-shadow-2xl',
+                isMobile ? 'w-24 h-24' : 'w-32 h-32'
+              )}
+            />
+            {/* Glow effect behind logo */}
+            <div className="absolute inset-0 blur-3xl bg-accent-cyan/20 -z-10 animate-pulse-slow" />
+          </div>
           <h1
             className={clsx(
               'font-bold text-gradient mb-4',
@@ -66,11 +115,12 @@ export function HomePage() {
           {/* Create Room */}
           <div>
             <button
-              onClick={handleCreateRoom}
-              className="w-full px-6 py-4 glass-button text-white font-medium text-lg"
+              onClick={() => setShowCreateModal(true)}
+              className="w-full px-6 py-4 glass-button text-white font-medium text-lg flex items-center justify-center gap-3 group"
             >
-              <span className="mr-2">🎬</span>
-              Create Room
+              <Play className="w-5 h-5 transition-transform group-hover:scale-110" />
+              <span>Create Room</span>
+              <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
             </button>
           </div>
 
@@ -80,26 +130,30 @@ export function HomePage() {
               <div className="w-full border-t border-white/10"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-transparent text-gray-400">or</span>
+              <span className="px-4 glass-panel text-gray-400 rounded-full py-1">or join existing</span>
             </div>
           </div>
 
           {/* Join Room */}
           <form onSubmit={handleJoinRoom} className="space-y-3">
-            <input
-              type="text"
-              value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-              placeholder="Enter room code"
-              className="glass-input w-full text-center uppercase tracking-wider"
-              maxLength={8}
-            />
+            <div className="relative">
+              <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                value={roomCode}
+                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                placeholder="Enter room code"
+                className="glass-input w-full text-center uppercase tracking-wider pl-12 pr-4"
+                maxLength={8}
+              />
+            </div>
             <button
               type="submit"
               disabled={!roomCode.trim()}
-              className="w-full px-6 py-3 bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all duration-200"
+              className="w-full px-6 py-3 bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
             >
-              Join Room
+              <span>Join Room</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
           </form>
 
@@ -107,10 +161,10 @@ export function HomePage() {
           <div className="pt-4 border-t border-white/10">
             <button
               onClick={() => navigate('/youtube-demo')}
-              className="w-full px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
+              className="w-full px-6 py-3 bg-red-600/80 hover:bg-red-600 text-white font-medium rounded-xl transition-all duration-200 flex items-center justify-center gap-2 group"
             >
-              <span className="mr-2">▶️</span>
-              YouTube Player Demo
+              <Youtube className="w-5 h-5 transition-transform group-hover:scale-110" />
+              <span>YouTube Player Demo</span>
             </button>
           </div>
         </div>
@@ -124,29 +178,62 @@ export function HomePage() {
               : 'grid-cols-1 md:grid-cols-3 w-full max-w-4xl'
           )}
         >
-          <div className="glass-card p-6 text-center">
-            <div className="text-3xl mb-3">⚡</div>
-            <h3 className="font-semibold text-white mb-2">Real-time Sync</h3>
-            <p className="text-sm text-gray-400">
-              Perfect synchronization across all devices
-            </p>
-          </div>
-          <div className="glass-card p-6 text-center">
-            <div className="text-3xl mb-3">💬</div>
-            <h3 className="font-semibold text-white mb-2">Live Chat</h3>
-            <p className="text-sm text-gray-400">
-              Chat with friends while watching together
-            </p>
-          </div>
-          <div className="glass-card p-6 text-center">
-            <div className="text-3xl mb-3">🎤</div>
-            <h3 className="font-semibold text-white mb-2">Voice Chat</h3>
-            <p className="text-sm text-gray-400">
-              Talk with your friends in real-time
-            </p>
-          </div>
+          <FeatureCard
+            icon={<Zap className="w-8 h-8" />}
+            title="Real-time Sync"
+            description="Perfect synchronization across all devices with sub-150ms latency"
+          />
+          <FeatureCard
+            icon={<MessageCircle className="w-8 h-8" />}
+            title="Live Chat"
+            description="Chat with friends while watching together"
+          />
+          <FeatureCard
+            icon={<Mic className="w-8 h-8" />}
+            title="Voice Chat"
+            description="Crystal-clear voice communication in real-time"
+          />
+        </div>
+
+        {/* Additional Links */}
+        <div className="mt-8 flex items-center gap-4 text-sm text-gray-400">
+          <Link to="/design-system" className="hover:text-accent-cyan transition-colors">
+            Design System
+          </Link>
+          <span>•</span>
+          <Link to="/sound-demo" className="hover:text-accent-cyan transition-colors">
+            Sound Effects
+          </Link>
         </div>
       </div>
+
+      {/* Create Room Modal */}
+      <CreateRoomModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreateRoom={handleCreateRoom}
+      />
     </AnimatedPage>
+  );
+}
+
+/**
+ * Feature Card Component
+ */
+interface FeatureCardProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}
+
+function FeatureCard({ icon, title, description }: FeatureCardProps) {
+  return (
+    <div className="glass-card p-6 text-center group hover:scale-105 transition-transform duration-300">
+      <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-accent-cyan/20 to-accent-blue/20 flex items-center justify-center text-accent-cyan group-hover:shadow-glow transition-shadow">
+        {icon}
+      </div>
+      <h3 className="font-semibold text-white mb-2">{title}</h3>
+      <p className="text-sm text-gray-400">{description}</p>
+    </div>
   );
 }
