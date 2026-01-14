@@ -64,6 +64,9 @@ jobs:
       - name: Generate Prisma Client
         run: npm run db:generate --workspace=backend
 
+      - name: Setup database schema
+        run: npm run db:push --workspace=backend
+
       - name: Run backend tests
         run: npm run test --workspace=backend
 
