@@ -1,4 +1,3 @@
-import React from 'react';
 import { useVoiceStore } from '../../stores/voiceStore';
 import { VoiceMode, NoiseSuppressionLevel } from '@syncwatch/shared';
 

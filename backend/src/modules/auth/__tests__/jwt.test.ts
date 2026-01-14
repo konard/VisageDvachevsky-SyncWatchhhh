@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { generateAccessToken, verifyAccessToken, TokenPayload } from '../../../common/utils/jwt.js';
 
 describe('JWT Utilities', () => {
