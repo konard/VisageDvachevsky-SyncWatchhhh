@@ -17,6 +17,10 @@ out/
 .env.test.local
 .env.production.local
 .env*.local
+.env.staging
+.env.production
+# Keep example files
+!.env*.example
 
 # Logs
 logs/
