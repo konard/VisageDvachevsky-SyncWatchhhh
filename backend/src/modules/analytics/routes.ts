@@ -12,7 +12,7 @@ import {
   ExportLogsQuerySchema,
 } from './schemas.js';
 import { prisma } from '../../database/client.js';
-import { authMiddleware } from '../../common/middleware/auth.js';
+import { authenticateRequired } from '../../common/middleware/auth.js';
 import { ForbiddenError, NotFoundError } from '../../common/errors/index.js';
 import { Parser } from 'json2csv';
 
@@ -36,8 +36,8 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    async (request, reply) => {
-      await analyticsService.trackEvent(request.body);
+    async (request, _reply) => {
+      await analyticsService.trackEvent(request.body as any);
       return { success: true };
     }
   );
@@ -62,12 +62,12 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    async (request, reply) => {
-      const { events } = request.body;
+    async (request, _reply) => {
+      const { events } = request.body as { events: any[] };
 
       // Track all events
       await Promise.all(
-        events.map(event => analyticsService.trackEvent(event))
+        events.map((event: any) => analyticsService.trackEvent(event))
       );
 
       return { success: true, count: events.length };
@@ -81,12 +81,12 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/metrics/funnel',
     {
-      preHandler: authMiddleware(),
+      preHandler: [authenticateRequired],
       schema: {
         querystring: DateRangeQuerySchema,
       },
     },
-    async (request, reply) => {
+    async (request, _reply) => {
       const { startDate, endDate } = request.query as any;
 
       const metrics = await analyticsService.getFunnelMetrics(
@@ -105,12 +105,12 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/metrics/voice',
     {
-      preHandler: authMiddleware(),
+      preHandler: [authenticateRequired],
       schema: {
         querystring: DateRangeQuerySchema,
       },
     },
-    async (request, reply) => {
+    async (request, _reply) => {
       const { startDate, endDate } = request.query as any;
 
       const metrics = await analyticsService.getVoiceSuccessRate(
@@ -129,12 +129,12 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/metrics/sync',
     {
-      preHandler: authMiddleware(),
+      preHandler: [authenticateRequired],
       schema: {
         querystring: DateRangeQuerySchema,
       },
     },
-    async (request, reply) => {
+    async (request, _reply) => {
       const { startDate, endDate } = request.query as any;
 
       const metrics = await analyticsService.getSyncMetrics(
@@ -153,12 +153,12 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/events',
     {
-      preHandler: authMiddleware(),
+      preHandler: [authenticateRequired],
       schema: {
         querystring: GetEventsQuerySchema,
       },
     },
-    async (request, reply) => {
+    async (request, _reply) => {
       const query = request.query as any;
 
       const events = await analyticsService.getEvents({
@@ -182,12 +182,12 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/export/logs',
     {
-      preHandler: authMiddleware(),
+      preHandler: [authenticateRequired],
       schema: {
         querystring: ExportLogsQuerySchema,
       },
     },
-    async (request, reply) => {
+    async (request, _reply) => {
       const user = (request as any).user;
       const { roomId, startDate, endDate, format = 'json' } = request.query as any;
 

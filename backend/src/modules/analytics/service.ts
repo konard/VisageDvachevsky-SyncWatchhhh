@@ -6,7 +6,7 @@
 import { prisma } from '../../database/client.js';
 import { redis } from '../../database/redis.js';
 import { logger } from '../../config/logger.js';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 /**
  * Event categories for analytics

@@ -5,7 +5,7 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { logger } from '../../config/logger.js';
-import { analyticsService, EventNames, EventCategory } from '../../modules/analytics/service.js';
+import { analyticsService, EventCategory } from '../../modules/analytics/service.js';
 
 /**
  * Deprecated endpoint configuration
