@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ClockSync, TimeSyncSample } from '../ClockSync';
+import { ClockSync } from '../ClockSync';
 
 // Mock Socket.io client
 class MockSocket {
