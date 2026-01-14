@@ -17,6 +17,8 @@
     "build:backend": "npm run build --workspace=backend",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:ci": "npm run test --workspaces --if-present -- --run",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
     "docker:dev": "docker compose -f docker-compose.dev.yml up",
     "docker:dev:build": "docker compose -f docker-compose.dev.yml up --build",
     "db:migrate": "npm run db:migrate --workspace=backend",
