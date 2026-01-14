@@ -1,6 +1,7 @@
-import { ReactNode, useEffect, useRef } from 'react';
+import { ReactNode, useEffect, useRef, CSSProperties } from 'react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useGlassColor } from '../../../contexts/GlassColorContext';
 
 export interface GlassModalProps {
   isOpen: boolean;
@@ -11,6 +12,10 @@ export interface GlassModalProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   closeOnOverlayClick?: boolean;
   showCloseButton?: boolean;
+  /** Override accent color */
+  accentColor?: string;
+  /** Disable all adaptive color features */
+  staticColors?: boolean;
 }
 
 export const GlassModal = ({
@@ -22,8 +27,11 @@ export const GlassModal = ({
   size = 'md',
   closeOnOverlayClick = true,
   showCloseButton = true,
+  accentColor,
+  staticColors = false,
 }: GlassModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
+  const glassColor = useGlassColor();
 
   const sizeClasses = {
     sm: 'max-w-md',
@@ -31,6 +39,14 @@ export const GlassModal = ({
     lg: 'max-w-2xl',
     xl: 'max-w-4xl',
   };
+
+  // Build adaptive CSS custom properties
+  const adaptiveStyle: CSSProperties = staticColors ? {} : {
+    '--glass-background': glassColor.glassBackground,
+    '--glass-border': glassColor.glassBorder,
+    '--glass-glow': glassColor.glassGlow,
+    '--glass-accent-color': accentColor || glassColor.accentColor,
+  } as CSSProperties;
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -78,6 +94,7 @@ export const GlassModal = ({
               sizeClasses[size],
               className
             )}
+            style={adaptiveStyle}
           >
             {(title || showCloseButton) && (
               <div className="flex items-center justify-between p-6 border-b border-white/10">

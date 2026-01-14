@@ -1,5 +1,6 @@
-import { ButtonHTMLAttributes, ReactNode, forwardRef } from 'react';
+import { ButtonHTMLAttributes, ReactNode, forwardRef, CSSProperties } from 'react';
 import { clsx } from 'clsx';
+import { useGlassColor } from '../../../contexts/GlassColorContext';
 
 export interface GlassButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
@@ -7,6 +8,12 @@ export interface GlassButtonProps extends ButtonHTMLAttributes<HTMLButtonElement
   variant?: 'default' | 'outline' | 'ghost' | 'primary' | 'secondary' | 'success' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
+  /** Enable adaptive accent colors */
+  adaptive?: boolean;
+  /** Override accent color */
+  accentColor?: string;
+  /** Disable all adaptive color features */
+  staticColors?: boolean;
 }
 
 export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
@@ -17,8 +24,14 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
     size = 'md',
     fullWidth = false,
     disabled,
+    adaptive = false,
+    accentColor,
+    staticColors = false,
+    style,
     ...props
   }, ref) => {
+    const glassColor = useGlassColor();
+
     const sizeClasses = {
       sm: 'px-3 py-2 text-sm',
       md: 'px-6 py-3 text-base',
@@ -35,6 +48,13 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
       danger: 'bg-red-600 hover:bg-red-700 text-white font-medium transition-colors',
     };
 
+    // Build adaptive CSS custom properties for glass variants
+    const adaptiveStyle: CSSProperties = (staticColors || variant !== 'default') ? {} : {
+      '--glass-border': glassColor.glassBorder,
+      '--glass-glow': glassColor.glassGlow,
+      '--glass-accent-color': accentColor || glassColor.accentColor,
+    } as CSSProperties;
+
     return (
       <button
         ref={ref}
@@ -43,8 +63,10 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
           sizeClasses[size],
           fullWidth && 'w-full',
           disabled && 'opacity-50 cursor-not-allowed',
+          adaptive && variant === 'default' && 'glass-adaptive',
           className
         )}
+        style={{ ...adaptiveStyle, ...style }}
         disabled={disabled}
         {...props}
       >
