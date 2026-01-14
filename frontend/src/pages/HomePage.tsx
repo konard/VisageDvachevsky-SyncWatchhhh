@@ -31,21 +31,16 @@ export function HomePage() {
   const { data: user, isLoading: isLoadingProfile } = useProfile();
 
   const handleCreateRoom = async (options: RoomOptions) => {
-    try {
-      // Call backend API to create room
-      const room = await roomApiService.createRoom({
-        name: options.name,
-        maxParticipants: options.maxParticipants,
-        password: options.password,
-        playbackControl: options.playbackControl,
-      });
+    // Call backend API to create room
+    const room = await roomApiService.createRoom({
+      name: options.name,
+      maxParticipants: options.maxParticipants,
+      password: options.password,
+      playbackControl: options.playbackControl,
+    });
 
-      // Navigate to the newly created room using the code from backend
-      navigate(`/room/${room.code}`);
-    } catch (error) {
-      // Error is handled and displayed in CreateRoomModal
-      throw error;
-    }
+    // Navigate to the newly created room using the code from backend
+    navigate(`/room/${room.code}`);
   };
 
   const handleJoinRoom = (e: React.FormEvent) => {
