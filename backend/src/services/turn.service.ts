@@ -8,6 +8,13 @@ export interface TURNCredentials {
   credentialType: 'password';
 }
 
+export interface RTCIceServer {
+  urls: string | string[];
+  username?: string;
+  credential?: string;
+  credentialType?: 'password';
+}
+
 /**
  * Generate time-limited TURN credentials using HMAC-SHA1
  * Based on RFC 5389 and coturn's REST API

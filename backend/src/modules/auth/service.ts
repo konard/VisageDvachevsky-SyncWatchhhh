@@ -1,4 +1,3 @@
-import { Prisma } from '@prisma/client';
 import { prisma } from '../../common/utils/prisma.js';
 import { hashPassword, verifyPassword } from '../../common/utils/password.js';
 import { generateAccessToken, generateRefreshToken, TokenPayload } from '../../common/utils/jwt.js';
