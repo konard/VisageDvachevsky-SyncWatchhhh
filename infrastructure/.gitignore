@@ -1,0 +1,65 @@
+# Terraform files and directories
+
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files (should be in remote backend)
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude all .tfvars files, which are likely to contain sensitive data
+# However, we're keeping the environment tfvars in git as they're templates
+# Override this pattern for specific files below
+*.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+
+# Sensitive variable files (add your own patterns)
+secrets.tfvars
+*.secret.tfvars
+
+# Ignore override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# Plan files
+*.tfplan
+tfplan-*
+
+# Kubeconfig files (generated)
+kubeconfig-*.yaml
+kubeconfig-*.yml
+
+# Output files
+outputs-*.json
+
+# Lock files (commit this to ensure consistent provider versions)
+# .terraform.lock.hcl
+
+# Backup files
+*.backup
+*.bak
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
