@@ -33,11 +33,14 @@ export function VoicePanel({
   onToggleMute,
   onSetPeerVolume,
 }: VoicePanelProps) {
-  const { isInVoice, peers, isMuted, isSpeaking, connectionState, error } = useVoiceStore();
+  const { isInVoice, peers, isMuted, isSpeaking, connectionState, error, settings } = useVoiceStore();
   const [showSettings, setShowSettings] = React.useState(false);
 
   const peersArray = Array.from(peers.values());
   const isConnecting = connectionState === 'connecting';
+
+  // Determine voice mode display
+  const isPTTMode = settings.mode === 'push_to_talk';
 
   return (
     <div className="voice-panel-container">
@@ -71,6 +74,50 @@ export function VoicePanel({
           <Settings className="w-4 h-4 text-gray-400" />
         </button>
       </div>
+
+      {/* Voice Mode Indicator */}
+      {isInVoice && (
+        <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
+          <div className="flex items-center gap-2 mb-2">
+            {isPTTMode ? (
+              <>
+                <span className="px-2 py-1 rounded-md bg-blue-500/20 text-blue-400 text-xs font-semibold uppercase tracking-wide">
+                  PTT
+                </span>
+                <span className="text-xs text-gray-400">
+                  Hold <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white font-mono text-xs">{settings.pttKey}</kbd> to talk
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="px-2 py-1 rounded-md bg-green-500/20 text-green-400 text-xs font-semibold uppercase tracking-wide">
+                  VAD
+                </span>
+                <span className="text-xs text-gray-400">
+                  Voice activated
+                </span>
+              </>
+            )}
+          </div>
+          {/* Audio Processing Indicators */}
+          {(settings.noiseSuppression || settings.echoCancellation) && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {settings.noiseSuppression && (
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                  Noise Suppression
+                </span>
+              )}
+              {settings.echoCancellation && (
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                  Echo Cancellation
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Error Alert */}
       {error && (
