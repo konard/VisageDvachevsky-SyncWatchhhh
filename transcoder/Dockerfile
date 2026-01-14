@@ -3,16 +3,16 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy workspace root package files
-COPY package*.json ./
+# Copy workspace root package files (exclude lock file to get platform-specific deps)
+COPY package.json ./
 
-# Copy workspace package files
-COPY transcoder/package*.json ./transcoder/
-COPY shared/package*.json ./shared/
+# Copy workspace package files (exclude lock files)
+COPY transcoder/package.json ./transcoder/
+COPY shared/package.json ./shared/
 
 # Install all dependencies (including devDependencies for build)
-# Use npm install instead of npm ci to get platform-specific optional deps
-# (npm ci uses lock file which may not have Alpine-specific native binaries)
+# npm install without lock file resolves platform-specific optional dependencies
+# correctly (e.g., @rollup/rollup-linux-x64-musl for Alpine Linux)
 RUN npm install
 
 # Copy shared package source
@@ -38,12 +38,12 @@ RUN apk add --no-cache ffmpeg
 
 WORKDIR /app
 
-# Copy workspace root package files
-COPY package*.json ./
+# Copy workspace root package files (exclude lock file to get platform-specific deps)
+COPY package.json ./
 
-# Copy workspace package files
-COPY transcoder/package*.json ./transcoder/
-COPY shared/package*.json ./shared/
+# Copy workspace package files (exclude lock files)
+COPY transcoder/package.json ./transcoder/
+COPY shared/package.json ./shared/
 
 # Install production dependencies only
 RUN npm install --omit=dev
