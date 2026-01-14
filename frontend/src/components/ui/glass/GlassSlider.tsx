@@ -1,5 +1,6 @@
-import { useState, useRef, InputHTMLAttributes, forwardRef, useMemo } from 'react';
+import { useState, useRef, InputHTMLAttributes, forwardRef, useEffect, useMemo } from 'react';
 import { clsx } from 'clsx';
+import { useGlassInteraction, useReducedMotion } from '@/hooks';
 import { useGlassColor } from '../../../contexts/GlassColorContext';
 
 export interface GlassSliderProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange'> {
@@ -12,6 +13,8 @@ export interface GlassSliderProps extends Omit<InputHTMLAttributes<HTMLInputElem
   showValue?: boolean;
   className?: string;
   formatValue?: (value: number) => string;
+  /** Enable interactive glass effects (stretch on drag) */
+  interactive?: boolean;
   /** Override accent color */
   accentColor?: string;
   /** Disable all adaptive color features */
@@ -29,17 +32,41 @@ export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
     showValue = true,
     className,
     formatValue = (val) => val.toString(),
+    interactive = false,
     accentColor,
     staticColors = false,
     ...props
   }, ref) => {
     const [internalValue, setInternalValue] = useState(value);
+    const [isDragging, setIsDragging] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
     const sliderRef = useRef<HTMLInputElement>(null);
+    const prefersReducedMotion = useReducedMotion();
+
+    const { isReducedMotion } = useGlassInteraction(containerRef, {
+      enablePointerTracking: false,
+      enablePressEffect: false,
+      enableScrollResponse: false,
+      enableDragEffect: interactive,
+    });
+
     const glassColor = useGlassColor();
 
     // Use accent color from context or override
     const effectiveAccentColor = accentColor || glassColor.accentColor;
     const accentGlow = glassColor.glassGlow;
+
+    // Apply CSS custom properties for stretch effect
+    useEffect(() => {
+      if (!interactive || !containerRef.current || isReducedMotion) return;
+
+      // Calculate stretch based on drag direction
+      if (isDragging) {
+        containerRef.current.style.setProperty('--glass-stretch', '1.02');
+      } else {
+        containerRef.current.style.setProperty('--glass-stretch', '1');
+      }
+    }, [isDragging, interactive, isReducedMotion]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = parseFloat(e.target.value);
@@ -47,7 +74,27 @@ export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
       onChange?.(newValue);
     };
 
+    const handlePointerDown = () => {
+      if (!prefersReducedMotion && interactive) {
+        setIsDragging(true);
+      }
+    };
+
+    const handlePointerUp = () => {
+      setIsDragging(false);
+    };
+
+    useEffect(() => {
+      // Add global pointer up listener to handle dragging outside the slider
+      if (isDragging) {
+        window.addEventListener('pointerup', handlePointerUp);
+        return () => window.removeEventListener('pointerup', handlePointerUp);
+      }
+    }, [isDragging]);
+
     const percentage = ((internalValue - min) / (max - min)) * 100;
+
+    const isInteractive = interactive && !prefersReducedMotion;
 
     // Generate unique ID for scoped styles
     const sliderId = useMemo(() => `slider-${Math.random().toString(36).substr(2, 9)}`, []);
@@ -63,7 +110,15 @@ export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
     }, [effectiveAccentColor]);
 
     return (
-      <div className={clsx('w-full', className)}>
+      <div
+        ref={containerRef}
+        className={clsx(
+          'w-full',
+          isInteractive && 'glass-slider-interactive',
+          className
+        )}
+        data-dragging={isDragging}
+      >
         <div className="flex items-center justify-between mb-2">
           {label && (
             <label className="text-sm font-medium text-gray-300">
@@ -88,6 +143,7 @@ export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
             step={step}
             value={internalValue}
             onChange={handleChange}
+            onPointerDown={handlePointerDown}
             className={`${sliderId} w-full h-2 rounded-full appearance-none cursor-pointer`}
             style={{
               background: `linear-gradient(to right,
@@ -147,6 +203,19 @@ export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
 
           .${sliderId}:focus::-moz-range-thumb {
             box-shadow: 0 0 20px ${staticColors ? 'rgba(0, 229, 255, 0.8)' : accentGlow};
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .slider-input::-webkit-slider-thumb,
+            .slider-input::-moz-range-thumb {
+              transition: none;
+            }
+
+            .slider-input::-webkit-slider-thumb:hover,
+            .slider-input::-webkit-slider-thumb:active,
+            .slider-input::-moz-range-thumb:hover {
+              transform: none;
+            }
           }
         `}</style>
       </div>

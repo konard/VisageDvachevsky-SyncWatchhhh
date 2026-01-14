@@ -1,5 +1,6 @@
-import { ReactNode, HTMLAttributes, forwardRef, useMemo, CSSProperties } from 'react';
+import { ReactNode, HTMLAttributes, forwardRef, useRef, useEffect, useMemo, CSSProperties } from 'react';
 import { clsx } from 'clsx';
+import { useGlassInteraction } from '@/hooks';
 import { useGlassEffects } from './GlassEffectsProvider';
 import { useGlassColor } from '../../../contexts/GlassColorContext';
 
@@ -9,6 +10,8 @@ export interface GlassPanelProps extends HTMLAttributes<HTMLDivElement> {
   padding?: 'none' | 'sm' | 'md' | 'lg';
   header?: ReactNode;
   footer?: ReactNode;
+  /** Enable scroll-responsive blur effect */
+  interactive?: boolean;
   /** Glass thickness affects refraction intensity */
   thickness?: 'thin' | 'medium' | 'thick';
   /** Enable refraction distortion effect */
@@ -26,25 +29,35 @@ export interface GlassPanelProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export const GlassPanel = forwardRef<HTMLDivElement, GlassPanelProps>(
-  (
-    {
-      children,
-      className,
-      padding = 'md',
-      header,
-      footer,
-      thickness = 'medium',
-      refraction,
-      specular,
-      edgeGlow,
-      tinted = false,
-      accentColor,
-      staticColors = false,
-      style,
-      ...props
-    },
-    ref
-  ) => {
+  ({
+    children,
+    className,
+    padding = 'md',
+    header,
+    footer,
+    interactive = false,
+    thickness = 'medium',
+    refraction,
+    specular,
+    edgeGlow,
+    tinted = false,
+    accentColor,
+    staticColors = false,
+    style,
+    ...props
+  }, forwardedRef) => {
+    const internalRef = useRef<HTMLDivElement>(null);
+    const ref = (forwardedRef as React.RefObject<HTMLDivElement>) || internalRef;
+
+    // Interactive effects (scroll response)
+    const { cssVars, isReducedMotion } = useGlassInteraction(ref, {
+      enablePointerTracking: false,
+      enablePressEffect: false,
+      enableScrollResponse: interactive,
+      enableDragEffect: false,
+    });
+
+    // Glass effects from provider (refraction, specular)
     const { lightPosition, config, isActive, scrollProgress } = useGlassEffects();
     const glassColor = useGlassColor();
 
@@ -100,10 +113,21 @@ export const GlassPanel = forwardRef<HTMLDivElement, GlassPanelProps>(
       enableEdgeGlow && 'glass-panel-edge-glow'
     );
 
+    // Apply CSS custom properties to the element for interactive effects
+    useEffect(() => {
+      if (!interactive || !ref.current || isReducedMotion) return;
+
+      Object.entries(cssVars).forEach(([key, value]) => {
+        ref.current?.style.setProperty(key, value);
+      });
+    }, [cssVars, interactive, isReducedMotion, ref]);
+
+    const baseClass = interactive && !isReducedMotion ? 'glass-panel-interactive' : 'glass-panel';
+
     return (
       <div
         ref={ref}
-        className={clsx('glass-panel', effectClasses, tinted && 'glass-tinted', className)}
+        className={clsx(baseClass, effectClasses, tinted && 'glass-tinted', className)}
         style={{
           ...adaptiveStyle,
           ...style,

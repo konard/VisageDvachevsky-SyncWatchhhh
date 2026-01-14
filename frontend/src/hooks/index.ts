@@ -12,6 +12,12 @@ export type { UseYouTubePlayerOptions, UseYouTubePlayerResult } from './useYouTu
 
 export { useReducedMotion } from './useReducedMotion';
 
+// Glass interaction hooks
+export { useGlassInteraction } from './useGlassInteraction';
+export type { InteractionState, GlassInteractionOptions, GlassInteractionResult } from './useGlassInteraction';
+export { useDeviceOrientation } from './useDeviceOrientation';
+export type { DeviceOrientationState, DeviceOrientationResult } from './useDeviceOrientation';
+
 // Morph Transition hook
 export { useMorphTransition } from './useMorphTransition';
 export type { UseMorphTransitionOptions, UseMorphTransitionResult } from './useMorphTransition';

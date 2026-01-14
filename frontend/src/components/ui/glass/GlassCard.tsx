@@ -1,5 +1,6 @@
 import { ReactNode, HTMLAttributes, forwardRef, useRef, useEffect, useMemo, CSSProperties } from 'react';
 import { clsx } from 'clsx';
+import { useGlassInteraction } from '@/hooks';
 import { useGlassEffects } from './GlassEffectsProvider';
 import { useGlassColor } from '../../../contexts/GlassColorContext';
 
@@ -7,6 +8,12 @@ export interface GlassCardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   className?: string;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  /** Enable interactive glass effects (pointer tracking, press depth) */
+  interactive?: boolean;
+  /** Enable subtle breathing animation when idle */
+  breathe?: boolean;
+  /** Enable floating animation */
+  float?: boolean;
   /** Glass thickness affects refraction intensity */
   thickness?: 'thin' | 'medium' | 'thick';
   /** Enable refraction distortion effect */
@@ -30,30 +37,40 @@ export interface GlassCardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
-  (
-    {
-      children,
-      className,
-      padding = 'md',
-      thickness = 'medium',
-      refraction,
-      specular,
-      chromaticAberration,
-      edgeGlow,
-      refractionIntensity,
-      tinted = false,
-      glow = false,
-      accentColor,
-      staticColors = false,
-      style,
-      ...props
-    },
-    ref
-  ) => {
+  ({
+    children,
+    className,
+    padding = 'md',
+    interactive = false,
+    breathe = false,
+    float = false,
+    thickness = 'medium',
+    refraction,
+    specular,
+    chromaticAberration,
+    edgeGlow,
+    refractionIntensity,
+    tinted = false,
+    glow = false,
+    accentColor,
+    staticColors = false,
+    style,
+    ...props
+  }, forwardedRef) => {
+    const internalRef = useRef<HTMLDivElement>(null);
+    const ref = (forwardedRef as React.RefObject<HTMLDivElement>) || internalRef;
+
+    // Interactive effects (pointer tracking, press)
+    const { cssVars, handlers, state, isReducedMotion } = useGlassInteraction(ref, {
+      enablePointerTracking: interactive,
+      enablePressEffect: interactive,
+      enableScrollResponse: interactive,
+      enableDragEffect: false,
+    });
+
+    // Glass effects from provider (refraction, specular)
     const { lightPosition, config, isActive } = useGlassEffects();
     const glassColor = useGlassColor();
-    const internalRef = useRef<HTMLDivElement>(null);
-    const resolvedRef = (ref as React.RefObject<HTMLDivElement>) || internalRef;
 
     const paddingClasses = {
       none: '',
@@ -103,11 +120,11 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
 
     // Sample local background on mount if enabled
     useEffect(() => {
-      if (!staticColors && glassColor.enabled && resolvedRef.current) {
+      if (!staticColors && glassColor.enabled && ref.current) {
         // Optional: sample local background for per-component adaptation
         // This can be enabled for more granular color adaptation
       }
-    }, [staticColors, glassColor.enabled, resolvedRef]);
+    }, [staticColors, glassColor.enabled, ref]);
 
     // Build effect classes
     const effectClasses = clsx(
@@ -118,13 +135,26 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
       enableEdgeGlow && 'glass-edge-glow-effect'
     );
 
+    // Apply CSS custom properties to the element for interactive effects
+    useEffect(() => {
+      if (!interactive || !ref.current || isReducedMotion) return;
+
+      Object.entries(cssVars).forEach(([key, value]) => {
+        ref.current?.style.setProperty(key, value);
+      });
+    }, [cssVars, interactive, isReducedMotion, ref]);
+
+    const baseClass = interactive ? 'glass-card-interactive' : 'glass-card';
+
     return (
       <div
-        ref={resolvedRef}
+        ref={ref}
         className={clsx(
-          'glass-card',
+          baseClass,
           effectClasses,
           paddingClasses[padding],
+          breathe && !isReducedMotion && 'glass-breathe',
+          float && !isReducedMotion && 'glass-float',
           tinted && 'glass-tinted',
           glow && 'glass-glow',
           className
@@ -136,6 +166,8 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
           '--glass-refraction-intensity': effectIntensity,
         } as CSSProperties}
         data-glass-thickness={thickness}
+        data-pressing={interactive && state.isPressing}
+        {...(interactive && !isReducedMotion ? handlers : {})}
         {...props}
       >
         {/* Specular highlight overlay */}

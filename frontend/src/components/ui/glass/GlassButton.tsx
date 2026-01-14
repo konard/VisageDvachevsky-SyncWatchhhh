@@ -1,5 +1,6 @@
-import { ButtonHTMLAttributes, ReactNode, forwardRef, useMemo, CSSProperties } from 'react';
+import { ButtonHTMLAttributes, ReactNode, forwardRef, useRef, useEffect, useState, useMemo, CSSProperties } from 'react';
 import { clsx } from 'clsx';
+import { useGlassInteraction } from '@/hooks';
 import { useGlassEffects } from './GlassEffectsProvider';
 import { useGlassColor } from '../../../contexts/GlassColorContext';
 
@@ -9,6 +10,8 @@ export interface GlassButtonProps extends ButtonHTMLAttributes<HTMLButtonElement
   variant?: 'default' | 'outline' | 'ghost' | 'primary' | 'secondary' | 'success' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
+  /** Enable interactive glass effects (pointer tracking, ripple) */
+  interactive?: boolean;
   /** Enable refraction distortion effect on hover */
   refraction?: boolean;
   /** Enable specular highlight effect */
@@ -24,25 +27,37 @@ export interface GlassButtonProps extends ButtonHTMLAttributes<HTMLButtonElement
 }
 
 export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
-  (
-    {
-      children,
-      className,
-      variant = 'default',
-      size = 'md',
-      fullWidth = false,
-      disabled,
-      refraction,
-      specular,
-      edgeGlow,
-      adaptive = false,
-      accentColor,
-      staticColors = false,
-      style,
-      ...props
-    },
-    ref
-  ) => {
+  ({
+    children,
+    className,
+    variant = 'default',
+    size = 'md',
+    fullWidth = false,
+    disabled,
+    interactive = false,
+    refraction,
+    specular,
+    edgeGlow,
+    adaptive = false,
+    accentColor,
+    staticColors = false,
+    onClick,
+    style,
+    ...props
+  }, forwardedRef) => {
+    const internalRef = useRef<HTMLButtonElement>(null);
+    const ref = (forwardedRef as React.RefObject<HTMLButtonElement>) || internalRef;
+    const [isRippling, setIsRippling] = useState(false);
+
+    // Interactive effects (pointer tracking, press)
+    const { cssVars, handlers, state, isReducedMotion } = useGlassInteraction(ref, {
+      enablePointerTracking: interactive && variant === 'default',
+      enablePressEffect: interactive && variant === 'default',
+      enableScrollResponse: false,
+      enableDragEffect: false,
+    });
+
+    // Glass effects from provider (refraction, specular)
     const { lightPosition, config, isActive } = useGlassEffects();
     const glassColor = useGlassColor();
 
@@ -53,7 +68,7 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
     };
 
     const variantClasses = {
-      default: 'glass-button text-white font-medium',
+      default: interactive ? 'glass-button-interactive text-white font-medium' : 'glass-button text-white font-medium',
       outline:
         'glass-card border-2 border-accent-cyan/50 text-white font-medium hover:border-accent-cyan hover:shadow-glow',
       ghost: 'bg-transparent text-white hover:bg-white/10 transition-colors',
@@ -96,6 +111,26 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
       enableEdgeGlow && 'glass-button-edge-glow'
     );
 
+    // Apply CSS custom properties to the element for interactive effects
+    useEffect(() => {
+      if (!interactive || !ref.current || isReducedMotion || variant !== 'default') return;
+
+      Object.entries(cssVars).forEach(([key, value]) => {
+        ref.current?.style.setProperty(key, value);
+      });
+    }, [cssVars, interactive, isReducedMotion, variant, ref]);
+
+    // Handle ripple effect on click
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (interactive && !isReducedMotion && variant === 'default') {
+        setIsRippling(true);
+        setTimeout(() => setIsRippling(false), 600);
+      }
+      onClick?.(e);
+    };
+
+    const isInteractiveDefault = interactive && variant === 'default' && !isReducedMotion;
+
     return (
       <button
         ref={ref}
@@ -114,6 +149,10 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
           ...specularStyle,
         }}
         disabled={disabled}
+        data-pressing={isInteractiveDefault && state.isPressing}
+        data-ripple={isRippling}
+        onClick={handleClick}
+        {...(isInteractiveDefault ? handlers : {})}
         {...props}
       >
         {/* Specular highlight overlay for glass buttons */}

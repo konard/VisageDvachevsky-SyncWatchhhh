@@ -254,7 +254,7 @@ export function UploadVideoModal({ isOpen, onClose, onUploadComplete }: UploadVi
             <ul className="space-y-1 list-disc list-inside text-gray-500">
               <li>Video will be transcoded to HLS format</li>
               <li>Transcoding typically takes 1-3x video duration</li>
-              <li>You'll see progress updates in real-time</li>
+              <li>You&apos;ll see progress updates in real-time</li>
               <li>Video expires after 30 days</li>
             </ul>
           </div>

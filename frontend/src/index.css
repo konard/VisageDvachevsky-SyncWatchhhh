@@ -79,6 +79,25 @@
 }
 
 @layer components {
+  /* Liquid Glass CSS Custom Properties (defaults) */
+  :root {
+    --glass-pointer-x: 50%;
+    --glass-pointer-y: 50%;
+    --glass-pointer-normalized-x: 0.5;
+    --glass-pointer-normalized-y: 0.5;
+    --glass-hover: 0;
+    --glass-press-depth: 0;
+    --glass-pressing: 0;
+    --glass-scroll-velocity: 0;
+    --glass-scroll-intensity: 0;
+    --glass-scroll-blur: 20px;
+    --glass-drag-x: 0px;
+    --glass-drag-y: 0px;
+    --glass-stretch: 1;
+    --glass-orientation-x: 0;
+    --glass-orientation-y: 0;
+  }
+
   /* Liquid Glass Card - Context-aware adaptive styling */
   .glass-card {
     @apply relative overflow-hidden rounded-2xl;
@@ -100,6 +119,40 @@
   .glass-card.glass-glow {
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37),
                 0 0 20px var(--glass-glow, rgba(0, 229, 255, 0.3));
+  }
+
+  /* Interactive glass card with highlight following pointer */
+  .glass-card-interactive {
+    @apply relative overflow-hidden rounded-2xl;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(var(--glass-scroll-blur, 20px));
+    -webkit-backdrop-filter: blur(var(--glass-scroll-blur, 20px));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.3s ease;
+  }
+
+  .glass-card-interactive::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(
+      circle 200px at var(--glass-pointer-x, 50%) var(--glass-pointer-y, 50%),
+      rgba(0, 229, 255, calc(0.15 * var(--glass-hover, 0))),
+      transparent
+    );
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  /* Press depth effect */
+  .glass-card-interactive[data-pressing="true"] {
+    transform: scale(calc(1 - 0.02 * var(--glass-press-depth, 0)));
+    box-shadow: 0 4px 16px 0 rgba(31, 38, 135, 0.2);
   }
 
   .glass-card::before {
@@ -173,6 +226,64 @@
     animation: shimmer 0.5s ease-out;
   }
 
+  /* Interactive Glass Button with cursor-following highlight */
+  .glass-button-interactive {
+    @apply relative overflow-hidden rounded-xl;
+    background: linear-gradient(135deg, rgba(0, 229, 255, 0.2), rgba(41, 121, 255, 0.2));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 16px 0 rgba(0, 229, 255, 0.2);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.2s ease;
+  }
+
+  .glass-button-interactive::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      circle 80px at var(--glass-pointer-x, 50%) var(--glass-pointer-y, 50%),
+      rgba(255, 255, 255, calc(0.2 * var(--glass-hover, 0))),
+      transparent
+    );
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .glass-button-interactive:hover {
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.4),
+                0 0 40px rgba(0, 229, 255, calc(0.2 * var(--glass-hover, 0)));
+  }
+
+  .glass-button-interactive[data-pressing="true"] {
+    transform: scale(0.97) translateY(1px);
+    box-shadow: 0 2px 8px rgba(0, 229, 255, 0.2);
+  }
+
+  /* Ripple effect for interactive buttons */
+  .glass-button-interactive::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    background-image: radial-gradient(circle, rgba(0, 229, 255, 0.4) 10%, transparent 10%);
+    background-repeat: no-repeat;
+    background-position: var(--glass-pointer-x, 50%) var(--glass-pointer-y, 50%);
+    transform: scale(0);
+    opacity: 0;
+    transition: transform 0.4s ease-out, opacity 0.4s ease-out;
+  }
+
+  .glass-button-interactive[data-ripple="true"]::after {
+    transform: scale(10);
+    opacity: 0;
+    transition: transform 0.6s ease-out, opacity 0.6s ease-out;
+  }
+
   /* Glass Input - Context-aware adaptive styling */
   .glass-input {
     @apply w-full px-4 py-3 rounded-xl transition-all duration-300;
@@ -205,6 +316,55 @@
   /* Glass panel with tinting */
   .glass-panel.glass-tinted {
     background: var(--glass-background, rgba(15, 23, 42, 0.8));
+  }
+
+  /* Interactive Glass Panel with scroll-responsive blur */
+  .glass-panel-interactive {
+    @apply rounded-2xl;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(var(--glass-scroll-blur, 20px));
+    -webkit-backdrop-filter: blur(var(--glass-scroll-blur, 20px));
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: backdrop-filter 0.3s ease,
+                -webkit-backdrop-filter 0.3s ease;
+  }
+
+  /* Glass Slider with stretch effect */
+  .glass-slider-interactive {
+    position: relative;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .glass-slider-interactive[data-dragging="true"] {
+    transform: scaleX(var(--glass-stretch, 1));
+  }
+
+  /* Idle breathing animation for glass elements */
+  .glass-breathe {
+    animation: glassBreathe 4s ease-in-out infinite;
+  }
+
+  @keyframes glassBreathe {
+    0%, 100% {
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    }
+    50% {
+      box-shadow: 0 8px 40px 0 rgba(0, 229, 255, 0.15);
+    }
+  }
+
+  /* Floating animation for glass elements */
+  .glass-float {
+    animation: glassFloat 6s ease-in-out infinite;
+  }
+
+  @keyframes glassFloat {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
   }
 
   /* Animated gradient background */
@@ -416,6 +576,32 @@
   @supports (backdrop-filter: blur(20px)) {
     .backdrop-blur-fallback {
       background: rgba(15, 23, 42, 0.7);
+    }
+  }
+
+  /* Reduced motion - disable all interactive glass animations */
+  @media (prefers-reduced-motion: reduce) {
+    .glass-card-interactive,
+    .glass-button-interactive,
+    .glass-panel-interactive,
+    .glass-slider-interactive {
+      transition: none;
+    }
+
+    .glass-card-interactive::before,
+    .glass-button-interactive::before,
+    .glass-button-interactive::after {
+      display: none;
+    }
+
+    .glass-breathe,
+    .glass-float {
+      animation: none;
+    }
+
+    .glass-card-interactive[data-pressing="true"],
+    .glass-button-interactive[data-pressing="true"] {
+      transform: none;
     }
   }
 }
