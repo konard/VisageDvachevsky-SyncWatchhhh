@@ -1,14 +1,14 @@
 import { FastifyInstance } from 'fastify';
 import { UsersService } from './service.js';
 import { updateProfileSchema, changePasswordSchema, updateSettingsSchema } from './schemas.js';
-import { authenticateUser } from '../../common/middleware/auth.js';
+import { authenticateRequired } from '../../common/middleware/auth.js';
 
 const usersService = new UsersService();
 
 export async function usersRoutes(fastify: FastifyInstance) {
   // Get current user profile
   fastify.get('/me', {
-    preHandler: authenticateUser,
+    preHandler: authenticateRequired,
     handler: async (request, reply) => {
       try {
         if (!request.user) {
@@ -34,7 +34,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
 
   // Update current user profile
   fastify.patch('/me', {
-    preHandler: authenticateUser,
+    preHandler: authenticateRequired,
     schema: {
       body: {
         type: 'object',
@@ -70,7 +70,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
 
   // Upload avatar
   fastify.post('/me/avatar', {
-    preHandler: authenticateUser,
+    preHandler: authenticateRequired,
     schema: {
       body: {
         type: 'object',
@@ -106,7 +106,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
 
   // Change password
   fastify.post('/me/password', {
-    preHandler: authenticateUser,
+    preHandler: authenticateRequired,
     schema: {
       body: {
         type: 'object',
@@ -143,7 +143,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
 
   // Delete account
   fastify.delete('/me', {
-    preHandler: authenticateUser,
+    preHandler: authenticateRequired,
     handler: async (request, reply) => {
       try {
         if (!request.user) {
@@ -169,7 +169,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
 
   // Get user settings
   fastify.get('/me/settings', {
-    preHandler: authenticateUser,
+    preHandler: authenticateRequired,
     handler: async (request, reply) => {
       try {
         if (!request.user) {
@@ -195,7 +195,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
 
   // Update user settings
   fastify.patch('/me/settings', {
-    preHandler: authenticateUser,
+    preHandler: authenticateRequired,
     schema: {
       body: {
         type: 'object',
