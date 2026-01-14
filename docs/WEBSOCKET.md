@@ -236,6 +236,89 @@ socket.emit('sync:rate', {
 
 ---
 
+### sync:resync
+
+Request a fresh playback state snapshot from the server to manually resynchronize.
+
+**Payload:**
+```typescript
+{}  // Empty object
+```
+
+**Example:**
+```javascript
+socket.emit('sync:resync', {});
+```
+
+**Response Events:**
+- `sync:state` - Sent to requesting client only with fresh state snapshot
+
+**Use Case:**
+- User experiences persistent desynchronization
+- Manual resync button clicked in UI
+- Network recovery after connection issues
+
+---
+
+### ready:initiate
+
+Initiate a ready check before starting playback (owner only).
+
+**Payload:**
+```typescript
+{}  // Empty object
+```
+
+**Example:**
+```javascript
+socket.emit('ready:initiate', {});
+```
+
+**Response Events:**
+- `ready:start` - Broadcast to all room participants
+
+**Permissions:**
+- Only room owner can initiate ready checks
+
+**Errors:**
+- `UNAUTHORIZED` - Only owner can initiate
+- `NOT_IN_ROOM` - Must join a room first
+- `READY_CHECK_ACTIVE` - Another ready check already in progress
+
+---
+
+### ready:respond
+
+Respond to an active ready check.
+
+**Payload:**
+```typescript
+{
+  checkId: string;           // Ready check identifier
+  status: 'ready' | 'not_ready';
+}
+```
+
+**Example:**
+```javascript
+socket.emit('ready:respond', {
+  checkId: 'abc123xyz',
+  status: 'ready'
+});
+```
+
+**Response Events:**
+- `ready:update` - Broadcast to all room participants with updated status
+- `ready:complete` - When all participants ready or someone declines
+- `countdown:start` - If all participants ready
+
+**Errors:**
+- `NOT_IN_ROOM` - Must join a room first
+- `READY_CHECK_NOT_FOUND` - Ready check not found or already completed
+- `NOT_A_PARTICIPANT` - User not in this ready check
+
+---
+
 ## Server → Client Events
 
 Events that the server emits to clients.
@@ -474,6 +557,196 @@ socket.on('sync:state', (snapshot) => {
 **When Received:**
 - Periodically to keep clients in sync
 - When clients experience significant drift
+- On demand when `sync:resync` is requested
+
+---
+
+### ready:start
+
+Broadcast when a ready check is initiated.
+
+**Payload:**
+```typescript
+{
+  check: {
+    checkId: string;
+    roomId: string;
+    initiatedBy: string;    // User ID of initiator
+    participants: Array<{
+      userId: string;
+      username: string;
+      status: 'pending' | 'ready' | 'not_ready' | 'timeout';
+    }>;
+    timeoutMs: number;      // Timeout duration (default: 30000)
+    createdAt: number;      // Timestamp when created
+  }
+}
+```
+
+**Example:**
+```javascript
+socket.on('ready:start', (data) => {
+  console.log('Ready check started!');
+  console.log('Timeout:', data.check.timeoutMs / 1000, 'seconds');
+  // Display ready check UI
+});
+```
+
+**When Received:**
+- When room owner initiates a ready check via `ready:initiate`
+
+---
+
+### ready:update
+
+Broadcast when a participant responds to the ready check.
+
+**Payload:**
+```typescript
+{
+  check: ReadyCheck;  // Updated check with new participant statuses
+}
+```
+
+**Example:**
+```javascript
+socket.on('ready:update', (data) => {
+  data.check.participants.forEach(p => {
+    console.log(`${p.username}: ${p.status}`);
+  });
+});
+```
+
+**When Received:**
+- Each time a participant responds via `ready:respond`
+
+---
+
+### ready:complete
+
+Broadcast when the ready check completes.
+
+**Payload:**
+```typescript
+{
+  checkId: string;
+  allReady: boolean;  // true if all ready, false if cancelled/timeout
+}
+```
+
+**Example:**
+```javascript
+socket.on('ready:complete', (data) => {
+  if (data.allReady) {
+    console.log('All participants ready! Starting countdown...');
+  } else {
+    console.log('Ready check cancelled');
+  }
+});
+```
+
+**When Received:**
+- All participants ready
+- Someone declined (not ready)
+- Ready check timed out
+
+---
+
+### ready:timeout
+
+Broadcast when the ready check times out.
+
+**Payload:**
+```typescript
+{
+  checkId: string;
+}
+```
+
+**Example:**
+```javascript
+socket.on('ready:timeout', (data) => {
+  console.log('Ready check timed out');
+});
+```
+
+**When Received:**
+- After 30 seconds without all participants responding
+
+---
+
+### countdown:start
+
+Broadcast when countdown sequence begins (after successful ready check).
+
+**Payload:**
+```typescript
+{
+  config: {
+    durationMs: number;           // Total duration (3000ms)
+    steps: (number | string)[];   // [3, 2, 1, 'GO!']
+    serverStartTime: number;      // Server timestamp when countdown starts
+  }
+}
+```
+
+**Example:**
+```javascript
+socket.on('countdown:start', (data) => {
+  console.log('Countdown starting at:', data.config.serverStartTime);
+  console.log('Steps:', data.config.steps);
+  // Display countdown UI
+});
+```
+
+**When Received:**
+- Immediately after `ready:complete` when `allReady: true`
+
+---
+
+### countdown:tick
+
+Broadcast for each countdown step (debugging/logging).
+
+**Payload:**
+```typescript
+{
+  step: number | string;  // Current step (3, 2, 1, or 'GO!')
+  remaining: number;      // Milliseconds remaining
+}
+```
+
+**Example:**
+```javascript
+socket.on('countdown:tick', (data) => {
+  console.log('Countdown:', data.step, '- remaining:', data.remaining, 'ms');
+});
+```
+
+**When Received:**
+- Each countdown step (every ~750ms)
+
+---
+
+### countdown:complete
+
+Broadcast when countdown finishes.
+
+**Payload:**
+```typescript
+{}  // Empty object
+```
+
+**Example:**
+```javascript
+socket.on('countdown:complete', () => {
+  console.log('Countdown complete - playback can start!');
+  // Hide countdown UI
+});
+```
+
+**When Received:**
+- After the final 'GO!' step
 
 ---
 
