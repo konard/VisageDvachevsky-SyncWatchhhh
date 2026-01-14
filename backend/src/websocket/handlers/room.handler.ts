@@ -18,6 +18,7 @@ import {
 } from '../types/events.js';
 import { roomService } from '../../modules/room/room.service.js';
 import { roomStateService } from '../../modules/room/state.service.js';
+import { handleVoiceCleanup } from './voice.handler.js';
 import { logger } from '../../config/logger.js';
 import { nanoid } from 'nanoid';
 
@@ -284,6 +285,9 @@ async function leaveRoom(socket: Socket, io: SyncNamespace): Promise<void> {
   if (!roomCode || !oderId) {
     return;
   }
+
+  // Clean up voice chat if user is in voice
+  await handleVoiceCleanup(socket, io);
 
   // Get room
   const room = await roomService.getRoomByCode(roomCode);

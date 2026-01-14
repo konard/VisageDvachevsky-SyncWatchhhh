@@ -1,165 +1,262 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Socket } from 'socket.io-client';
-import { usePlaybackStore } from '../stores/playback.store';
+import { ClockSync } from '../lib/ClockSync';
 
 /**
- * Configuration for clock synchronization
+ * Configuration options for useClockSync hook
  */
-interface ClockSyncConfig {
-  /** Number of ping-pong samples to average */
+export interface UseClockSyncOptions {
+  /**
+   * Number of samples to take during sync (default: 5)
+   */
   sampleCount?: number;
-  /** Interval between sync attempts in milliseconds */
-  syncInterval?: number;
-  /** Whether to start syncing immediately */
-  autoStart?: boolean;
+
+  /**
+   * Delay between samples in milliseconds (default: 100)
+   */
+  delayMs?: number;
+
+  /**
+   * Interval for periodic re-sync in milliseconds (default: 30000 = 30s)
+   * Set to 0 to disable periodic re-sync
+   */
+  resyncInterval?: number;
+
+  /**
+   * Whether to sync automatically when the socket connects (default: true)
+   */
+  autoSync?: boolean;
 }
 
 /**
- * Hook to synchronize client clock with server clock
- * Uses ping-pong method to calculate offset and compensate for network latency
+ * Return type for useClockSync hook
+ */
+export interface UseClockSyncReturn {
+  /**
+   * Clock offset in milliseconds
+   */
+  offset: number;
+
+  /**
+   * Whether the clock is synced
+   */
+  synced: boolean;
+
+  /**
+   * Average round-trip time in milliseconds
+   */
+  rtt: number;
+
+  /**
+   * Whether a sync is currently in progress
+   */
+  syncing: boolean;
+
+  /**
+   * Error if sync failed
+   */
+  error: Error | null;
+
+  /**
+   * Get the current server time
+   */
+  getServerTime: () => number;
+
+  /**
+   * Manually trigger a sync
+   */
+  sync: () => Promise<void>;
+
+  /**
+   * Reset the clock sync state
+   */
+  reset: () => void;
+}
+
+/**
+ * React hook for clock synchronization
+ *
+ * This hook manages the clock synchronization state and provides
+ * a convenient interface for syncing the client's clock with the server.
+ *
+ * Features:
+ * - Automatic sync on connection
+ * - Periodic re-sync to maintain accuracy
+ * - Manual sync trigger
+ * - Error handling
+ *
+ * @param socket - Socket.io client socket (can be null if not connected)
+ * @param options - Configuration options
+ * @returns Clock sync state and methods
+ *
+ * @example
+ * ```tsx
+ * const { offset, synced, rtt, getServerTime } = useClockSync(socket, {
+ *   sampleCount: 5,
+ *   resyncInterval: 30000,
+ * });
+ *
+ * // Get server time
+ * const serverTime = getServerTime();
+ * ```
  */
 export function useClockSync(
   socket: Socket | null,
-  config: ClockSyncConfig = {}
-) {
+  options: UseClockSyncOptions = {}
+): UseClockSyncReturn {
   const {
     sampleCount = 5,
-    syncInterval = 30000, // 30 seconds
-    autoStart = true,
-  } = config;
+    delayMs = 100,
+    resyncInterval = 30000,
+    autoSync = true,
+  } = options;
 
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const setClockOffset = usePlaybackStore((state) => state.setClockOffset);
-  const clockOffset = usePlaybackStore((state) => state.clockOffset);
+  const [offset, setOffset] = useState(0);
+  const [synced, setSynced] = useState(false);
+  const [rtt, setRtt] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
-  const syncTimeoutRef = useRef<NodeJS.Timeout>();
-  const samplesRef = useRef<number[]>([]);
+  const clockSyncRef = useRef<ClockSync>(new ClockSync());
+  const resyncTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
 
   /**
-   * Perform a single ping-pong measurement
+   * Perform clock synchronization
    */
-  const performSingleSync = async (): Promise<number | null> => {
+  const sync = useCallback(async () => {
     if (!socket || !socket.connected) {
-      return null;
-    }
-
-    return new Promise((resolve) => {
-      const clientSendTime = Date.now();
-
-      const timeout = setTimeout(() => {
-        socket.off('time:pong', handlePong);
-        resolve(null);
-      }, 5000);
-
-      const handlePong = (data: { clientTime: number; serverTime: number }) => {
-        clearTimeout(timeout);
-        const clientReceiveTime = Date.now();
-
-        // Calculate round-trip time
-        const rtt = clientReceiveTime - data.clientTime;
-
-        // Estimate server time when we received the response
-        // Server time + half of round-trip time
-        const estimatedServerTime = data.serverTime + rtt / 2;
-
-        // Calculate offset (how much to add to local time to get server time)
-        const offset = estimatedServerTime - clientReceiveTime;
-
-        resolve(offset);
-      };
-
-      socket.once('time:pong', handlePong);
-      socket.emit('time:ping', { clientTime: clientSendTime });
-    });
-  };
-
-  /**
-   * Perform full clock synchronization with multiple samples
-   */
-  const syncClock = async () => {
-    if (!socket || !socket.connected || isSyncing) {
+      const err = new Error('Socket not connected');
+      setError(err);
       return;
     }
 
-    setIsSyncing(true);
-    setSyncError(null);
-    samplesRef.current = [];
+    if (syncing) {
+      return;
+    }
 
     try {
-      // Collect multiple samples
-      for (let i = 0; i < sampleCount; i++) {
-        const offset = await performSingleSync();
-        if (offset !== null) {
-          samplesRef.current.push(offset);
-        }
-        // Small delay between samples
-        if (i < sampleCount - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-      }
+      setSyncing(true);
+      setError(null);
 
-      if (samplesRef.current.length === 0) {
-        throw new Error('Failed to get any sync samples');
-      }
+      const calculatedOffset = await clockSyncRef.current.sync(socket, sampleCount, delayMs);
 
-      // Calculate median offset (more robust than mean)
-      const sortedSamples = [...samplesRef.current].sort((a, b) => a - b);
-      const medianOffset =
-        sortedSamples.length % 2 === 0
-          ? (sortedSamples[sortedSamples.length / 2 - 1] +
-              sortedSamples[sortedSamples.length / 2]) /
-            2
-          : sortedSamples[Math.floor(sortedSamples.length / 2)];
+      if (!isMountedRef.current) return;
 
-      setClockOffset(medianOffset);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      setSyncError(message);
-      console.error('Clock sync error:', message);
+      setOffset(calculatedOffset);
+      setRtt(clockSyncRef.current.getRtt());
+      setSynced(true);
+      setError(null);
+    } catch (err) {
+      if (!isMountedRef.current) return;
+
+      const error = err instanceof Error ? err : new Error('Sync failed');
+      setError(error);
+      setSynced(false);
     } finally {
-      setIsSyncing(false);
+      if (isMountedRef.current) {
+        setSyncing(false);
+      }
     }
-  };
+  }, [socket, sampleCount, delayMs, syncing]);
 
   /**
-   * Schedule next sync
+   * Get server time
    */
-  const scheduleNextSync = () => {
-    if (syncTimeoutRef.current) {
-      clearTimeout(syncTimeoutRef.current);
-    }
-    syncTimeoutRef.current = setTimeout(() => {
-      syncClock();
-    }, syncInterval);
-  };
+  const getServerTime = useCallback((): number => {
+    return clockSyncRef.current.getServerTime();
+  }, []);
 
-  // Auto-sync on mount and when socket connects
-  useEffect(() => {
-    if (autoStart && socket && socket.connected) {
-      syncClock();
-    }
-  }, [socket?.connected, autoStart]);
+  /**
+   * Reset clock sync
+   */
+  const reset = useCallback(() => {
+    clockSyncRef.current.reset();
+    setOffset(0);
+    setSynced(false);
+    setRtt(0);
+    setError(null);
+  }, []);
 
-  // Set up periodic syncing
+  /**
+   * Setup periodic re-sync
+   */
   useEffect(() => {
-    if (!socket || !socket.connected) {
+    if (!socket || !synced || resyncInterval <= 0) {
       return;
     }
 
-    scheduleNextSync();
+    // Clear existing timer
+    if (resyncTimerRef.current) {
+      clearInterval(resyncTimerRef.current);
+    }
+
+    // Setup periodic re-sync
+    resyncTimerRef.current = setInterval(() => {
+      sync();
+    }, resyncInterval);
 
     return () => {
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
+      if (resyncTimerRef.current) {
+        clearInterval(resyncTimerRef.current);
+        resyncTimerRef.current = null;
       }
     };
-  }, [socket?.connected, syncInterval]);
+  }, [socket, synced, resyncInterval, sync]);
+
+  /**
+   * Auto-sync when socket connects
+   */
+  useEffect(() => {
+    if (!socket || !autoSync) {
+      return;
+    }
+
+    const handleConnect = () => {
+      sync();
+    };
+
+    const handleDisconnect = () => {
+      reset();
+    };
+
+    // If already connected, sync immediately
+    if (socket.connected) {
+      sync();
+    }
+
+    // Listen for connection events
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+    };
+  }, [socket, autoSync, sync, reset]);
+
+  /**
+   * Cleanup on unmount
+   */
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+      if (resyncTimerRef.current) {
+        clearInterval(resyncTimerRef.current);
+      }
+    };
+  }, []);
 
   return {
-    clockOffset,
-    isSyncing,
-    syncError,
-    syncClock,
+    offset,
+    synced,
+    rtt,
+    syncing,
+    error,
+    getServerTime,
+    sync,
+    reset,
   };
 }

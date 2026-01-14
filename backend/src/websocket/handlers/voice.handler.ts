@@ -15,10 +15,10 @@ import {
   VoiceSignalEventSchema,
   VoiceSpeakingEvent,
   VoiceSpeakingEventSchema,
-  ErrorCodes,
-  ServerEvents,
+  VoiceErrorCodes,
 } from '../types/events.js';
-import { getIceServers } from '../../services/turn.service.js';
+import { voiceStateService } from '../../modules/voice/state.service.js';
+import { roomService } from '../../modules/room/room.service.js';
 import { logger } from '../../config/logger.js';
 
 type SyncNamespace = Namespace<
@@ -29,83 +29,72 @@ type SyncNamespace = Namespace<
 >;
 
 /**
- * Get all sockets in voice chat for a room
- */
-function getVoicePeersInRoom(io: SyncNamespace, roomCode: string): Socket[] {
-  const sockets: Socket[] = [];
-  const room = io.adapter.rooms.get(roomCode);
-  if (!room) return sockets;
-
-  for (const socketId of room) {
-    const socket = io.sockets.get(socketId);
-    if (socket && socket.data.isInVoice) {
-      sockets.push(socket);
-    }
-  }
-  return sockets;
-}
-
-/**
  * Handle voice:join event
+ * User joins voice chat in their current room
  */
 export const handleVoiceJoin = async (
   socket: Socket,
-  io: SyncNamespace,
+  _io: SyncNamespace,
   data: VoiceJoinEvent
 ): Promise<void> => {
   try {
     // Validate input
     VoiceJoinEventSchema.parse(data);
 
-    // Check if in a room
+    // Check if user is in a room
     if (!socket.data.roomCode || !socket.data.oderId) {
-      socket.emit(ServerEvents.ROOM_ERROR, {
-        code: ErrorCodes.NOT_IN_ROOM,
-        message: 'You must join a room first',
+      socket.emit('voice:error', {
+        code: VoiceErrorCodes.NOT_IN_ROOM,
+        message: 'You must be in a room to join voice chat',
       });
       return;
     }
 
     // Check if already in voice
-    if (socket.data.isInVoice) {
-      socket.emit(ServerEvents.ROOM_ERROR, {
-        code: ErrorCodes.ALREADY_IN_VOICE,
-        message: 'Already in voice chat',
+    if (socket.data.inVoice) {
+      socket.emit('voice:error', {
+        code: VoiceErrorCodes.ALREADY_IN_VOICE,
+        message: 'You are already in voice chat',
       });
       return;
     }
 
-    // Mark user as in voice
-    socket.data.isInVoice = true;
+    // Get room from database
+    const room = await roomService.getRoomByCode(socket.data.roomCode);
+    if (!room) {
+      socket.emit('voice:error', {
+        code: VoiceErrorCodes.NOT_IN_ROOM,
+        message: 'Room not found',
+      });
+      return;
+    }
 
-    // Get current voice peers in the room
-    const currentPeers = getVoicePeersInRoom(io, socket.data.roomCode);
-    const peerIds = currentPeers
-      .filter((s) => s.id !== socket.id)
-      .map((s) => s.data.oderId!)
-      .filter(Boolean);
+    // Add to voice state in Redis
+    await voiceStateService.addVoiceParticipant(room.id, socket.data.oderId);
 
-    // Generate ICE servers with TURN credentials
-    const userId = socket.data.userId || socket.data.sessionId;
-    const iceServers = getIceServers(userId);
+    // Update socket data
+    socket.data.inVoice = true;
 
-    // Send ICE servers to the joining user
-    socket.emit(ServerEvents.VOICE_ICE_SERVERS, { iceServers });
+    // Get all existing voice participants (excluding the new joiner)
+    const allPeers = await voiceStateService.getVoicePeerIds(room.id);
+    const existingPeers = allPeers.filter((peerId) => peerId !== socket.data.oderId);
 
-    // Send current peers list to the joining user
-    socket.emit(ServerEvents.VOICE_PEERS, { peers: peerIds });
+    // Send list of existing peers to the joining user
+    socket.emit('voice:peers', {
+      peers: existingPeers,
+    });
 
-    // Notify others in the room that a new peer joined voice
-    socket.to(socket.data.roomCode).emit(ServerEvents.VOICE_PEER_JOINED, {
+    // Notify others in the room that a new peer joined
+    socket.to(socket.data.roomCode).emit('voice:peer:joined', {
       oderId: socket.data.oderId,
     });
 
     logger.info(
       {
         userId: socket.data.userId,
-        oderId: socket.data.oderId,
+        guestName: socket.data.guestName,
         roomCode: socket.data.roomCode,
-        peerCount: peerIds.length,
+        oderId: socket.data.oderId,
       },
       'User joined voice chat'
     );
@@ -114,8 +103,8 @@ export const handleVoiceJoin = async (
       { error: (error as Error).message, stack: (error as Error).stack },
       'Error handling voice:join'
     );
-    socket.emit(ServerEvents.ROOM_ERROR, {
-      code: ErrorCodes.INTERNAL_ERROR,
+    socket.emit('voice:error', {
+      code: VoiceErrorCodes.INTERNAL_ERROR,
       message: 'Failed to join voice chat',
     });
   }
@@ -123,6 +112,7 @@ export const handleVoiceJoin = async (
 
 /**
  * Handle voice:leave event
+ * User leaves voice chat
  */
 export const handleVoiceLeave = async (
   socket: Socket,
@@ -133,30 +123,30 @@ export const handleVoiceLeave = async (
     // Validate input
     VoiceLeaveEventSchema.parse(data);
 
-    // Check if in voice
-    if (!socket.data.isInVoice) {
-      socket.emit(ServerEvents.ROOM_ERROR, {
-        code: ErrorCodes.NOT_IN_VOICE,
+    if (!socket.data.roomCode || !socket.data.oderId) {
+      socket.emit('voice:error', {
+        code: VoiceErrorCodes.NOT_IN_ROOM,
+        message: 'You are not in a room',
+      });
+      return;
+    }
+
+    if (!socket.data.inVoice) {
+      socket.emit('voice:error', {
+        code: VoiceErrorCodes.NOT_IN_VOICE,
         message: 'You are not in voice chat',
       });
       return;
     }
 
-    // Mark user as not in voice
-    socket.data.isInVoice = false;
-
-    // Notify others in the room
-    if (socket.data.roomCode && socket.data.oderId) {
-      socket.to(socket.data.roomCode).emit(ServerEvents.VOICE_PEER_LEFT, {
-        oderId: socket.data.oderId,
-      });
-    }
+    await leaveVoice(socket, io);
 
     logger.info(
       {
         userId: socket.data.userId,
-        oderId: socket.data.oderId,
+        guestName: socket.data.guestName,
         roomCode: socket.data.roomCode,
+        oderId: socket.data.oderId,
       },
       'User left voice chat'
     );
@@ -165,15 +155,16 @@ export const handleVoiceLeave = async (
       { error: (error as Error).message, stack: (error as Error).stack },
       'Error handling voice:leave'
     );
-    socket.emit(ServerEvents.ROOM_ERROR, {
-      code: ErrorCodes.INTERNAL_ERROR,
+    socket.emit('voice:error', {
+      code: VoiceErrorCodes.INTERNAL_ERROR,
       message: 'Failed to leave voice chat',
     });
   }
 };
 
 /**
- * Handle voice:signal event (WebRTC signaling relay)
+ * Handle voice:signal event
+ * Relay WebRTC signaling data (SDP offer/answer or ICE candidates) between peers
  */
 export const handleVoiceSignal = async (
   socket: Socket,
@@ -184,53 +175,56 @@ export const handleVoiceSignal = async (
     // Validate input
     const validatedData = VoiceSignalEventSchema.parse(data);
 
-    // Check if in voice
-    if (!socket.data.isInVoice || !socket.data.oderId) {
-      socket.emit(ServerEvents.ROOM_ERROR, {
-        code: ErrorCodes.NOT_IN_VOICE,
+    if (!socket.data.roomCode || !socket.data.oderId) {
+      socket.emit('voice:error', {
+        code: VoiceErrorCodes.NOT_IN_ROOM,
+        message: 'You are not in a room',
+      });
+      return;
+    }
+
+    if (!socket.data.inVoice) {
+      socket.emit('voice:error', {
+        code: VoiceErrorCodes.NOT_IN_VOICE,
         message: 'You are not in voice chat',
       });
       return;
     }
 
-    // Check if in a room
-    if (!socket.data.roomCode) {
-      socket.emit(ServerEvents.ROOM_ERROR, {
-        code: ErrorCodes.NOT_IN_ROOM,
-        message: 'You must join a room first',
-      });
-      return;
-    }
-
-    // Find target peer socket
-    const room = io.adapter.rooms.get(socket.data.roomCode);
+    // Get room from database
+    const room = await roomService.getRoomByCode(socket.data.roomCode);
     if (!room) {
-      socket.emit(ServerEvents.ROOM_ERROR, {
-        code: ErrorCodes.ROOM_NOT_FOUND,
+      socket.emit('voice:error', {
+        code: VoiceErrorCodes.NOT_IN_ROOM,
         message: 'Room not found',
       });
       return;
     }
 
-    let targetSocket: Socket | undefined;
-    for (const socketId of room) {
-      const s = io.sockets.get(socketId);
-      if (s && s.data.oderId === validatedData.targetId) {
-        targetSocket = s;
-        break;
-      }
-    }
-
-    if (!targetSocket) {
-      socket.emit(ServerEvents.ROOM_ERROR, {
-        code: ErrorCodes.VOICE_PEER_NOT_FOUND,
-        message: 'Target peer not found',
+    // Verify target peer is in voice chat
+    const isTargetInVoice = await voiceStateService.isInVoice(room.id, validatedData.targetId);
+    if (!isTargetInVoice) {
+      socket.emit('voice:error', {
+        code: VoiceErrorCodes.PEER_NOT_FOUND,
+        message: 'Target peer is not in voice chat',
       });
       return;
     }
 
-    // Relay signal to target peer
-    targetSocket.emit(ServerEvents.VOICE_SIGNAL, {
+    // Find the target socket by oderId
+    const roomSockets = await io.in(socket.data.roomCode).fetchSockets();
+    const targetSocket = roomSockets.find((s: any) => s.data.oderId === validatedData.targetId);
+
+    if (!targetSocket) {
+      socket.emit('voice:error', {
+        code: VoiceErrorCodes.PEER_NOT_FOUND,
+        message: 'Target peer socket not found',
+      });
+      return;
+    }
+
+    // Relay the signal to the target peer
+    targetSocket.emit('voice:signal', {
       fromId: socket.data.oderId,
       signal: validatedData.signal,
     });
@@ -239,6 +233,7 @@ export const handleVoiceSignal = async (
       {
         fromId: socket.data.oderId,
         targetId: validatedData.targetId,
+        signalType: validatedData.signal.type,
         roomCode: socket.data.roomCode,
       },
       'Voice signal relayed'
@@ -248,8 +243,8 @@ export const handleVoiceSignal = async (
       { error: (error as Error).message, stack: (error as Error).stack },
       'Error handling voice:signal'
     );
-    socket.emit(ServerEvents.ROOM_ERROR, {
-      code: ErrorCodes.INTERNAL_ERROR,
+    socket.emit('voice:error', {
+      code: VoiceErrorCodes.INTERNAL_ERROR,
       message: 'Failed to relay signal',
     });
   }
@@ -257,6 +252,7 @@ export const handleVoiceSignal = async (
 
 /**
  * Handle voice:speaking event
+ * Update and broadcast speaking status
  */
 export const handleVoiceSpeaking = async (
   socket: Socket,
@@ -267,56 +263,106 @@ export const handleVoiceSpeaking = async (
     // Validate input
     const validatedData = VoiceSpeakingEventSchema.parse(data);
 
-    // Check if in voice
-    if (!socket.data.isInVoice || !socket.data.oderId) {
-      return; // Silently ignore if not in voice
+    if (!socket.data.roomCode || !socket.data.oderId) {
+      socket.emit('voice:error', {
+        code: VoiceErrorCodes.NOT_IN_ROOM,
+        message: 'You are not in a room',
+      });
+      return;
     }
 
-    // Check if in a room
-    if (!socket.data.roomCode) {
-      return; // Silently ignore if not in room
+    if (!socket.data.inVoice) {
+      socket.emit('voice:error', {
+        code: VoiceErrorCodes.NOT_IN_VOICE,
+        message: 'You are not in voice chat',
+      });
+      return;
     }
 
-    // Broadcast speaking status to others in the room
-    socket.to(socket.data.roomCode).emit(ServerEvents.VOICE_SPEAKING, {
+    // Get room from database
+    const room = await roomService.getRoomByCode(socket.data.roomCode);
+    if (!room) {
+      socket.emit('voice:error', {
+        code: VoiceErrorCodes.NOT_IN_ROOM,
+        message: 'Room not found',
+      });
+      return;
+    }
+
+    // Update speaking status in Redis
+    await voiceStateService.updateSpeakingStatus(
+      room.id,
+      socket.data.oderId,
+      validatedData.isSpeaking
+    );
+
+    // Broadcast speaking status to all users in the room (including sender)
+    io.to(socket.data.roomCode).emit('voice:speaking', {
       oderId: socket.data.oderId,
       isSpeaking: validatedData.isSpeaking,
     });
 
     logger.debug(
       {
-        userId: socket.data.userId,
         oderId: socket.data.oderId,
         isSpeaking: validatedData.isSpeaking,
+        roomCode: socket.data.roomCode,
       },
-      'Voice speaking status updated'
+      'Speaking status updated'
     );
   } catch (error) {
     logger.error(
       { error: (error as Error).message, stack: (error as Error).stack },
       'Error handling voice:speaking'
     );
-    // Don't emit error for speaking events - they're frequent and non-critical
+    socket.emit('voice:error', {
+      code: VoiceErrorCodes.INTERNAL_ERROR,
+      message: 'Failed to update speaking status',
+    });
   }
 };
 
 /**
- * Handle voice cleanup on disconnect
+ * Handle voice cleanup on disconnect or room leave
+ * Called from room handler when user disconnects or leaves room
  */
-export const handleVoiceDisconnect = (socket: Socket, io: SyncNamespace): void => {
-  if (socket.data.isInVoice && socket.data.roomCode && socket.data.oderId) {
-    // Notify others that peer left voice
-    socket.to(socket.data.roomCode).emit(ServerEvents.VOICE_PEER_LEFT, {
-      oderId: socket.data.oderId,
-    });
-
-    logger.info(
-      {
-        userId: socket.data.userId,
-        oderId: socket.data.oderId,
-        roomCode: socket.data.roomCode,
-      },
-      'User disconnected from voice chat'
+export const handleVoiceCleanup = async (socket: Socket, io: SyncNamespace): Promise<void> => {
+  try {
+    if (socket.data.inVoice && socket.data.roomCode && socket.data.oderId) {
+      await leaveVoice(socket, io);
+    }
+  } catch (error) {
+    logger.error(
+      { error: (error as Error).message, stack: (error as Error).stack },
+      'Error during voice cleanup'
     );
   }
 };
+
+/**
+ * Helper function to handle leaving voice chat
+ */
+async function leaveVoice(socket: Socket, io: SyncNamespace): Promise<void> {
+  const { roomCode, oderId } = socket.data;
+
+  if (!roomCode || !oderId) {
+    return;
+  }
+
+  // Get room
+  const room = await roomService.getRoomByCode(roomCode);
+  if (!room) {
+    return;
+  }
+
+  // Remove from voice state
+  await voiceStateService.removeVoiceParticipant(room.id, oderId);
+
+  // Update socket data
+  socket.data.inVoice = false;
+
+  // Notify others in the room
+  io.to(roomCode).emit('voice:peer:left', {
+    oderId,
+  });
+}

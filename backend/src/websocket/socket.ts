@@ -10,12 +10,12 @@ import {
 import { authMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/error.js';
 import { handleRoomJoin, handleRoomLeave, handleDisconnect } from './handlers/room.handler.js';
+import { handleTimePing } from './handlers/time.handler.js';
 import {
   handleVoiceJoin,
   handleVoiceLeave,
   handleVoiceSignal,
   handleVoiceSpeaking,
-  handleVoiceDisconnect,
 } from './handlers/voice.handler.js';
 import {
   handleSyncPlay,
@@ -66,23 +66,21 @@ export function createSocketServer(
     socket.on(ClientEvents.ROOM_JOIN, (data) => handleRoomJoin(socket, syncNamespace, data));
     socket.on(ClientEvents.ROOM_LEAVE, (data) => handleRoomLeave(socket, syncNamespace, data));
 
-    // Register voice event handlers
-    socket.on(ClientEvents.VOICE_JOIN, (data) => handleVoiceJoin(socket, syncNamespace, data));
-    socket.on(ClientEvents.VOICE_LEAVE, (data) => handleVoiceLeave(socket, syncNamespace, data));
-    socket.on(ClientEvents.VOICE_SIGNAL, (data) => handleVoiceSignal(socket, syncNamespace, data));
-    socket.on(ClientEvents.VOICE_SPEAKING, (data) => handleVoiceSpeaking(socket, syncNamespace, data));
-
     // Register sync event handlers
+    socket.on(ClientEvents.TIME_PING, (data) => handleTimePing(socket, data));
     socket.on(ClientEvents.SYNC_PLAY, (data) => handleSyncPlay(socket, syncNamespace, data));
     socket.on(ClientEvents.SYNC_PAUSE, (data) => handleSyncPause(socket, syncNamespace, data));
     socket.on(ClientEvents.SYNC_SEEK, (data) => handleSyncSeek(socket, syncNamespace, data));
     socket.on(ClientEvents.SYNC_RATE, (data) => handleSyncRate(socket, syncNamespace, data));
 
+    // Register voice event handlers
+    socket.on('voice:join', (data: unknown) => handleVoiceJoin(socket, syncNamespace, data as any));
+    socket.on('voice:leave', (data: unknown) => handleVoiceLeave(socket, syncNamespace, data as any));
+    socket.on('voice:signal', (data: unknown) => handleVoiceSignal(socket, syncNamespace, data as any));
+    socket.on('voice:speaking', (data: unknown) => handleVoiceSpeaking(socket, syncNamespace, data as any));
+
     // Handle disconnect
-    socket.on('disconnect', () => {
-      handleVoiceDisconnect(socket, syncNamespace);
-      handleDisconnect(socket, syncNamespace);
-    });
+    socket.on('disconnect', () => handleDisconnect(socket, syncNamespace));
 
     // Heartbeat/ping-pong is handled automatically by Socket.io
     // with pingTimeout and pingInterval options

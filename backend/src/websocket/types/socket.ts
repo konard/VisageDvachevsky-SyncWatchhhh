@@ -13,9 +13,11 @@ import {
   VoicePeersEvent,
   VoicePeerJoinedEvent,
   VoicePeerLeftEvent,
-  VoiceSignalRelayEvent,
-  VoiceSpeakingRelayEvent,
-  VoiceIceServersEvent,
+  VoiceSignalReceivedEvent,
+  VoiceSpeakingStatusEvent,
+  VoiceErrorEvent,
+  TimePingEvent,
+  TimePongEvent,
   SyncPlayEvent,
   SyncPauseEvent,
   SyncSeekEvent,
@@ -35,6 +37,7 @@ export interface ClientToServerEvents {
   'voice:leave': (data: VoiceLeaveEvent) => void;
   'voice:signal': (data: VoiceSignalEvent) => void;
   'voice:speaking': (data: VoiceSpeakingEvent) => void;
+  'time:ping': (data: TimePingEvent) => void;
   'sync:play': (data: SyncPlayEvent) => void;
   'sync:pause': (data: SyncPauseEvent) => void;
   'sync:seek': (data: SyncSeekEvent) => void;
@@ -49,9 +52,10 @@ export interface ServerToClientEvents {
   'voice:peers': (data: VoicePeersEvent) => void;
   'voice:peer:joined': (data: VoicePeerJoinedEvent) => void;
   'voice:peer:left': (data: VoicePeerLeftEvent) => void;
-  'voice:signal': (data: VoiceSignalRelayEvent) => void;
-  'voice:speaking': (data: VoiceSpeakingRelayEvent) => void;
-  'voice:ice:servers': (data: VoiceIceServersEvent) => void;
+  'voice:signal': (data: VoiceSignalReceivedEvent) => void;
+  'voice:speaking': (data: VoiceSpeakingStatusEvent) => void;
+  'voice:error': (data: VoiceErrorEvent) => void;
+  'time:pong': (data: TimePongEvent) => void;
   'sync:command': (data: SyncCommandEvent) => void;
   'sync:state': (data: SyncStateEvent) => void;
 }
@@ -67,7 +71,7 @@ export interface SocketData {
   oderId?: string; // Participant order ID in room
   isGuest: boolean; // Whether this is a guest connection
   guestName?: string; // Guest display name
-  isInVoice?: boolean; // Whether user is in voice chat
+  inVoice?: boolean; // Whether user is in voice chat
 }
 
 export type Socket = IOSocket<

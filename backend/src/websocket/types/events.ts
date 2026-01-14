@@ -12,30 +12,13 @@ export const RoomJoinEventSchema = z.object({
 
 export const RoomLeaveEventSchema = z.object({});
 
+export const TimePingEventSchema = z.object({
+  clientTime: z.number(),
+});
+
 export type RoomJoinEvent = z.infer<typeof RoomJoinEventSchema>;
 export type RoomLeaveEvent = z.infer<typeof RoomLeaveEventSchema>;
-
-// ============================================
-// Voice Events (Client → Server)
-// ============================================
-
-export const VoiceJoinEventSchema = z.object({});
-
-export const VoiceLeaveEventSchema = z.object({});
-
-export const VoiceSignalEventSchema = z.object({
-  targetId: z.string(),
-  signal: z.unknown(), // SimplePeer signal data (SDP or ICE candidate)
-});
-
-export const VoiceSpeakingEventSchema = z.object({
-  isSpeaking: z.boolean(),
-});
-
-export type VoiceJoinEvent = z.infer<typeof VoiceJoinEventSchema>;
-export type VoiceLeaveEvent = z.infer<typeof VoiceLeaveEventSchema>;
-export type VoiceSignalEvent = z.infer<typeof VoiceSignalEventSchema>;
-export type VoiceSpeakingEvent = z.infer<typeof VoiceSpeakingEventSchema>;
+export type TimePingEvent = z.infer<typeof TimePingEventSchema>;
 
 // ============================================
 // Server Events (Server → Client)
@@ -94,30 +77,9 @@ export interface RoomErrorEvent {
   message: string;
 }
 
-export interface VoicePeersEvent {
-  peers: string[]; // Array of oderId for peers in voice chat
-}
-
-export interface VoicePeerJoinedEvent {
-  oderId: string;
-}
-
-export interface VoicePeerLeftEvent {
-  oderId: string;
-}
-
-export interface VoiceSignalRelayEvent {
-  fromId: string; // oderId of sender
-  signal: unknown; // SimplePeer signal data
-}
-
-export interface VoiceSpeakingRelayEvent {
-  oderId: string;
-  isSpeaking: boolean;
-}
-
-export interface VoiceIceServersEvent {
-  iceServers: RTCIceServer[];
+export interface TimePongEvent {
+  clientTime: number;
+  serverTime: number;
 }
 
 // Error codes
@@ -130,9 +92,6 @@ export const ErrorCodes = {
   NOT_IN_ROOM: 'NOT_IN_ROOM',
   INVALID_TOKEN: 'INVALID_TOKEN',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
-  NOT_IN_VOICE: 'NOT_IN_VOICE',
-  ALREADY_IN_VOICE: 'ALREADY_IN_VOICE',
-  VOICE_PEER_NOT_FOUND: 'VOICE_PEER_NOT_FOUND',
 } as const;
 
 // ============================================
@@ -142,10 +101,7 @@ export const ErrorCodes = {
 export const ClientEvents = {
   ROOM_JOIN: 'room:join',
   ROOM_LEAVE: 'room:leave',
-  VOICE_JOIN: 'voice:join',
-  VOICE_LEAVE: 'voice:leave',
-  VOICE_SIGNAL: 'voice:signal',
-  VOICE_SPEAKING: 'voice:speaking',
+  TIME_PING: 'time:ping',
   SYNC_PLAY: 'sync:play',
   SYNC_PAUSE: 'sync:pause',
   SYNC_SEEK: 'sync:seek',
@@ -200,12 +156,76 @@ export const ServerEvents = {
   ROOM_PARTICIPANT_JOINED: 'room:participant:joined',
   ROOM_PARTICIPANT_LEFT: 'room:participant:left',
   ROOM_ERROR: 'room:error',
-  VOICE_PEERS: 'voice:peers',
-  VOICE_PEER_JOINED: 'voice:peer:joined',
-  VOICE_PEER_LEFT: 'voice:peer:left',
-  VOICE_SIGNAL: 'voice:signal',
-  VOICE_SPEAKING: 'voice:speaking',
-  VOICE_ICE_SERVERS: 'voice:ice:servers',
+  TIME_PONG: 'time:pong',
   SYNC_COMMAND: 'sync:command',
   SYNC_STATE: 'sync:state',
 } as const;
+
+// ============================================
+// Voice Chat Events
+// ============================================
+
+// RTCSignal represents WebRTC signaling data (SDP or ICE candidate)
+export interface RTCSignal {
+  type: 'offer' | 'answer' | 'ice-candidate';
+  sdp?: string; // Session Description Protocol (for offer/answer)
+  candidate?: any; // ICE candidate data (RTCIceCandidateInit from WebRTC)
+}
+
+// Client → Server Voice Events
+export const VoiceJoinEventSchema = z.object({});
+export const VoiceLeaveEventSchema = z.object({});
+export const VoiceSignalEventSchema = z.object({
+  targetId: z.string(),
+  signal: z.object({
+    type: z.enum(['offer', 'answer', 'ice-candidate']),
+    sdp: z.string().optional(),
+    candidate: z.any().optional(), // RTCIceCandidateInit
+  }),
+});
+export const VoiceSpeakingEventSchema = z.object({
+  isSpeaking: z.boolean(),
+});
+
+export type VoiceJoinEvent = z.infer<typeof VoiceJoinEventSchema>;
+export type VoiceLeaveEvent = z.infer<typeof VoiceLeaveEventSchema>;
+export type VoiceSignalEvent = z.infer<typeof VoiceSignalEventSchema>;
+export type VoiceSpeakingEvent = z.infer<typeof VoiceSpeakingEventSchema>;
+
+// Server → Client Voice Events
+export interface VoicePeersEvent {
+  peers: string[]; // Array of oderId values
+}
+
+export interface VoicePeerJoinedEvent {
+  oderId: string;
+}
+
+export interface VoicePeerLeftEvent {
+  oderId: string;
+}
+
+export interface VoiceSignalReceivedEvent {
+  fromId: string; // oderId of the sender
+  signal: RTCSignal;
+}
+
+export interface VoiceSpeakingStatusEvent {
+  oderId: string;
+  isSpeaking: boolean;
+}
+
+// Voice Error Codes
+export const VoiceErrorCodes = {
+  NOT_IN_ROOM: 'NOT_IN_ROOM',
+  NOT_IN_VOICE: 'NOT_IN_VOICE',
+  ALREADY_IN_VOICE: 'ALREADY_IN_VOICE',
+  PEER_NOT_FOUND: 'PEER_NOT_FOUND',
+  INVALID_SIGNAL: 'INVALID_SIGNAL',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+} as const;
+
+export interface VoiceErrorEvent {
+  code: string;
+  message: string;
+}
