@@ -85,14 +85,6 @@ export function RoomPage() {
     return () => clearInterval(pollInterval);
   }, [source?.uploadVideoId, source?.uploadStatus]);
 
-  // Voice chat handlers (placeholder - to be implemented with WebRTC)
-  const handleJoinVoice = () => {
-    console.log('Join voice chat');
-  };
-
-  const handleLeaveVoice = () => {
-    console.log('Leave voice chat');
-  };
   // Socket connection for voice chat
   const { socket } = useSocket(import.meta.env.VITE_API_URL || 'http://localhost:3000', {
     namespace: '/sync',
