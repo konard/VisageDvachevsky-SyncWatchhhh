@@ -216,41 +216,29 @@ export function ProfilePage() {
                 {/* Sound Effects Setting */}
                 <SoundSettings />
 
-                <div className="flex items-center justify-between p-4 rounded-lg bg-white/5">
-                  <span className="text-gray-300">Notifications</span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
-                    <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-cyan"></div>
+                {/* Notifications */}
+                <div>
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings?.notificationsEnabled || false}
+                      onChange={(e) => handleSettingChange('notificationsEnabled', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 rounded"
+                    />
+                    <span className="text-white">Notifications</span>
                   </label>
                 </div>
 
-              {/* Sound Effects */}
-              <SoundSettings />
-
-              {/* Notifications */}
-              <div>
-                <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings?.notificationsEnabled || false}
-                    onChange={(e) => handleSettingChange('notificationsEnabled', e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded"
-                  />
-                  <span className="text-white">Notifications</span>
-                </label>
-              </div>
-
-              {/* Auto-play */}
-              <div className="flex items-center justify-between p-4 rounded-lg bg-white/5">
-                <span className="text-gray-300">Auto-play</span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" />
-                  <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-cyan"></div>
-                </label>
-              </div>
+                {/* Auto-play */}
+                <div className="flex items-center justify-between p-4 rounded-lg bg-white/5">
+                  <span className="text-gray-300">Auto-play</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" />
+                    <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-cyan"></div>
+                  </label>
+                </div>
               </div>
             </div>
-          </div>
 
             <div className="glass-card p-6">
               <h2 className="text-xl font-bold text-white mb-4">Account Actions</h2>
