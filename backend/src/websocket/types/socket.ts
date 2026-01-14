@@ -28,6 +28,13 @@ import {
   SyncRateEvent,
   SyncCommandEvent,
   SyncStateEvent,
+  PresenceUpdateEvent,
+  UserPresenceEvent,
+  RichPresenceEvent,
+  FriendsPresenceEvent,
+  ReactionSendEvent,
+  ReactionReceivedEvent,
+  TimelineReactionsEvent,
 } from './events.js';
 
 // ============================================
@@ -47,6 +54,8 @@ export interface ClientToServerEvents {
   'sync:pause': (data: SyncPauseEvent) => void;
   'sync:seek': (data: SyncSeekEvent) => void;
   'sync:rate': (data: SyncRateEvent) => void;
+  'presence:update': (data: PresenceUpdateEvent) => void;
+  'reaction:send': (data: ReactionSendEvent) => void;
 }
 
 export interface ServerToClientEvents {
@@ -66,6 +75,11 @@ export interface ServerToClientEvents {
   'time:pong': (data: TimePongEvent) => void;
   'sync:command': (data: SyncCommandEvent) => void;
   'sync:state': (data: SyncStateEvent) => void;
+  'presence:update': (data: UserPresenceEvent) => void;
+  'presence:rich': (data: RichPresenceEvent) => void;
+  'presence:friends': (data: FriendsPresenceEvent) => void;
+  'reaction:new': (data: ReactionReceivedEvent) => void;
+  'reaction:timeline': (data: TimelineReactionsEvent) => void;
 }
 
 export interface InterServerEvents {

@@ -29,6 +29,7 @@ model User {
   uploadedVideos         Video[]
   refreshTokens          RefreshToken[]
   settings               UserSettings?
+  reactions              VideoReaction[]
 
   @@index([email])
   @@index([username])
@@ -64,6 +65,11 @@ model UserSettings {
 
   // Display settings
   theme String @default("dark") // dark, light, auto
+
+  // Presence settings
+  invisibleMode       Boolean @default(false)
+  showRichPresence    Boolean @default(true)
+  allowFriendJoin     Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -102,6 +108,7 @@ model Room {
   owner        User              @relation("RoomOwner", fields: [ownerId], references: [id])
   participants RoomParticipant[]
   messages     ChatMessage[]
+  reactions    VideoReaction[]
 
   @@index([code])
   @@index([ownerId])
@@ -223,4 +230,36 @@ model AuditLog {
   @@index([targetId])
   @@index([eventType])
   @@index([eventType, timestamp])
+}
+
+// ============================================
+// Social Features - Reactions
+// ============================================
+
+model VideoReaction {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String?  // null for guest reactions (if allowed)
+  guestName String?  // For guest reactions
+  emoji     String   // Single emoji character
+
+  // Position on video overlay (percentage-based)
+  positionX Float    // 0-100
+  positionY Float    // 0-100
+
+  // Timeline position
+  mediaTimeMs Int    // Video timestamp in milliseconds
+
+  // Animation type
+  animation String   @default("float") // float, burst, bounce
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([roomId, mediaTimeMs])
+  @@index([roomId, createdAt])
+  @@index([userId])
 }
