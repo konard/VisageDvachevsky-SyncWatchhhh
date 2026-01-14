@@ -1,6 +1,7 @@
-import { ReactNode, useEffect, useRef } from 'react';
+import { ReactNode, useEffect, useRef, useMemo, CSSProperties } from 'react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useGlassEffects } from './GlassEffectsProvider';
 
 export interface GlassModalProps {
   isOpen: boolean;
@@ -11,6 +12,14 @@ export interface GlassModalProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   closeOnOverlayClick?: boolean;
   showCloseButton?: boolean;
+  /** Glass thickness affects refraction intensity */
+  thickness?: 'thin' | 'medium' | 'thick';
+  /** Enable refraction distortion effect */
+  refraction?: boolean;
+  /** Enable specular highlight effect */
+  specular?: boolean;
+  /** Enable edge glow effect */
+  edgeGlow?: boolean;
 }
 
 export const GlassModal = ({
@@ -22,8 +31,13 @@ export const GlassModal = ({
   size = 'md',
   closeOnOverlayClick = true,
   showCloseButton = true,
+  thickness = 'medium',
+  refraction,
+  specular,
+  edgeGlow,
 }: GlassModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
+  const { lightPosition, config, isActive } = useGlassEffects();
 
   const sizeClasses = {
     sm: 'max-w-md',
@@ -31,6 +45,38 @@ export const GlassModal = ({
     lg: 'max-w-2xl',
     xl: 'max-w-4xl',
   };
+
+  // Determine which effects to apply (prop overrides config)
+  const enableRefraction = refraction ?? config.refractionEnabled;
+  const enableSpecular = specular ?? config.specularEnabled;
+  const enableEdgeGlow = edgeGlow ?? config.edgeGlowEnabled;
+  const shouldAnimate = isActive && !config.reduceMotion;
+
+  // Calculate refraction intensity based on thickness
+  const thicknessIntensity = {
+    thin: 0.3,
+    medium: 0.5,
+    thick: 0.7,
+  };
+
+  // Calculate specular highlight position
+  const specularStyle = useMemo<CSSProperties>(() => {
+    if (!enableSpecular || !shouldAnimate) return {};
+
+    const intensity = config.specularIntensity * 0.35;
+    return {
+      '--glass-specular-x': `${lightPosition.x * 100}%`,
+      '--glass-specular-y': `${lightPosition.y * 100}%`,
+      '--glass-specular-intensity': intensity,
+    } as CSSProperties;
+  }, [enableSpecular, shouldAnimate, lightPosition, config.specularIntensity]);
+
+  // Build effect classes
+  const effectClasses = clsx(
+    enableRefraction && shouldAnimate && 'glass-modal-refraction',
+    enableSpecular && shouldAnimate && 'glass-modal-specular',
+    enableEdgeGlow && 'glass-modal-edge-glow'
+  );
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -59,6 +105,7 @@ export const GlassModal = ({
           aria-modal="true"
           aria-labelledby={title ? 'modal-title' : undefined}
         >
+          {/* Backdrop with subtle blur */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -67,6 +114,8 @@ export const GlassModal = ({
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={closeOnOverlayClick ? onClose : undefined}
           />
+
+          {/* Modal container */}
           <motion.div
             ref={modalRef}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -74,13 +123,35 @@ export const GlassModal = ({
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
             className={clsx(
-              'glass-card relative z-10 w-full',
+              'glass-card glass-modal relative z-10 w-full',
+              effectClasses,
               sizeClasses[size],
               className
             )}
+            style={{
+              ...specularStyle,
+              '--glass-refraction-intensity': thicknessIntensity[thickness],
+            } as CSSProperties}
+            data-glass-thickness={thickness}
           >
+            {/* Specular highlight overlay */}
+            {enableSpecular && shouldAnimate && (
+              <div
+                className="glass-modal-specular-overlay"
+                aria-hidden="true"
+                style={{
+                  '--specular-x': `${lightPosition.x * 100}%`,
+                  '--specular-y': `${lightPosition.y * 100}%`,
+                } as CSSProperties}
+              />
+            )}
+
+            {/* Edge glow */}
+            {enableEdgeGlow && <div className="glass-modal-edge-highlight" aria-hidden="true" />}
+
+            {/* Header */}
             {(title || showCloseButton) && (
-              <div className="flex items-center justify-between p-6 border-b border-white/10">
+              <div className="flex items-center justify-between p-6 border-b border-white/10 relative z-10">
                 {title && (
                   <h2 id="modal-title" className="text-xl font-semibold text-white">
                     {title}
@@ -109,7 +180,9 @@ export const GlassModal = ({
                 )}
               </div>
             )}
-            <div className="p-6">{children}</div>
+
+            {/* Content */}
+            <div className="p-6 relative z-10">{children}</div>
           </motion.div>
         </div>
       )}

@@ -12,6 +12,10 @@ export type { UseYouTubePlayerOptions, UseYouTubePlayerResult } from './useYouTu
 
 export { useReducedMotion } from './useReducedMotion';
 
+// Morph Transition hook
+export { useMorphTransition } from './useMorphTransition';
+export type { UseMorphTransitionOptions, UseMorphTransitionResult } from './useMorphTransition';
+
 // Responsive hooks
 export { useMediaQuery } from './useMediaQuery';
 export { useBreakpoint, breakpoints } from './useBreakpoint';

@@ -1,5 +1,6 @@
-import { ButtonHTMLAttributes, ReactNode, forwardRef } from 'react';
+import { ButtonHTMLAttributes, ReactNode, forwardRef, useMemo, CSSProperties } from 'react';
 import { clsx } from 'clsx';
+import { useGlassEffects } from './GlassEffectsProvider';
 
 export interface GlassButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
@@ -7,18 +8,33 @@ export interface GlassButtonProps extends ButtonHTMLAttributes<HTMLButtonElement
   variant?: 'default' | 'outline' | 'ghost' | 'primary' | 'secondary' | 'success' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
+  /** Enable refraction distortion effect on hover */
+  refraction?: boolean;
+  /** Enable specular highlight effect */
+  specular?: boolean;
+  /** Enable edge glow effect */
+  edgeGlow?: boolean;
 }
 
 export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
-  ({
-    children,
-    className,
-    variant = 'default',
-    size = 'md',
-    fullWidth = false,
-    disabled,
-    ...props
-  }, ref) => {
+  (
+    {
+      children,
+      className,
+      variant = 'default',
+      size = 'md',
+      fullWidth = false,
+      disabled,
+      refraction,
+      specular,
+      edgeGlow,
+      style,
+      ...props
+    },
+    ref
+  ) => {
+    const { lightPosition, config, isActive } = useGlassEffects();
+
     const sizeClasses = {
       sm: 'px-3 py-2 text-sm',
       md: 'px-6 py-3 text-base',
@@ -27,7 +43,8 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
 
     const variantClasses = {
       default: 'glass-button text-white font-medium',
-      outline: 'glass-card border-2 border-accent-cyan/50 text-white font-medium hover:border-accent-cyan hover:shadow-glow',
+      outline:
+        'glass-card border-2 border-accent-cyan/50 text-white font-medium hover:border-accent-cyan hover:shadow-glow',
       ghost: 'bg-transparent text-white hover:bg-white/10 transition-colors',
       primary: 'bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors',
       secondary: 'bg-gray-600 hover:bg-gray-700 text-white font-medium transition-colors',
@@ -35,20 +52,69 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
       danger: 'bg-red-600 hover:bg-red-700 text-white font-medium transition-colors',
     };
 
+    // Determine which effects to apply (prop overrides config)
+    // For buttons, effects are more subtle by default
+    const enableRefraction = refraction ?? (variant === 'default' && config.refractionEnabled);
+    const enableSpecular = specular ?? (variant === 'default' && config.specularEnabled);
+    const enableEdgeGlow = edgeGlow ?? (variant === 'default' && config.edgeGlowEnabled);
+    const shouldAnimate = isActive && !config.reduceMotion && !disabled;
+
+    // Calculate specular highlight position for button
+    const specularStyle = useMemo<CSSProperties>(() => {
+      if (!enableSpecular || !shouldAnimate) return {};
+
+      const intensity = config.specularIntensity * 0.2;
+      return {
+        '--glass-specular-x': `${lightPosition.x * 100}%`,
+        '--glass-specular-y': `${lightPosition.y * 100}%`,
+        '--glass-specular-intensity': intensity,
+      } as CSSProperties;
+    }, [enableSpecular, shouldAnimate, lightPosition, config.specularIntensity]);
+
+    // Build effect classes
+    const effectClasses = clsx(
+      enableRefraction && shouldAnimate && 'glass-button-refraction',
+      enableSpecular && shouldAnimate && 'glass-button-specular',
+      enableEdgeGlow && 'glass-button-edge-glow'
+    );
+
     return (
       <button
         ref={ref}
         className={clsx(
           variantClasses[variant],
+          effectClasses,
           sizeClasses[size],
           fullWidth && 'w-full',
           disabled && 'opacity-50 cursor-not-allowed',
           className
         )}
+        style={{
+          ...style,
+          ...specularStyle,
+        }}
         disabled={disabled}
         {...props}
       >
-        {children}
+        {/* Specular highlight overlay for glass buttons */}
+        {enableSpecular && shouldAnimate && variant === 'default' && (
+          <span
+            className="glass-button-specular-overlay"
+            aria-hidden="true"
+            style={{
+              '--specular-x': `${lightPosition.x * 100}%`,
+              '--specular-y': `${lightPosition.y * 100}%`,
+            } as CSSProperties}
+          />
+        )}
+
+        {/* Edge glow for glass buttons */}
+        {enableEdgeGlow && variant === 'default' && (
+          <span className="glass-button-edge-highlight" aria-hidden="true" />
+        )}
+
+        {/* Content */}
+        <span className="relative z-10">{children}</span>
       </button>
     );
   }
