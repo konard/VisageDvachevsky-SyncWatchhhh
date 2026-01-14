@@ -1,0 +1,133 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+env:
+  DOCKER_REGISTRY: ghcr.io/visagedvachevsky
+  ENVIRONMENT: staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate version tag
+        id: version
+        run: |
+          VERSION=staging-$(git rev-parse --short HEAD)-$(date +%s)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/syncwatch-backend:${{ steps.version.outputs.version }}
+            ${{ env.DOCKER_REGISTRY }}/syncwatch-backend:staging-latest
+          cache-from: type=registry,ref=${{ env.DOCKER_REGISTRY }}/syncwatch-backend:staging-latest
+          cache-to: type=inline
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/syncwatch-frontend:${{ steps.version.outputs.version }}
+            ${{ env.DOCKER_REGISTRY }}/syncwatch-frontend:staging-latest
+          cache-from: type=registry,ref=${{ env.DOCKER_REGISTRY }}/syncwatch-frontend:staging-latest
+          cache-to: type=inline
+
+      - name: Build and push transcoder image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./transcoder
+          file: ./transcoder/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/syncwatch-transcoder:${{ steps.version.outputs.version }}
+            ${{ env.DOCKER_REGISTRY }}/syncwatch-transcoder:staging-latest
+          cache-from: type=registry,ref=${{ env.DOCKER_REGISTRY }}/syncwatch-transcoder:staging-latest
+          cache-to: type=inline
+
+      - name: Deploy to staging server
+        env:
+          # CRITICAL: Secrets injected via environment variables
+          # Never logged, never stored in artifacts
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+          STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          STAGING_USER: ${{ secrets.STAGING_USER }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Mask sensitive values
+          echo "::add-mask::$STAGING_HOST"
+          echo "::add-mask::$STAGING_SSH_KEY"
+
+          # Configure SSH
+          mkdir -p ~/.ssh
+          echo "$STAGING_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # Deploy via SSH (secrets already created on staging server)
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              $STAGING_USER@$STAGING_HOST << EOF
+            cd /opt/syncwatch
+            export VERSION=$VERSION
+            export DOCKER_REGISTRY=$DOCKER_REGISTRY
+            docker stack deploy -c docker-compose.staging.yml syncwatch-staging
+            echo "Deployment completed: $VERSION"
+          EOF
+
+      - name: Verify deployment
+        env:
+          STAGING_API_URL: ${{ secrets.STAGING_API_URL }}
+        run: |
+          # Wait for services to be healthy
+          sleep 30
+
+          # Check health endpoint
+          curl -f $STAGING_API_URL/health || exit 1
+
+          echo "Staging deployment verified successfully!"
+
+      - name: Notify deployment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ job.status }}';
+            const version = '${{ steps.version.outputs.version }}';
+            const sha = '${{ steps.version.outputs.short_sha }}';
+
+            const message = status === 'success'
+              ? `✅ Staging deployment successful: \`${version}\``
+              : `❌ Staging deployment failed: \`${version}\``;
+
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: message
+            });
