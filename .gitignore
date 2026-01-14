@@ -44,6 +44,9 @@ Thumbs.db
 # Testing
 coverage/
 .nyc_output/
+test-results/
+playwright-report/
+*.lcov
 
 # Temporary files
 tmp/

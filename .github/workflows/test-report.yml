@@ -1,0 +1,66 @@
+name: Test Reports
+
+on:
+  workflow_run:
+    workflows: ["CI", "E2E Tests"]
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion != 'skipped'
+
+    steps:
+      - name: Download test results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: context.payload.workflow_run.id,
+            });
+
+            for (const artifact of artifacts.data.artifacts) {
+              if (artifact.name.startsWith('playwright-results-') || artifact.name.startsWith('junit-')) {
+                const download = await github.rest.actions.downloadArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                  archive_format: 'zip',
+                });
+
+                const fs = require('fs');
+                fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/${artifact.name}.zip`, Buffer.from(download.data));
+              }
+            }
+
+      - name: Extract artifacts
+        run: |
+          for file in *.zip; do
+            [ -f "$file" ] && unzip -o "$file" -d extracted/ || true
+          done
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: |
+            extracted/**/junit.xml
+            extracted/**/test-results.xml
+          check_name: Test Results
+          comment_mode: always
+          compare_to_earlier_commit: true
+
+      - name: Comment PR with Playwright Report
+        uses: daun/playwright-report-comment@v3
+        if: always()
+        with:
+          report-path: extracted/playwright-report
