@@ -71,11 +71,8 @@ export const rateLimitRedis = createRedisClient(
   redisConfig.rateLimit.keyPrefix
 );
 
-// BullMQ queue
-export const queueRedis = createRedisClient(
-  redisConfig.queue.db,
-  redisConfig.queue.keyPrefix
-);
+// BullMQ queue (without keyPrefix - BullMQ handles prefixes internally)
+export const queueRedis = createRedisClient(redisConfig.queue.db);
 
 // Graceful shutdown
 export const closeRedisConnections = async () => {

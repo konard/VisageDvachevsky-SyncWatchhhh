@@ -64,6 +64,9 @@ jobs:
       - name: Generate Prisma clients
         run: npm run db:generate
 
+      - name: Build shared package
+        run: npm run build --workspace=shared
+
       - name: Run unit tests
         run: npm run test:unit
 
@@ -115,6 +118,9 @@ jobs:
 
       - name: Generate Prisma clients
         run: npm run db:generate
+
+      - name: Build shared package
+        run: npm run build --workspace=shared
 
       - name: Run database migrations
         run: npm run db:migrate:test
