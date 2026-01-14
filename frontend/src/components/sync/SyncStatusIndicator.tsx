@@ -1,6 +1,8 @@
-import { Activity, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Activity, AlertCircle, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
 import { usePlaybackStore } from '../../stores/playback.store';
+import { useSocket } from '../../hooks/useSocket';
 import { clsx } from 'clsx';
+import { SYNC_THRESHOLDS } from '@syncwatch/shared';
 
 /**
  * Props for SyncStatusIndicator component
@@ -8,6 +10,8 @@ import { clsx } from 'clsx';
 interface SyncStatusIndicatorProps {
   /** Whether to show detailed drift information */
   showDetails?: boolean;
+  /** Whether to show resync button when needed */
+  showResyncButton?: boolean;
   /** Custom CSS class */
   className?: string;
 }
@@ -18,9 +22,23 @@ interface SyncStatusIndicatorProps {
  */
 export function SyncStatusIndicator({
   showDetails = false,
+  showResyncButton = true,
   className,
 }: SyncStatusIndicatorProps) {
   const { syncStatus, drift } = usePlaybackStore();
+  const { socket, isConnected } = useSocket();
+
+  // Determine if resync button should be shown
+  const shouldShowResync = showResyncButton &&
+    Math.abs(drift) > SYNC_THRESHOLDS.desynced &&
+    isConnected;
+
+  // Handle manual resync
+  const handleResync = () => {
+    if (socket && isConnected) {
+      socket.emit('sync:resync', {});
+    }
+  };
 
   // Determine icon and styling based on status
   const getStatusConfig = () => {
@@ -68,24 +86,41 @@ export function SyncStatusIndicator({
   const Icon = config.icon;
 
   return (
-    <div
-      className={clsx(
-        'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium',
-        config.bgColor,
-        config.color,
-        className
-      )}
-    >
-      <Icon
-        className={clsx('w-4 h-4', config.animate && 'animate-spin')}
-        aria-hidden="true"
-      />
-      <span>{config.label}</span>
-      {showDetails && drift !== 0 && (
-        <span className="text-xs opacity-75">
-          ({drift > 0 ? '+' : ''}
-          {drift.toFixed(0)}ms)
-        </span>
+    <div className={clsx('inline-flex items-center gap-2', className)}>
+      <div
+        className={clsx(
+          'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium',
+          config.bgColor,
+          config.color
+        )}
+      >
+        <Icon
+          className={clsx('w-4 h-4', config.animate && 'animate-spin')}
+          aria-hidden="true"
+        />
+        <span>{config.label}</span>
+        {showDetails && drift !== 0 && (
+          <span className="text-xs opacity-75">
+            ({drift > 0 ? '+' : ''}
+            {drift.toFixed(0)}ms)
+          </span>
+        )}
+      </div>
+
+      {shouldShowResync && (
+        <button
+          onClick={handleResync}
+          className={clsx(
+            'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium',
+            'bg-red-500/20 text-red-400 hover:bg-red-500/30',
+            'transition-colors duration-200',
+            'focus:outline-none focus:ring-2 focus:ring-red-500/50'
+          )}
+          title="Manually resync with server"
+        >
+          <RefreshCw className="w-4 h-4" />
+          <span>Resync</span>
+        </button>
       )}
     </div>
   );
