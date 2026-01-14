@@ -11,7 +11,7 @@ import {
   useSettings,
   useUpdateSettings,
 } from '../hooks/useProfile';
-import { User, UserCircle, Lock, Trash2, Mic, Volume2, Settings, Save } from 'lucide-react';
+import { User, UserCircle, Lock, Trash2, Mic, Volume2 } from 'lucide-react';
 import { SoundSettings } from '../components/settings';
 import { useNavigate } from 'react-router-dom';
 import { useBreakpoint } from '../hooks/useBreakpoint';
@@ -25,6 +25,18 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const { isMobile } = useBreakpoint();
   const [activeTab, setActiveTab] = useState<'profile' | 'history' | 'settings'>('profile');
+
+  // Settings state
+  const [settings, setSettings] = useState<any>({
+    voiceMode: 'push_to_talk',
+    pttKey: 'Space',
+    vadThreshold: 0.5,
+    notificationsEnabled: true,
+  });
+
+  const handleSettingChange = (key: string, value: any) => {
+    setSettings((prev: any) => ({ ...prev, [key]: value }));
+  };
 
   const header = (
     <div className="flex items-center justify-between">
@@ -168,6 +180,15 @@ export function ProfilePage() {
                   <div className="flex justify-between text-sm text-gray-400 mt-1">
                     <span>More sensitive</span>
                     <span>Less sensitive</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'history' && (
+          <div className="glass-card p-6">
             <h2 className="text-2xl font-bold text-white mb-4">Watch History</h2>
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
@@ -224,6 +245,7 @@ export function ProfilePage() {
                     <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-cyan"></div>
                   </label>
                 </div>
+              </div>
               </div>
             </div>
 

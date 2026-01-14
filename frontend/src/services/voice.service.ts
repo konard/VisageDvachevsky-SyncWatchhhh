@@ -275,28 +275,6 @@ export class VoiceService {
   }
 
   /**
-   * Reconnect to peer
-   */
-  private async reconnectPeer(peerId: string): Promise<void> {
-    const peerConnection = this.peers.get(peerId);
-    if (!peerConnection || !peerConnection.isReconnecting) {
-      return;
-    }
-
-    try {
-      // Remove old peer
-      this.removePeer(peerId);
-
-      // Create new peer as initiator
-      await this.createPeer(peerId, true);
-    } catch (error) {
-      const err = error as Error;
-      console.error(`Failed to reconnect to peer ${peerId}:`, err);
-      this.callbacks.onError(new Error(`Reconnection failed: ${err.message}`));
-    }
-  }
-
-  /**
    * Set up Voice Activity Detection
    */
   private setupVAD(stream: MediaStream): void {
