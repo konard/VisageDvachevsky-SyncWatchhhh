@@ -133,6 +133,7 @@ export async function revokeRefreshToken(token: string): Promise<boolean> {
  * Create HMAC-SHA256 signature
  */
 function createSignature(data: string): string {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const crypto = require('crypto');
   return crypto
     .createHmac('sha256', env.JWT_SECRET)
