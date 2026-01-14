@@ -175,6 +175,13 @@ export const handleRoomJoin = async (
       playback: playbackState,
     });
 
+    // Send state snapshot if playback state exists
+    if (playbackState) {
+      socket.emit(ServerEvents.SYNC_STATE, {
+        state: playbackState,
+      });
+    }
+
     // Notify others in the room
     socket.to(room.code).emit(ServerEvents.ROOM_PARTICIPANT_JOINED, {
       participant,

@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { AuthService } from './service.js';
 import { registerSchema, loginSchema, refreshSchema } from './schemas.js';
-import { authenticateUser } from '../../common/middleware/auth.js';
+import { authenticateRequired } from '../../common/middleware/auth.js';
 import { verifyRefreshToken, generateAccessToken, revokeRefreshToken } from '../../common/utils/jwt.js';
 import { prisma } from '../../common/utils/prisma.js';
 
@@ -127,7 +127,7 @@ export async function authRoutes(fastify: FastifyInstance) {
 
   // Logout
   fastify.post('/logout', {
-    preHandler: authenticateUser,
+    preHandler: authenticateRequired,
     schema: {
       body: {
         type: 'object',
@@ -156,7 +156,7 @@ export async function authRoutes(fastify: FastifyInstance) {
 
   // Get current user
   fastify.get('/me', {
-    preHandler: authenticateUser,
+    preHandler: authenticateRequired,
     handler: async (request, reply) => {
       try {
         if (!request.user) {
