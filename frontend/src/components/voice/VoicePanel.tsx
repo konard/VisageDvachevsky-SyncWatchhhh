@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import clsx from 'clsx';
+import { useSound } from '@/hooks';
 
 interface Participant {
   id: string;
@@ -23,6 +24,19 @@ export function VoicePanel({ className }: VoicePanelProps) {
     { id: '2', name: 'Bob', isSpeaking: false, isMuted: false },
     { id: '3', name: 'Charlie', isSpeaking: false, isMuted: true },
   ]);
+  const { playMicOn, playMicOff } = useSound();
+
+  const handleMicToggle = () => {
+    const newMutedState = !isMuted;
+    setIsMuted(newMutedState);
+
+    // Play appropriate sound
+    if (newMutedState) {
+      playMicOff();
+    } else {
+      playMicOn();
+    }
+  };
 
   return (
     <div className={clsx('flex flex-col h-full', className)}>
@@ -30,7 +44,7 @@ export function VoicePanel({ className }: VoicePanelProps) {
       <div className="flex-shrink-0 p-4 border-b border-white/10">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setIsMuted(!isMuted)}
+            onClick={handleMicToggle}
             className={clsx(
               'flex items-center gap-2 px-4 py-2 rounded-lg transition-all',
               isMuted

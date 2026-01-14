@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import clsx from 'clsx';
+import { useSound } from '@/hooks';
 
 interface Message {
   id: string;
@@ -33,6 +34,8 @@ export function ChatPanel({ className }: ChatPanelProps) {
   ]);
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { playMessage } = useSound();
+  const previousMessageCountRef = useRef(messages.length);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -40,7 +43,13 @@ export function ChatPanel({ className }: ChatPanelProps) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+
+    // Play sound for new messages (but not on initial render)
+    if (messages.length > previousMessageCountRef.current) {
+      playMessage();
+    }
+    previousMessageCountRef.current = messages.length;
+  }, [messages, playMessage]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();

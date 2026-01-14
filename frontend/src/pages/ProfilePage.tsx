@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBreakpoint } from '../hooks/useBreakpoint';
+import { SoundSettings } from '../components/settings';
 import clsx from 'clsx';
 
 /**
@@ -150,6 +151,9 @@ export function ProfilePage() {
 
                   {/* Settings Options */}
                   <div className="space-y-4">
+                    {/* Sound Effects Setting */}
+                    <SoundSettings />
+
                     <div className="flex items-center justify-between p-4 rounded-lg bg-white/5">
                       <span className="text-gray-300">Notifications</span>
                       <label className="relative inline-flex items-center cursor-pointer">
