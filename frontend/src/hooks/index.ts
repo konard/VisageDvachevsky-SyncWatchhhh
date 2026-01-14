@@ -18,6 +18,10 @@ export type { InteractionState, GlassInteractionOptions, GlassInteractionResult 
 export { useDeviceOrientation } from './useDeviceOrientation';
 export type { DeviceOrientationState, DeviceOrientationResult } from './useDeviceOrientation';
 
+// Morph Transition hook
+export { useMorphTransition } from './useMorphTransition';
+export type { UseMorphTransitionOptions, UseMorphTransitionResult } from './useMorphTransition';
+
 // Responsive hooks
 export { useMediaQuery } from './useMediaQuery';
 export { useBreakpoint, breakpoints } from './useBreakpoint';
