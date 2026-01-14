@@ -128,23 +128,25 @@ class ErrorLogger {
 
   /**
    * Log to remote service (placeholder for future implementation)
+   *
+   * TODO: Implement remote logging (e.g., Sentry, LogRocket)
+   * This would send errors to a tracking service for production monitoring
+   *
+   * Example implementation:
+   * ```
+   * private logToRemote(entry: LogEntry): void {
+   *   if (entry.level === LogLevel.ERROR && window.Sentry) {
+   *     window.Sentry.captureException(entry.error || new Error(entry.message), {
+   *       level: 'error',
+   *       tags: {
+   *         context: entry.context,
+   *       },
+   *       extra: entry.metadata,
+   *     });
+   *   }
+   * }
+   * ```
    */
-  private logToRemote(entry: LogEntry): void {
-    // TODO: Implement remote logging (e.g., Sentry, LogRocket)
-    // This would send errors to a tracking service for production monitoring
-
-    /*
-    if (level === LogLevel.ERROR && window.Sentry) {
-      window.Sentry.captureException(error || new Error(message), {
-        level: 'error',
-        tags: {
-          context,
-        },
-        extra: metadata,
-      });
-    }
-    */
-  }
 
   /**
    * Get all logged entries

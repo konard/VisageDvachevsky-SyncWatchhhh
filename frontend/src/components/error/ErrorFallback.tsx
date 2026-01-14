@@ -69,14 +69,14 @@ export function ErrorFallback({ error, errorInfo, onReset }: ErrorFallbackProps)
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           {onReset && (
-            <GlassButton onClick={onReset} variant="primary">
+            <GlassButton onClick={onReset}>
               Try Again
             </GlassButton>
           )}
-          <GlassButton onClick={handleGoHome} variant="secondary">
+          <GlassButton onClick={handleGoHome} variant="outline">
             Go to Home
           </GlassButton>
-          <GlassButton onClick={handleReload} variant="secondary">
+          <GlassButton onClick={handleReload} variant="outline">
             Reload Page
           </GlassButton>
         </div>

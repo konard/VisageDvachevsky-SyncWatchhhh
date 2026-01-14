@@ -43,12 +43,12 @@ describe('useMediaQuery', () => {
   });
 
   it('should update when media query changes', async () => {
-    let changeHandler: ((event: any) => void) | null = null;
+    let changeHandler: ((event: any) => void) | undefined;
 
     matchMediaSpy.mockImplementation((query: string) => ({
       matches: false,
       media: query,
-      addEventListener: vi.fn((event, handler) => {
+      addEventListener: vi.fn((event: string, handler: (event: any) => void) => {
         if (event === 'change') {
           changeHandler = handler;
         }

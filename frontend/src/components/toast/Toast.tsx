@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { X, CheckCircle, XCircle, AlertCircle, Info } from 'lucide-react';
 import { Toast as ToastType } from './types';
 import { GlassButton } from '../ui/glass';
@@ -76,7 +76,7 @@ export function Toast({ toast, onClose }: ToastProps) {
             <div className="mt-2">
               <GlassButton
                 size="sm"
-                variant="secondary"
+                variant="outline"
                 onClick={() => {
                   toast.action?.onClick();
                   onClose(toast.id);

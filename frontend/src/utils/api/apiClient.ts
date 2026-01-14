@@ -1,5 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
-import { getErrorMessage } from './errorHandler';
+import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 
 /**
  * Create configured axios instance with error handling
