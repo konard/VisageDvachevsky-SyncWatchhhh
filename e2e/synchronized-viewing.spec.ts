@@ -5,7 +5,7 @@ test.describe('Synchronized Viewing', () => {
     // User 1 creates room and adds video
     await page.goto('/');
     await page.getByRole('button', { name: /create room/i }).click();
-    await page.waitForURL(/\/room\/[a-z0-9-]+/);
+    await page.waitForURL(/\/room\/[a-zA-Z0-9-]+/);
 
     const roomUrl = page.url();
 
@@ -47,7 +47,7 @@ test.describe('Synchronized Viewing', () => {
     // User 1 creates room and adds video
     await page.goto('/');
     await page.getByRole('button', { name: /create room/i }).click();
-    await page.waitForURL(/\/room\/[a-z0-9-]+/);
+    await page.waitForURL(/\/room\/[a-zA-Z0-9-]+/);
 
     const roomUrl = page.url();
 
@@ -86,7 +86,7 @@ test.describe('Synchronized Viewing', () => {
     // Create room and add video
     await page.goto('/');
     await page.getByRole('button', { name: /create room/i }).click();
-    await page.waitForURL(/\/room\/[a-z0-9-]+/);
+    await page.waitForURL(/\/room\/[a-zA-Z0-9-]+/);
 
     const roomUrl = page.url();
 
@@ -124,7 +124,7 @@ test.describe('Synchronized Viewing', () => {
 
     await page.goto('/');
     await page.getByRole('button', { name: /create room/i }).click();
-    await page.waitForURL(/\/room\/[a-z0-9-]+/);
+    await page.waitForURL(/\/room\/[a-zA-Z0-9-]+/);
 
     const roomUrl = page.url();
 
@@ -168,7 +168,7 @@ test.describe('Synchronized Viewing', () => {
     // User 1 creates room, adds video, and starts playing
     await page.goto('/');
     await page.getByRole('button', { name: /create room/i }).click();
-    await page.waitForURL(/\/room\/[a-z0-9-]+/);
+    await page.waitForURL(/\/room\/[a-zA-Z0-9-]+/);
 
     const roomUrl = page.url();
 
