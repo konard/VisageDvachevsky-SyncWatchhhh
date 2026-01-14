@@ -10,6 +10,8 @@ export type { SyncedYouTubePlayerProps } from './SyncedYouTubePlayer';
 
 export { YouTubePlayerDemo } from './YouTubePlayerDemo';
 
+export { GlassDesignSystemDemo } from './GlassDesignSystemDemo';
+
 // Animated components
 export { AnimatedPage } from './AnimatedPage';
 export { AnimatedButton } from './AnimatedButton';

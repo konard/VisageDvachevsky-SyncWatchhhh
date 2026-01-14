@@ -7,6 +7,7 @@ import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { rateLimitRedis } from './config/redis.js';
 import { authRoutes } from './modules/auth/routes.js';
+import { usersRoutes } from './modules/users/routes.js';
 import { registerRoomRoutes } from './modules/rooms/routes.js';
 import { videoRoutes } from './modules/videos/routes.js';
 
@@ -63,7 +64,11 @@ export async function createApp() {
   });
 
   // Register API routes
+  const { friendsRoutes } = await import('./modules/friends/routes.js');
+
   await app.register(authRoutes, { prefix: '/api/auth' });
+  await app.register(friendsRoutes, { prefix: '/api' });
+  await app.register(usersRoutes, { prefix: '/api' });
   await app.register(registerRoomRoutes, { prefix: '/api/rooms' });
   await app.register(videoRoutes, { prefix: '/api/videos' });
 

@@ -2,19 +2,36 @@ import { Variants } from 'framer-motion';
 
 /**
  * Reusable animation variants for consistent motion design
+ * Inspired by Apple's liquid-glass design with smooth, spring-based animations
  */
 
-// Page transitions
-export const pageTransition: Variants = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 },
+// Spring configurations for smooth, natural motion (Apple-style)
+export const springConfig = {
+  type: 'spring' as const,
+  stiffness: 260,
+  damping: 20,
 };
 
-export const pageTransitionConfig = {
-  duration: 0.3,
-  ease: 'easeInOut',
+export const smoothSpring = {
+  type: 'spring' as const,
+  stiffness: 300,
+  damping: 30,
 };
+
+export const softSpring = {
+  type: 'spring' as const,
+  stiffness: 200,
+  damping: 25,
+};
+
+// Page transitions with smooth spring animation
+export const pageTransition: Variants = {
+  initial: { opacity: 0, y: 20, scale: 0.98 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit: { opacity: 0, y: -20, scale: 0.98 },
+};
+
+export const pageTransitionConfig = smoothSpring;
 
 // Fade animations
 export const fadeIn: Variants = {
@@ -61,18 +78,20 @@ export const scaleInBig: Variants = {
   exit: { opacity: 0, scale: 0.8 },
 };
 
-// Modal animations
+// Modal animations with smooth backdrop and spring content
 export const modalBackdrop: Variants = {
-  initial: { opacity: 0 },
-  animate: { opacity: 1 },
-  exit: { opacity: 0 },
+  initial: { opacity: 0, backdropFilter: 'blur(0px)' },
+  animate: { opacity: 1, backdropFilter: 'blur(8px)' },
+  exit: { opacity: 0, backdropFilter: 'blur(0px)' },
 };
 
 export const modalContent: Variants = {
-  initial: { opacity: 0, scale: 0.95, y: 20 },
+  initial: { opacity: 0, scale: 0.9, y: 30 },
   animate: { opacity: 1, scale: 1, y: 0 },
-  exit: { opacity: 0, scale: 0.95, y: 20 },
+  exit: { opacity: 0, scale: 0.9, y: 30 },
 };
+
+export const modalContentTransition = smoothSpring;
 
 // Toast notifications
 export const toastVariants: Variants = {
@@ -130,19 +149,27 @@ export const rippleVariants: Variants = {
   animate: { scale: 2, opacity: 0 },
 };
 
-// Hover interactions
+// Hover interactions with smooth spring feedback (Apple-style micro-interactions)
 export const hoverScale = {
-  scale: 1.05,
-  transition: { duration: 0.2 },
+  scale: 1.02,
+  transition: { type: 'spring', stiffness: 400, damping: 25 },
+};
+
+export const hoverLift = {
+  y: -2,
+  scale: 1.01,
+  boxShadow: '0 12px 48px 0 rgba(31, 38, 135, 0.5)',
+  transition: { type: 'spring', stiffness: 400, damping: 25 },
 };
 
 export const hoverGlow = {
-  boxShadow: '0 0 20px rgba(0, 229, 255, 0.4)',
-  transition: { duration: 0.2 },
+  boxShadow: '0 0 30px rgba(0, 229, 255, 0.5)',
+  transition: { duration: 0.3, ease: 'easeOut' },
 };
 
 export const tapScale = {
-  scale: 0.95,
+  scale: 0.97,
+  transition: { duration: 0.1 },
 };
 
 // Chat message animations

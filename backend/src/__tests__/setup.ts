@@ -1,8 +1,14 @@
-import { afterAll } from 'vitest';
+import { afterAll, beforeAll } from 'vitest';
+import { config } from 'dotenv';
 import { closeRedisConnections } from '../config/redis.js';
 import { closePrisma } from '../config/prisma.js';
 
-// Set up test environment variables
+// Load test environment variables from .env.test if it exists
+beforeAll(() => {
+  config({ path: '.env.test' });
+});
+
+// Set up fallback test environment variables if not provided
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/test';
 process.env.REDIS_HOST = process.env.REDIS_HOST || 'localhost';
 process.env.REDIS_PORT = process.env.REDIS_PORT || '6379';
