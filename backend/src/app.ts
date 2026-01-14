@@ -98,12 +98,14 @@ export async function createApp() {
 
   // Register API routes
   const { friendsRoutes } = await import('./modules/friends/routes.js');
+  const { analyticsRoutes } = await import('./modules/analytics/routes.js');
 
   await app.register(authRoutes, { prefix: '/api/auth' });
   await app.register(friendsRoutes, { prefix: '/api' });
   await app.register(usersRoutes, { prefix: '/api' });
   await app.register(registerRoomRoutes, { prefix: '/api/rooms' });
   await app.register(videoRoutes, { prefix: '/api/videos' });
+  await app.register(analyticsRoutes, { prefix: '/api/analytics' });
 
   return app;
 }
