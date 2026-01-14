@@ -33,9 +33,9 @@ RUN npm run build --workspace=backend
 # Production stage
 FROM node:20-alpine
 
-# Install OpenSSL 1.1 compatibility for Prisma
+# Install OpenSSL 1.1 compatibility for Prisma and bash for entrypoint script
 # Prisma's query engine requires libssl.so.1.1 which is not included in Alpine 3.17+
-RUN apk add --no-cache openssl1-compat-dev
+RUN apk add --no-cache openssl1-compat-dev bash
 
 WORKDIR /app
 
@@ -58,6 +58,10 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 # Copy Prisma schema for migrations
 COPY backend/prisma ./backend/prisma
 
+# Copy entrypoint script
+COPY backend/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
@@ -73,4 +77,4 @@ EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:4000/health/live', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"
 
-CMD ["node", "backend/dist/index.js"]
+ENTRYPOINT ["/entrypoint.sh"]
