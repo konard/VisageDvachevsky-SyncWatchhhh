@@ -154,15 +154,20 @@ services:
     container_name: syncwatch-transcoder
     restart: unless-stopped
     environment:
+      DATABASE_URL: postgresql://syncwatch:syncwatch_dev@db:5432/syncwatch
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_ACCESS_KEY: syncwatch
       MINIO_SECRET_KEY: syncwatch_dev
+      WORKER_CONCURRENCY: 1
     volumes:
       - ./transcoder/src:/app/src
+      - ./transcoder/prisma:/app/prisma
       - transcodertmp:/tmp/transcode
     depends_on:
+      db:
+        condition: service_healthy
       redis:
         condition: service_healthy
       minio:
