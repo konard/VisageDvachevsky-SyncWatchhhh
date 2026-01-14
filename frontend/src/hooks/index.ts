@@ -18,3 +18,6 @@ export { useBreakpoint, breakpoints } from './useBreakpoint';
 export type { Breakpoint, DeviceType } from './useBreakpoint';
 export { useOrientation } from './useOrientation';
 export type { Orientation } from './useOrientation';
+
+// Sound hook
+export { useSound } from './useSound';
