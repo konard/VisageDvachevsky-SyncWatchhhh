@@ -63,7 +63,7 @@ describe('useMediaQuery', () => {
 
     // Simulate media query change
     if (changeHandler) {
-      changeHandler({ matches: true });
+      (changeHandler as (event: { matches: boolean }) => void)({ matches: true });
     }
 
     await waitFor(() => {
