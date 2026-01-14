@@ -23,7 +23,12 @@ import {
   handleSyncPause,
   handleSyncSeek,
   handleSyncRate,
+  handleSyncResync,
 } from './handlers/sync.handler.js';
+import {
+  handleReadyInitiate,
+  handleReadyRespond,
+} from './handlers/ready.handler.js';
 import { ClientEvents } from './types/events.js';
 import { logger } from '../config/logger.js';
 import { env } from '../config/env.js';
@@ -76,6 +81,11 @@ export function createSocketServer(
     socket.on(ClientEvents.SYNC_PAUSE, (data) => handleSyncPause(socket, syncNamespace, data));
     socket.on(ClientEvents.SYNC_SEEK, (data) => handleSyncSeek(socket, syncNamespace, data));
     socket.on(ClientEvents.SYNC_RATE, (data) => handleSyncRate(socket, syncNamespace, data));
+    socket.on(ClientEvents.SYNC_RESYNC, (data) => handleSyncResync(socket, syncNamespace, data));
+
+    // Register ready check event handlers
+    socket.on(ClientEvents.READY_INITIATE, (data) => handleReadyInitiate(socket, syncNamespace, data));
+    socket.on(ClientEvents.READY_RESPOND, (data) => handleReadyRespond(socket, syncNamespace, data));
 
     // Register voice event handlers
     socket.on('voice:join', (data: unknown) => handleVoiceJoin(socket, syncNamespace, data as any));
