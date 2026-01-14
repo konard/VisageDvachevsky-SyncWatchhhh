@@ -99,3 +99,72 @@ export const ServerEvents = {
   ROOM_PARTICIPANT_LEFT: 'room:participant:left',
   ROOM_ERROR: 'room:error',
 } as const;
+
+// ============================================
+// Voice Chat Events
+// ============================================
+
+// RTCSignal represents WebRTC signaling data (SDP or ICE candidate)
+export interface RTCSignal {
+  type: 'offer' | 'answer' | 'ice-candidate';
+  sdp?: string; // Session Description Protocol (for offer/answer)
+  candidate?: any; // ICE candidate data (RTCIceCandidateInit from WebRTC)
+}
+
+// Client → Server Voice Events
+export const VoiceJoinEventSchema = z.object({});
+export const VoiceLeaveEventSchema = z.object({});
+export const VoiceSignalEventSchema = z.object({
+  targetId: z.string(),
+  signal: z.object({
+    type: z.enum(['offer', 'answer', 'ice-candidate']),
+    sdp: z.string().optional(),
+    candidate: z.any().optional(), // RTCIceCandidateInit
+  }),
+});
+export const VoiceSpeakingEventSchema = z.object({
+  isSpeaking: z.boolean(),
+});
+
+export type VoiceJoinEvent = z.infer<typeof VoiceJoinEventSchema>;
+export type VoiceLeaveEvent = z.infer<typeof VoiceLeaveEventSchema>;
+export type VoiceSignalEvent = z.infer<typeof VoiceSignalEventSchema>;
+export type VoiceSpeakingEvent = z.infer<typeof VoiceSpeakingEventSchema>;
+
+// Server → Client Voice Events
+export interface VoicePeersEvent {
+  peers: string[]; // Array of oderId values
+}
+
+export interface VoicePeerJoinedEvent {
+  oderId: string;
+}
+
+export interface VoicePeerLeftEvent {
+  oderId: string;
+}
+
+export interface VoiceSignalReceivedEvent {
+  fromId: string; // oderId of the sender
+  signal: RTCSignal;
+}
+
+export interface VoiceSpeakingStatusEvent {
+  oderId: string;
+  isSpeaking: boolean;
+}
+
+// Voice Error Codes
+export const VoiceErrorCodes = {
+  NOT_IN_ROOM: 'NOT_IN_ROOM',
+  NOT_IN_VOICE: 'NOT_IN_VOICE',
+  ALREADY_IN_VOICE: 'ALREADY_IN_VOICE',
+  PEER_NOT_FOUND: 'PEER_NOT_FOUND',
+  INVALID_SIGNAL: 'INVALID_SIGNAL',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+} as const;
+
+export interface VoiceErrorEvent {
+  code: string;
+  message: string;
+}
