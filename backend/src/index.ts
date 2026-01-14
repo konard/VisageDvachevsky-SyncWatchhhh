@@ -2,6 +2,8 @@ import { createApp } from './app.js';
 import { createSocketServer, closeSocketServer } from './websocket/socket.js';
 import { closeRedisConnections } from './config/redis.js';
 import { closePrisma } from './config/prisma.js';
+import { ensureBuckets } from './config/minio.js';
+import { closeQueue } from './config/queue.js';
 import { logger } from './config/logger.js';
 import { env } from './config/env.js';
 
@@ -10,6 +12,10 @@ import { env } from './config/env.js';
  */
 async function start() {
   try {
+    // Ensure MinIO buckets exist
+    await ensureBuckets();
+    logger.info('MinIO buckets initialized');
+
     // Create Fastify app
     const app = await createApp();
 
@@ -44,6 +50,9 @@ async function start() {
 
         // Close Fastify server
         await app.close();
+
+        // Close queue
+        await closeQueue();
 
         // Close Redis connections
         await closeRedisConnections();
