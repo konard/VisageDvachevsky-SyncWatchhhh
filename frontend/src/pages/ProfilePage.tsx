@@ -224,20 +224,7 @@ export function ProfilePage() {
                   </label>
                 </div>
 
-              {/* Sound Effects */}
-              <SoundSettings />
-
-              {/* Notifications */}
-              <div>
-                <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings?.notificationsEnabled || false}
-                    onChange={(e) => handleSettingChange('notificationsEnabled', e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded"
-                  />
-                  <span className="text-white">Notifications</span>
-                </label>
+                {/* Auto-play */}
                 <div className="flex items-center justify-between p-4 rounded-lg bg-white/5">
                   <span className="text-gray-300">Auto-play</span>
                   <label className="relative inline-flex items-center cursor-pointer">
