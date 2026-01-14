@@ -29,6 +29,8 @@ model User {
   uploadedVideos         Video[]
   refreshTokens          RefreshToken[]
   settings               UserSettings?
+  reportsCreated         UserReport[]      @relation("ReportCreator")
+  reportsReceived        UserReport[]      @relation("ReportTarget")
   reactions              VideoReaction[]
 
   @@index([email])
@@ -66,6 +68,10 @@ model UserSettings {
   // Display settings
   theme String @default("dark") // dark, light, auto
 
+  // Privacy settings
+  forceRelay       Boolean @default(false) // Force TURN-only mode (hide IP)
+  hideFromSearch   Boolean @default(false)
+  blockNonFriends  Boolean @default(false)
   // Presence settings
   invisibleMode       Boolean @default(false)
   showRichPresence    Boolean @default(true)
@@ -106,15 +112,24 @@ model Room {
   // External source URL (if applicable)
   externalUrl String?
 
+  // Privacy preset: public, friends_only, private, anonymous
+  privacyPreset String  @default("public")
+
+  // Privacy settings (derived from preset or custom)
+  allowAnonymous    Boolean @default(true)
+  requireAuth       Boolean @default(false)
+  showRealNames     Boolean @default(true)
+  forceRelayMode    Boolean @default(false) // Force TURN-only connections
+
   // Relations
-  owner             User                @relation("RoomOwner", fields: [ownerId], references: [id])
-  participants      RoomParticipant[]
-  messages          ChatMessage[]
-  reactions         VideoReaction[]
-  temporaryHosts    TemporaryHost[]
-  playbackVotes     PlaybackVote[]
+  owner              User                  @relation("RoomOwner", fields: [ownerId], references: [id])
+  participants       RoomParticipant[]
+  messages           ChatMessage[]
+  reports            UserReport[]
+  temporaryHosts     TemporaryHost[]
+  playbackVotes      PlaybackVote[]
   participantMetrics ParticipantMetrics[]
-  historyEntries    RoomHistory[]
+  historyEntries     RoomHistory[]
 
   @@index([code])
   @@index([ownerId])
@@ -240,6 +255,33 @@ model AuditLog {
 }
 
 // ============================================
+// Moderation & Abuse Protection
+// ============================================
+
+model UserReport {
+  id              String   @id @default(cuid())
+  reporterId      String
+  reportedUserId  String
+  roomId          String
+  reason          String // harassment, inappropriate_content, spam, cheating, hate_speech, other
+  description     String?
+  evidence        Json? // { chatLogs: string[], timestamp: Date }
+  status          String   @default("pending") // pending, reviewed, actioned, dismissed
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  reporter User @relation("ReportCreator", fields: [reporterId], references: [id])
+  reported User @relation("ReportTarget", fields: [reportedUserId], references: [id])
+  room     Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([reportedUserId])
+  @@index([roomId])
+  @@index([status])
+  @@index([createdAt])
 // Social Features - Reactions
 // ============================================
 

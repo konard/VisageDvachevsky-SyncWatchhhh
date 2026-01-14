@@ -10,6 +10,7 @@ import { authRoutes } from './modules/auth/routes.js';
 import { usersRoutes } from './modules/users/routes.js';
 import { registerRoomRoutes } from './modules/rooms/routes.js';
 import { videoRoutes } from './modules/videos/routes.js';
+import { moderationRoutes } from './modules/moderation/routes.js';
 
 /**
  * Create and configure Fastify application
@@ -114,6 +115,7 @@ export async function createApp() {
   await app.register(usersRoutes, { prefix: '/api' });
   await app.register(registerRoomRoutes, { prefix: '/api/rooms' });
   await app.register(videoRoutes, { prefix: '/api/videos' });
+  await app.register(moderationRoutes, { prefix: '/api/moderation' });
   await app.register(presenceRoutes, { prefix: '/api' });
   await app.register(reactionsRoutes, { prefix: '/api' });
   await app.register(analyticsRoutes, { prefix: '/api/analytics' });
