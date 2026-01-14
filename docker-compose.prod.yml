@@ -333,6 +333,65 @@ services:
 # Docker Secrets - External (managed by Docker Swarm or secrets management system)
 # Production secrets MUST be created before deployment
 # NEVER commit actual secret values to version control
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: syncwatch-prod-prometheus
+    restart: always
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prod_prometheusdata:/prometheus
+    ports:
+      - "9090:9090"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    networks:
+      - syncwatch-prod
+
+  # Grafana for monitoring dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: syncwatch-prod-grafana
+    restart: always
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD_FILE: /run/secrets/grafana_password
+      GF_INSTALL_PLUGINS: ''
+      GF_SERVER_ROOT_URL: https://grafana.syncwatch.example.com
+    volumes:
+      - prod_grafanadata:/var/lib/grafana
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    secrets:
+      - grafana_password
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    networks:
+      - syncwatch-prod
+
 secrets:
   db_password:
     external: true
@@ -351,6 +410,8 @@ secrets:
   turn_secret:
     external: true
   sentry_dsn:
+    external: true
+  grafana_password:
     external: true
 
 volumes:
@@ -377,6 +438,10 @@ volumes:
   prod_nginx_certs:
     driver: local
   prod_nginx_logs:
+    driver: local
+  prod_prometheusdata:
+    driver: local
+  prod_grafanadata:
     driver: local
 
 networks:
