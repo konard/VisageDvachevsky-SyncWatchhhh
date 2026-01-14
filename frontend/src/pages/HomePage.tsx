@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { AnimatedPage } from '../components/AnimatedPage';
+import { CreateRoomModal, type RoomOptions } from '../components/room';
 import {
   Play,
   Users,
@@ -22,9 +23,12 @@ export function HomePage() {
   const navigate = useNavigate();
   const { isMobile } = useBreakpoint();
   const [roomCode, setRoomCode] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const handleCreateRoom = () => {
+  const handleCreateRoom = (options: RoomOptions) => {
     // Generate random room code (placeholder)
+    // In production, this would call the API with options
+    console.log('Creating room with options:', options);
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     navigate(`/room/${code}`);
   };
@@ -111,7 +115,7 @@ export function HomePage() {
           {/* Create Room */}
           <div>
             <button
-              onClick={handleCreateRoom}
+              onClick={() => setShowCreateModal(true)}
               className="w-full px-6 py-4 glass-button text-white font-medium text-lg flex items-center justify-center gap-3 group"
             >
               <Play className="w-5 h-5 transition-transform group-hover:scale-110" />
@@ -202,6 +206,13 @@ export function HomePage() {
           </Link>
         </div>
       </div>
+
+      {/* Create Room Modal */}
+      <CreateRoomModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreateRoom={handleCreateRoom}
+      />
     </AnimatedPage>
   );
 }
