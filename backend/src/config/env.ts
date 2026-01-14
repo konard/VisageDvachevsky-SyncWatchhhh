@@ -38,6 +38,11 @@ const envSchema = z.object({
   MAX_UPLOAD_SIZE: z.coerce.number().default(8 * 1024 * 1024 * 1024), // 8GB
   MAX_VIDEO_DURATION: z.coerce.number().default(3 * 60 * 60), // 3 hours
   MAX_ROOM_PARTICIPANTS: z.coerce.number().default(5),
+
+  // TURN Server (for WebRTC NAT traversal)
+  TURN_SERVER_URL: z.string().default('turn:localhost:3478'),
+  TURN_SERVER_SECRET: z.string().default('syncwatch_turn_secret_change_in_production'),
+  TURN_CREDENTIAL_TTL: z.coerce.number().default(86400), // 24 hours
 });
 
 export type Env = z.infer<typeof envSchema>;

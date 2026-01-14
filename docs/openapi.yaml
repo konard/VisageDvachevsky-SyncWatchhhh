@@ -1,0 +1,916 @@
+openapi: 3.0.0
+info:
+  title: SyncWatch API
+  version: 1.0.0
+  description: |
+    SyncWatch API for synchronized video watching with real-time chat and voice.
+
+    ## Authentication
+    Most endpoints require JWT authentication via Bearer token:
+    ```
+    Authorization: Bearer <access_token>
+    ```
+
+    Tokens are obtained via `/api/auth/register` or `/api/auth/login`.
+  contact:
+    name: SyncWatch Team
+    url: https://github.com/VisageDvachevsky/SyncWatchhhh
+
+servers:
+  - url: http://localhost:4000/api
+    description: Local development
+  - url: https://api.syncwatch.example/api
+    description: Production
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Rooms
+    description: Room creation, management, and participation
+  - name: Videos
+    description: Video upload and transcoding
+  - name: Users
+    description: User search and profiles
+  - name: Friends
+    description: Friend management and social features
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: clx123abc
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        username:
+          type: string
+          example: john_doe
+        avatarUrl:
+          type: string
+          nullable: true
+          example: https://cdn.example.com/avatars/123.jpg
+        createdAt:
+          type: string
+          format: date-time
+
+    Room:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+          example: ABC12345
+        name:
+          type: string
+        ownerId:
+          type: string
+        maxParticipants:
+          type: integer
+          minimum: 2
+          maximum: 5
+        playbackControl:
+          type: string
+          enum: [owner_only, all, selected]
+        hasPassword:
+          type: boolean
+        videoId:
+          type: string
+          nullable: true
+        youtubeVideoId:
+          type: string
+          nullable: true
+        externalUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+
+    RoomParticipant:
+      type: object
+      properties:
+        id:
+          type: string
+        oderId:
+          type: string
+        userId:
+          type: string
+          nullable: true
+        guestName:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [owner, participant, guest]
+        canControl:
+          type: boolean
+        joinedAt:
+          type: string
+          format: date-time
+        user:
+          type: object
+          nullable: true
+          properties:
+            username:
+              type: string
+            avatarUrl:
+              type: string
+              nullable: true
+
+    Video:
+      type: object
+      properties:
+        id:
+          type: string
+        filename:
+          type: string
+        originalSize:
+          type: integer
+          format: int64
+        mimeType:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, ready, failed]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        duration:
+          type: number
+          nullable: true
+        width:
+          type: integer
+          nullable: true
+        height:
+          type: integer
+          nullable: true
+        manifestUrl:
+          type: string
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+        uploaderId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Friendship:
+      type: object
+      properties:
+        id:
+          type: string
+        requesterId:
+          type: string
+        addresseeId:
+          type: string
+        status:
+          type: string
+          enum: [pending, accepted, blocked]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+            details:
+              type: object
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - username
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 30
+                  pattern: '^[a-zA-Z0-9_]+$'
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Email or username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+        '401':
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Logged out successfully
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /rooms:
+    post:
+      tags:
+        - Rooms
+      summary: Create room
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                maxParticipants:
+                  type: integer
+                  minimum: 2
+                  maximum: 5
+                  default: 5
+                password:
+                  type: string
+                  minLength: 4
+                playbackControl:
+                  type: string
+                  enum: [owner_only, all, selected]
+                  default: owner_only
+      responses:
+        '201':
+          description: Room created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /rooms/{code}:
+    get:
+      tags:
+        - Rooms
+      summary: Get room info
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Z0-9]{8}$'
+      responses:
+        '200':
+          description: Room info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  room:
+                    $ref: '#/components/schemas/Room'
+                  participants:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RoomParticipant'
+        '404':
+          description: Room not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags:
+        - Rooms
+      summary: Update room (owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                playbackControl:
+                  type: string
+                  enum: [owner_only, all, selected]
+                videoId:
+                  type: string
+                youtubeVideoId:
+                  type: string
+                externalUrl:
+                  type: string
+      responses:
+        '200':
+          description: Room updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '401':
+          description: Not authenticated
+        '403':
+          description: Not room owner
+        '404':
+          description: Room not found
+
+    delete:
+      tags:
+        - Rooms
+      summary: Delete room (owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Room deleted
+        '401':
+          description: Not authenticated
+        '403':
+          description: Not room owner
+        '404':
+          description: Room not found
+
+  /rooms/{code}/join:
+    post:
+      tags:
+        - Rooms
+      summary: Join room
+      description: Authenticated users or guests can join
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                guestName:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+      responses:
+        '200':
+          description: Joined room
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  participant:
+                    $ref: '#/components/schemas/RoomParticipant'
+        '400':
+          description: Validation error
+        '401':
+          description: Incorrect password
+        '403':
+          description: Room is full
+        '404':
+          description: Room not found
+
+  /rooms/{code}/leave:
+    post:
+      tags:
+        - Rooms
+      summary: Leave room
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Left room
+        '401':
+          description: Not authenticated
+        '404':
+          description: Not a participant
+
+  /videos/upload:
+    post:
+      tags:
+        - Videos
+      summary: Upload video
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Video file (max 8GB)
+      responses:
+        '201':
+          description: Video uploaded, transcoding started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+        '400':
+          description: No file or invalid format
+        '401':
+          description: Not authenticated
+        '413':
+          description: File too large
+
+  /videos/{id}/status:
+    get:
+      tags:
+        - Videos
+      summary: Get video status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Video status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+        '401':
+          description: Not authenticated
+        '403':
+          description: Not the uploader
+        '404':
+          description: Video not found
+
+  /users/search:
+    get:
+      tags:
+        - Users
+      summary: Search users
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 50
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    username:
+                      type: string
+                    avatarUrl:
+                      type: string
+                      nullable: true
+        '400':
+          description: Invalid query
+        '401':
+          description: Not authenticated
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user profile
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Not authenticated
+        '404':
+          description: User not found
+
+  /friends:
+    get:
+      tags:
+        - Friends
+      summary: Get friends list
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Friends list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    status:
+                      type: string
+                    createdAt:
+                      type: string
+                      format: date-time
+                    friend:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        username:
+                          type: string
+                        avatarUrl:
+                          type: string
+                          nullable: true
+        '401':
+          description: Not authenticated
+
+  /friends/requests:
+    get:
+      tags:
+        - Friends
+      summary: Get friend requests
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Friend requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Friendship'
+                  received:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Friendship'
+        '401':
+          description: Not authenticated
+
+  /friends/request:
+    post:
+      tags:
+        - Friends
+      summary: Send friend request
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - addresseeId
+              properties:
+                addresseeId:
+                  type: string
+      responses:
+        '201':
+          description: Friend request sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Friendship'
+        '400':
+          description: Invalid request
+        '401':
+          description: Not authenticated
+        '404':
+          description: User not found
+
+  /friends/accept/{id}:
+    post:
+      tags:
+        - Friends
+      summary: Accept friend request
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Friend request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Friendship'
+        '401':
+          description: Not authenticated
+        '403':
+          description: Not the addressee
+        '404':
+          description: Request not found
+
+  /friends/decline/{id}:
+    delete:
+      tags:
+        - Friends
+      summary: Decline friend request
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Request declined
+        '401':
+          description: Not authenticated
+        '403':
+          description: Not the addressee
+        '404':
+          description: Request not found
+
+  /friends/{id}:
+    delete:
+      tags:
+        - Friends
+      summary: Remove friend
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Friend removed
+        '401':
+          description: Not authenticated
+        '403':
+          description: Not involved in friendship
+        '404':
+          description: Friendship not found
+
+  /friends/block/{id}:
+    post:
+      tags:
+        - Friends
+      summary: Block user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User blocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Friendship'
+        '400':
+          description: Cannot block yourself
+        '401':
+          description: Not authenticated
+        '404':
+          description: User not found

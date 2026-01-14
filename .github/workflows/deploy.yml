@@ -1,0 +1,216 @@
+name: Deploy
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' || inputs.environment == 'staging'
+    environment:
+      name: staging
+      url: https://staging.syncwatch.example.com
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up SSH
+        if: vars.STAGING_DEPLOY_ENABLED == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.STAGING_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to staging server
+        if: vars.STAGING_DEPLOY_ENABLED == 'true'
+        run: |
+          ssh ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
+            cd /opt/syncwatch
+            docker compose pull
+            docker compose up -d --no-build
+            docker compose exec -T backend npm run db:migrate:deploy
+          EOF
+
+      - name: Run health checks
+        if: vars.STAGING_DEPLOY_ENABLED == 'true'
+        run: |
+          sleep 10
+          curl -f https://staging.syncwatch.example.com/health/live || exit 1
+
+      - name: Notify deployment status
+        if: always() && vars.STAGING_DEPLOY_ENABLED == 'true'
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "Staging deployment successful"
+          else
+            echo "Staging deployment failed"
+          fi
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: inputs.environment == 'production'
+    environment:
+      name: production
+      url: https://syncwatch.example.com
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up kubectl
+        if: vars.PRODUCTION_K8S_ENABLED == 'true'
+        uses: azure/setup-kubectl@v3
+
+      - name: Configure kubectl
+        if: vars.PRODUCTION_K8S_ENABLED == 'true'
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+
+      - name: Run database migrations
+        if: vars.PRODUCTION_K8S_ENABLED == 'true'
+        run: |
+          kubectl run migration-${{ github.sha }} \
+            --image=ghcr.io/${{ github.repository }}/backend:${{ github.ref == 'refs/heads/main' && 'main' || github.sha }} \
+            --restart=Never \
+            --env="DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
+            --command -- npm run db:migrate:deploy
+          kubectl wait --for=condition=complete --timeout=300s job/migration-${{ github.sha }}
+
+      - name: Deploy backend (Rolling update)
+        if: vars.PRODUCTION_K8S_ENABLED == 'true'
+        run: |
+          kubectl set image deployment/syncwatch-backend \
+            backend=ghcr.io/${{ github.repository }}/backend:${{ github.ref == 'refs/heads/main' && 'main' || github.sha }}
+          kubectl rollout status deployment/syncwatch-backend --timeout=5m
+
+      - name: Deploy frontend (Rolling update)
+        if: vars.PRODUCTION_K8S_ENABLED == 'true'
+        run: |
+          kubectl set image deployment/syncwatch-frontend \
+            frontend=ghcr.io/${{ github.repository }}/frontend:${{ github.ref == 'refs/heads/main' && 'main' || github.sha }}
+          kubectl rollout status deployment/syncwatch-frontend --timeout=5m
+
+      - name: Deploy transcoder (Rolling update)
+        if: vars.PRODUCTION_K8S_ENABLED == 'true'
+        run: |
+          kubectl set image deployment/syncwatch-transcoder \
+            transcoder=ghcr.io/${{ github.repository }}/transcoder:${{ github.ref == 'refs/heads/main' && 'main' || github.sha }}
+          kubectl rollout status deployment/syncwatch-transcoder --timeout=5m
+
+      - name: Run health checks
+        if: vars.PRODUCTION_K8S_ENABLED == 'true'
+        run: |
+          sleep 10
+          curl -f https://syncwatch.example.com/health/live || exit 1
+
+      - name: Rollback on failure
+        if: failure() && vars.PRODUCTION_K8S_ENABLED == 'true'
+        run: |
+          kubectl rollout undo deployment/syncwatch-backend
+          kubectl rollout undo deployment/syncwatch-frontend
+          kubectl rollout undo deployment/syncwatch-transcoder
+          echo "Deployment failed - rolled back to previous version"
+
+      - name: Notify deployment status
+        if: always() && vars.PRODUCTION_K8S_ENABLED == 'true'
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "Production deployment successful"
+          else
+            echo "Production deployment failed and rolled back"
+          fi
+
+  # Alternative: Docker Compose deployment (simpler setup)
+  deploy-production-compose:
+    name: Deploy to Production (Docker Compose)
+    runs-on: ubuntu-latest
+    if: inputs.environment == 'production' && vars.PRODUCTION_COMPOSE_ENABLED == 'true'
+    environment:
+      name: production
+      url: https://syncwatch.example.com
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Run database migrations
+        run: |
+          ssh ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'EOF'
+            cd /opt/syncwatch
+            docker compose run --rm backend npm run db:migrate:deploy
+          EOF
+
+      - name: Deploy with rolling update
+        run: |
+          ssh ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'EOF'
+            cd /opt/syncwatch
+            docker compose pull
+            # Rolling update - update one service at a time
+            docker compose up -d --no-deps --no-build backend
+            sleep 10
+            docker compose up -d --no-deps --no-build frontend
+            docker compose up -d --no-deps --no-build transcoder
+          EOF
+
+      - name: Run health checks
+        run: |
+          sleep 10
+          curl -f https://syncwatch.example.com/health/live || exit 1
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "Production deployment successful"
+          else
+            echo "Production deployment failed"
+          fi
