@@ -400,3 +400,176 @@ export const RATE_LIMITS = {
   fileUpload: { max: 3, windowMs: 60 * 60 * 1000 }, // 3 per hour
   apiRequests: { max: 100, windowMs: 60 * 1000 }, // 100 per minute
 } as const;
+
+// ============================================
+// Room Lifecycle & Smart Ownership Types
+// ============================================
+
+// Temporary Host
+export type HostPermission =
+  | 'playback_control'
+  | 'source_change'
+  | 'kick_users'
+  | 'manage_permissions';
+
+export interface TemporaryHostSession {
+  id: string;
+  roomId: string;
+  permanentOwnerId: string;
+  temporaryHostId: string;
+  grantedAt: Date;
+  expiresAt: Date | null;
+  permissions: HostPermission[];
+  revoked: boolean;
+}
+
+export interface GrantTemporaryHostRequest {
+  targetUserId: string;
+  permissions: HostPermission[];
+  durationMs?: number;
+}
+
+// Voting
+export type PlaybackVoteType = 'pause' | 'resume';
+export type VoteChoice = 'yes' | 'no';
+
+export interface PlaybackVote {
+  id: string;
+  roomId: string;
+  type: PlaybackVoteType;
+  initiatedBy: string;
+  initiatedAt: Date;
+  expiresAt: Date;
+  threshold: number;
+  votes: Record<string, VoteChoice>;
+  resolved: boolean;
+  passed: boolean;
+}
+
+export interface InitiateVoteRequest {
+  type: PlaybackVoteType;
+}
+
+export interface CastVoteRequest {
+  choice: VoteChoice;
+}
+
+export interface VoteResults {
+  voteId: string;
+  type: PlaybackVoteType;
+  yesVotes: number;
+  noVotes: number;
+  threshold: number;
+  passed: boolean;
+  resolved: boolean;
+}
+
+// Participant Metrics
+export interface ParticipantMetrics {
+  userId: string;
+  avgLatencyMs: number;
+  packetLossPercent: number;
+  connectionUptime: number;
+  stabilityScore: number;
+}
+
+export type ConnectionQuality = 'excellent' | 'good' | 'fair' | 'poor';
+
+// Scheduled Rooms
+export type ScheduledRoomStatus = 'scheduled' | 'active' | 'cancelled' | 'expired';
+
+export interface ScheduledRoom {
+  id: string;
+  creatorId: string;
+  scheduledFor: Date;
+  timezone: string;
+  name: string;
+  code: string;
+  maxParticipants: number;
+  hasPassword: boolean;
+  playbackControl: PlaybackControlMode;
+  status: ScheduledRoomStatus;
+  remindersSent: boolean;
+  invitedUsers: string[];
+  activatedRoomId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateScheduledRoomRequest {
+  scheduledFor: Date;
+  timezone?: string;
+  name: string;
+  maxParticipants?: number;
+  password?: string;
+  playbackControl?: PlaybackControlMode;
+  videoId?: string;
+  youtubeVideoId?: string;
+  externalUrl?: string;
+  invitedUsers?: string[];
+}
+
+// Room History
+export interface RoomHistoryEntry {
+  id: string;
+  roomId: string;
+  userId: string;
+  roomName: string;
+  sourceType: VideoSourceType;
+  sourceData: Record<string, any>;
+  watchedAt: Date;
+  watchDurationMs: number;
+  participants: string[];
+  thumbnail?: string;
+  isVisible: boolean;
+}
+
+// Room Templates
+export interface RoomSettings {
+  maxParticipants: number;
+  playbackControl: PlaybackControlMode;
+  voiceEnabled?: boolean;
+  chatEnabled?: boolean;
+  readyCheckEnabled?: boolean;
+  countdownEnabled?: boolean;
+  autoHandover?: boolean;
+  privacyPreset?: 'public' | 'friends_only' | 'private';
+  ownerLock?: boolean;
+}
+
+export interface RoomTemplate {
+  id: string;
+  userId: string;
+  name: string;
+  isDefault: boolean;
+  settings: RoomSettings;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateRoomTemplateRequest {
+  name: string;
+  isDefault?: boolean;
+  settings: RoomSettings;
+}
+
+// WebSocket Events for Room Lifecycle
+export interface RoomLifecycleClientEvents {
+  'temp-host:grant': (data: GrantTemporaryHostRequest) => void;
+  'temp-host:revoke': (data: { userId: string }) => void;
+  'vote:initiate': (data: InitiateVoteRequest) => void;
+  'vote:cast': (data: { voteId: string; choice: VoteChoice }) => void;
+  'metrics:update': (data: Partial<ParticipantMetrics>) => void;
+}
+
+export interface RoomLifecycleServerEvents {
+  'temp-host:granted': (data: TemporaryHostSession) => void;
+  'temp-host:revoked': (data: { userId: string }) => void;
+  'vote:started': (data: PlaybackVote) => void;
+  'vote:updated': (data: PlaybackVote) => void;
+  'vote:resolved': (data: VoteResults) => void;
+  'room:idle-warning': (data: { minutesRemaining: number }) => void;
+  'room:closing': (data: { reason: string }) => void;
+  'scheduled-room:activated': (data: { roomId: string; code: string }) => void;
+  'scheduled-room:reminder': (data: { scheduledRoomId: string; minutesUntil: number }) => void;
+}
