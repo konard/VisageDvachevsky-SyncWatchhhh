@@ -26,8 +26,18 @@ import {
   SyncPauseEvent,
   SyncSeekEvent,
   SyncRateEvent,
+  SyncResyncEvent,
   SyncCommandEvent,
   SyncStateEvent,
+  ReadyInitiateEvent,
+  ReadyRespondEvent,
+  ReadyStartEvent,
+  ReadyUpdateEvent,
+  ReadyCompleteEvent,
+  ReadyTimeoutEvent,
+  CountdownStartEvent,
+  CountdownTickEvent,
+  CountdownCompleteEvent,
 } from './events.js';
 
 // ============================================
@@ -47,6 +57,9 @@ export interface ClientToServerEvents {
   'sync:pause': (data: SyncPauseEvent) => void;
   'sync:seek': (data: SyncSeekEvent) => void;
   'sync:rate': (data: SyncRateEvent) => void;
+  'sync:resync': (data: SyncResyncEvent) => void;
+  'ready:initiate': (data: ReadyInitiateEvent) => void;
+  'ready:respond': (data: ReadyRespondEvent) => void;
 }
 
 export interface ServerToClientEvents {
@@ -66,6 +79,13 @@ export interface ServerToClientEvents {
   'time:pong': (data: TimePongEvent) => void;
   'sync:command': (data: SyncCommandEvent) => void;
   'sync:state': (data: SyncStateEvent) => void;
+  'ready:start': (data: ReadyStartEvent) => void;
+  'ready:update': (data: ReadyUpdateEvent) => void;
+  'ready:complete': (data: ReadyCompleteEvent) => void;
+  'ready:timeout': (data: ReadyTimeoutEvent) => void;
+  'countdown:start': (data: CountdownStartEvent) => void;
+  'countdown:tick': (data: CountdownTickEvent) => void;
+  'countdown:complete': (data: CountdownCompleteEvent) => void;
 }
 
 export interface InterServerEvents {

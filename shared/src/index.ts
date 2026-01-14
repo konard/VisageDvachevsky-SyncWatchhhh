@@ -113,6 +113,50 @@ export type SyncCommand =
   | { type: 'STATE_SNAPSHOT'; state: PlaybackState };
 
 // ============================================
+// Ready Check Types
+// ============================================
+
+export type ReadyStatus = 'pending' | 'ready' | 'not_ready' | 'timeout';
+
+export interface ReadyCheckParticipant {
+  userId: string;
+  username: string;
+  status: ReadyStatus;
+}
+
+export interface ReadyCheck {
+  checkId: string;
+  roomId: string;
+  initiatedBy: string;
+  participants: ReadyCheckParticipant[];
+  timeoutMs: number;
+  createdAt: number;
+}
+
+// ============================================
+// Countdown Types
+// ============================================
+
+export interface CountdownConfig {
+  durationMs: number;
+  steps: (number | string)[];
+  serverStartTime: number;
+}
+
+// ============================================
+// Sync Indicator Types
+// ============================================
+
+export type SyncIndicatorStatus = 'synced' | 'drifting' | 'desynced';
+
+export interface SyncIndicator {
+  status: SyncIndicatorStatus;
+  driftMs: number;
+  color: 'green' | 'yellow' | 'red';
+  showResyncButton: boolean;
+}
+
+// ============================================
 // Chat Types
 // ============================================
 
@@ -261,6 +305,11 @@ export interface ClientToServerEvents {
   'sync:seek': (data: { targetMediaTime: number; atServerTime: number }) => void;
   'sync:rate': (data: { rate: number; atServerTime: number }) => void;
   'sync:report': (data: { currentTime: number; isPlaying: boolean }) => void;
+  'sync:resync': () => void;
+
+  // Ready check events
+  'ready:initiate': () => void;
+  'ready:respond': (data: { checkId: string; status: 'ready' | 'not_ready' }) => void;
 
   // Chat events
   'chat:message': (data: { content: string }) => void;
@@ -286,6 +335,17 @@ export interface ServerToClientEvents {
   // Sync events
   'sync:command': (data: SyncCommand) => void;
   'sync:state': (data: PlaybackState) => void;
+
+  // Ready check events
+  'ready:start': (data: ReadyCheck) => void;
+  'ready:update': (data: ReadyCheck) => void;
+  'ready:complete': (data: { checkId: string; allReady: boolean }) => void;
+  'ready:timeout': (data: { checkId: string }) => void;
+
+  // Countdown events
+  'countdown:start': (data: CountdownConfig) => void;
+  'countdown:tick': (data: { step: number | string; remaining: number }) => void;
+  'countdown:complete': () => void;
 
   // Chat events
   'chat:message': (data: ChatMessage) => void;
@@ -314,6 +374,24 @@ export const MAX_UPLOAD_SIZE_BYTES = 8 * 1024 * 1024 * 1024; // 8 GB
 export const SYNC_TOLERANCE_MS = 300;
 export const HARD_SYNC_THRESHOLD_MS = 500;
 export const SOFT_SYNC_RATE_ADJUST = 0.02;
+
+// Ready check and countdown constants
+export const READY_CHECK_TIMEOUT_MS = 30000; // 30 seconds
+export const COUNTDOWN_DURATION_MS = 3000; // 3 seconds
+export const COUNTDOWN_STEPS = [3, 2, 1, 'GO!'];
+export const COUNTDOWN_SYNC_BUFFER_MS = 200; // 200ms buffer for network latency
+
+// Sync indicator thresholds
+export const SYNC_THRESHOLDS = {
+  synced: 150, // < 150ms = green
+  drifting: 500, // 150-500ms = yellow
+  desynced: 500, // > 500ms = red + resync button
+} as const;
+
+// Soft resync settings
+export const SOFT_RESYNC_THRESHOLD_MS = 1000; // Use soft resync for drift < 1 second
+export const SOFT_RESYNC_RATE_FAST = 1.03; // 3% faster
+export const SOFT_RESYNC_RATE_SLOW = 0.97; // 3% slower
 
 // Rate limits
 export const RATE_LIMITS = {
