@@ -11,10 +11,12 @@ import {
   SyncPauseEvent,
   SyncSeekEvent,
   SyncRateEvent,
+  SyncResyncEvent,
   SyncPlayEventSchema,
   SyncPauseEventSchema,
   SyncSeekEventSchema,
   SyncRateEventSchema,
+  SyncResyncEventSchema,
   ErrorCodes,
   ServerEvents,
   SyncCommand,
@@ -26,6 +28,7 @@ import { roomService } from '../../modules/room/room.service.js';
 import { roomStateService } from '../../modules/room/state.service.js';
 import { logger } from '../../config/logger.js';
 import { stateRedis } from '../../config/redis.js';
+import * as analyticsTracker from '../analytics-tracker.js';
 
 type SyncNamespace = Namespace<
   ClientToServerEvents,
@@ -196,6 +199,11 @@ export const handleSyncPlay = async (
 
     io.to(room.code).emit(ServerEvents.SYNC_COMMAND, { command });
 
+    // Track analytics event (async, don't await)
+    analyticsTracker.trackSyncPlay(socket, room.id).catch(err =>
+      logger.error({ error: err }, 'Failed to track sync play event')
+    );
+
     logger.info(
       {
         roomId: room.id,
@@ -295,6 +303,11 @@ export const handleSyncPause = async (
 
     io.to(room.code).emit(ServerEvents.SYNC_COMMAND, { command });
 
+    // Track analytics event (async, don't await)
+    analyticsTracker.trackSyncPause(socket, room.id).catch(err =>
+      logger.error({ error: err }, 'Failed to track sync pause event')
+    );
+
     logger.info(
       {
         roomId: room.id,
@@ -386,6 +399,11 @@ export const handleSyncSeek = async (
     };
 
     io.to(room.code).emit(ServerEvents.SYNC_COMMAND, { command });
+
+    // Track analytics event (async, don't await)
+    analyticsTracker.trackSyncSeek(socket, room.id, validatedData.targetMediaTime).catch(err =>
+      logger.error({ error: err }, 'Failed to track sync seek event')
+    );
 
     logger.info(
       {
@@ -488,6 +506,11 @@ export const handleSyncRate = async (
 
     io.to(room.code).emit(ServerEvents.SYNC_COMMAND, { command });
 
+    // Track analytics event (async, don't await)
+    analyticsTracker.trackSyncRateChange(socket, room.id, validatedData.rate).catch(err =>
+      logger.error({ error: err }, 'Failed to track sync rate change event')
+    );
+
     logger.info(
       {
         roomId: room.id,
@@ -506,6 +529,58 @@ export const handleSyncRate = async (
     socket.emit(ServerEvents.ROOM_ERROR, {
       code: ErrorCodes.INTERNAL_ERROR,
       message: 'Failed to process rate change command',
+    });
+  }
+};
+
+/**
+ * Handle sync:resync event
+ * Sends fresh playback state snapshot to requesting client
+ */
+export const handleSyncResync = async (
+  socket: Socket,
+  io: SyncNamespace,
+  data: SyncResyncEvent
+): Promise<void> => {
+  try {
+    // Validate input
+    SyncResyncEventSchema.parse(data);
+
+    // Validate room membership
+    const roomInfo = await validateInRoom(socket);
+    if (!roomInfo) return;
+
+    const { room, participant } = roomInfo;
+
+    // Get current playback state
+    const currentState = await roomStateService.getPlaybackState(room.id);
+    if (!currentState) {
+      socket.emit(ServerEvents.ROOM_ERROR, {
+        code: ErrorCodes.INTERNAL_ERROR,
+        message: 'No playback state found',
+      });
+      return;
+    }
+
+    // Send fresh state snapshot to requesting client only
+    socket.emit(ServerEvents.SYNC_STATE, { state: currentState });
+
+    logger.info(
+      {
+        roomId: room.id,
+        oderId: participant.oderId,
+        sequenceNumber: currentState.sequenceNumber,
+      },
+      'Manual resync state sent'
+    );
+  } catch (error) {
+    logger.error(
+      { error: (error as Error).message, stack: (error as Error).stack },
+      'Error handling sync:resync'
+    );
+    socket.emit(ServerEvents.ROOM_ERROR, {
+      code: ErrorCodes.INTERNAL_ERROR,
+      message: 'Failed to process resync request',
     });
   }
 };

@@ -1,0 +1,12 @@
+# Example Terraform S3 Backend Configuration
+# Copy this file to backend.hcl and fill in your values
+
+bucket = "syncwatch-terraform-state"
+key    = "staging/terraform.tfstate"  # or production/terraform.tfstate
+region = "us-east-1"
+
+# Optional: Enable encryption
+encrypt = true
+
+# Optional: DynamoDB table for state locking
+# dynamodb_table = "syncwatch-terraform-locks"

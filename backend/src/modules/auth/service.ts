@@ -2,6 +2,7 @@ import { prisma } from '../../common/utils/prisma.js';
 import { hashPassword, verifyPassword } from '../../common/utils/password.js';
 import { generateAccessToken, generateRefreshToken, TokenPayload } from '../../common/utils/jwt.js';
 import { RegisterInput, LoginInput } from './schemas.js';
+import { auditLogger } from '../../common/services/audit-logger.js';
 
 export interface AuthResponse {
   user: {
@@ -19,7 +20,7 @@ export class AuthService {
   /**
    * Register a new user
    */
-  async register(input: RegisterInput): Promise<AuthResponse> {
+  async register(input: RegisterInput, ip: string = 'unknown'): Promise<AuthResponse> {
     const { email, username, password } = input;
 
     // Check if user already exists
@@ -65,6 +66,20 @@ export class AuthService {
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = await generateRefreshToken(user.id);
 
+    // Log audit event
+    await auditLogger.log({
+      eventType: 'auth.register',
+      actorId: user.id,
+      actorIp: ip,
+      targetType: 'user',
+      targetId: user.id,
+      metadata: {
+        email: user.email,
+        username: user.username,
+      },
+      success: true,
+    });
+
     return {
       user,
       accessToken,
@@ -75,7 +90,7 @@ export class AuthService {
   /**
    * Login existing user
    */
-  async login(input: LoginInput): Promise<AuthResponse> {
+  async login(input: LoginInput, ip: string = 'unknown'): Promise<AuthResponse> {
     const { email, password } = input;
 
     // Find user
@@ -92,12 +107,37 @@ export class AuthService {
     });
 
     if (!user) {
+      // Log failed login attempt
+      await auditLogger.log({
+        eventType: 'auth.login_failed',
+        actorIp: ip,
+        targetType: 'user',
+        targetId: 'unknown',
+        metadata: {
+          email,
+          reason: 'user_not_found',
+        },
+        success: false,
+      });
       throw new Error('Invalid email or password');
     }
 
     // Verify password
     const isValid = await verifyPassword(password, user.passwordHash);
     if (!isValid) {
+      // Log failed login attempt
+      await auditLogger.log({
+        eventType: 'auth.login_failed',
+        actorId: user.id,
+        actorIp: ip,
+        targetType: 'user',
+        targetId: user.id,
+        metadata: {
+          email,
+          reason: 'invalid_password',
+        },
+        success: false,
+      });
       throw new Error('Invalid email or password');
     }
 
@@ -113,6 +153,19 @@ export class AuthService {
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, ...userWithoutPassword } = user;
+
+    // Log successful login
+    await auditLogger.log({
+      eventType: 'auth.login',
+      actorId: user.id,
+      actorIp: ip,
+      targetType: 'user',
+      targetId: user.id,
+      metadata: {
+        email: user.email,
+      },
+      success: true,
+    });
 
     return {
       user: userWithoutPassword,

@@ -4,6 +4,7 @@ import { registerSchema, loginSchema, refreshSchema } from './schemas.js';
 import { authenticateRequired } from '../../common/middleware/auth.js';
 import { verifyRefreshToken, generateAccessToken, revokeRefreshToken } from '../../common/utils/jwt.js';
 import { prisma } from '../../common/utils/prisma.js';
+import { getClientIp } from '../../common/middleware/brute-force-protection.js';
 
 const authService = new AuthService();
 
@@ -24,7 +25,8 @@ export async function authRoutes(fastify: FastifyInstance) {
     handler: async (request, reply) => {
       try {
         const body = registerSchema.parse(request.body);
-        const result = await authService.register(body);
+        const ip = getClientIp(request);
+        const result = await authService.register(body, ip);
         return reply.status(201).send(result);
       } catch (error) {
         if (error instanceof Error) {
@@ -53,7 +55,8 @@ export async function authRoutes(fastify: FastifyInstance) {
     handler: async (request, reply) => {
       try {
         const body = loginSchema.parse(request.body);
-        const result = await authService.login(body);
+        const ip = getClientIp(request);
+        const result = await authService.login(body, ip);
         return reply.status(200).send(result);
       } catch (error) {
         if (error instanceof Error) {

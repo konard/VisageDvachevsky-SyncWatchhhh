@@ -21,3 +21,12 @@ export type { Orientation } from './useOrientation';
 
 // Sound hook
 export { useSound } from './useSound';
+
+// Error handling hooks
+export { useApiError } from './useApiError';
+export { useVideoError, YouTubeErrorCode } from './useVideoError';
+export { useVoiceError, VoiceErrorType } from './useVoiceError';
+
+// WebSocket hooks
+export { useSocket, useRoom } from './websocket';
+export type { ConnectionStatus } from './websocket';

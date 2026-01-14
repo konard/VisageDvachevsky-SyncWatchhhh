@@ -8,6 +8,7 @@ import multipart from '@fastify/multipart';
 import { VideoService } from './service.js';
 import { authenticateRequired } from '../../common/middleware/auth.js';
 import { BadRequestError } from '../../common/errors/index.js';
+import { getClientIp } from '../../common/middleware/brute-force-protection.js';
 
 const videoService = new VideoService();
 
@@ -42,8 +43,11 @@ export async function videoRoutes(fastify: FastifyInstance) {
           throw new BadRequestError('No file uploaded');
         }
 
-        // Process upload
-        const result = await videoService.uploadVideo(request.user.userId, data);
+        // Get client IP
+        const ip = getClientIp(request);
+
+        // Process upload with security validation
+        const result = await videoService.uploadVideo(request.user.userId, data, ip);
 
         return reply.status(201).send(result);
       } catch (error) {

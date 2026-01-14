@@ -29,6 +29,10 @@ export const createRoomSchema = z.object({
     .enum(['owner_only', 'all', 'selected'])
     .optional()
     .default('owner_only'),
+  privacyPreset: z
+    .enum(['public', 'friends_only', 'private', 'anonymous'])
+    .optional()
+    .default('public'),
 });
 
 export const joinRoomSchema = z.object({
@@ -59,6 +63,9 @@ export const updateRoomSchema = z.object({
     .nullable()
     .optional(),
   playbackControl: z.enum(['owner_only', 'all', 'selected']).optional(),
+  privacyPreset: z
+    .enum(['public', 'friends_only', 'private', 'anonymous'])
+    .optional(),
 });
 
 export type CreateRoomInput = z.infer<typeof createRoomSchema>;

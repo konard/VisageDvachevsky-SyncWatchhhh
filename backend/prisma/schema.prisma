@@ -29,6 +29,9 @@ model User {
   uploadedVideos         Video[]
   refreshTokens          RefreshToken[]
   settings               UserSettings?
+  reportsCreated         UserReport[]      @relation("ReportCreator")
+  reportsReceived        UserReport[]      @relation("ReportTarget")
+  reactions              VideoReaction[]
 
   @@index([email])
   @@index([username])
@@ -65,6 +68,15 @@ model UserSettings {
   // Display settings
   theme String @default("dark") // dark, light, auto
 
+  // Privacy settings
+  forceRelay       Boolean @default(false) // Force TURN-only mode (hide IP)
+  hideFromSearch   Boolean @default(false)
+  blockNonFriends  Boolean @default(false)
+  // Presence settings
+  invisibleMode       Boolean @default(false)
+  showRichPresence    Boolean @default(true)
+  allowFriendJoin     Boolean @default(true)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -85,8 +97,10 @@ model Room {
   maxParticipants Int      @default(5)
   passwordHash    String?
   playbackControl String   @default("owner_only") // owner_only, all, selected
+  ownerLock       Boolean  @default(true) // Prevent owner from being kicked
   createdAt       DateTime @default(now())
   expiresAt       DateTime
+  lastActivityAt  DateTime @default(now()) // For idle room detection
 
   // Current video (optional)
   videoId String?
@@ -98,14 +112,29 @@ model Room {
   // External source URL (if applicable)
   externalUrl String?
 
+  // Privacy preset: public, friends_only, private, anonymous
+  privacyPreset String  @default("public")
+
+  // Privacy settings (derived from preset or custom)
+  allowAnonymous    Boolean @default(true)
+  requireAuth       Boolean @default(false)
+  showRealNames     Boolean @default(true)
+  forceRelayMode    Boolean @default(false) // Force TURN-only connections
+
   // Relations
-  owner        User              @relation("RoomOwner", fields: [ownerId], references: [id])
-  participants RoomParticipant[]
-  messages     ChatMessage[]
+  owner              User                  @relation("RoomOwner", fields: [ownerId], references: [id])
+  participants       RoomParticipant[]
+  messages           ChatMessage[]
+  reports            UserReport[]
+  temporaryHosts     TemporaryHost[]
+  playbackVotes      PlaybackVote[]
+  participantMetrics ParticipantMetrics[]
+  historyEntries     RoomHistory[]
 
   @@index([code])
   @@index([ownerId])
   @@index([expiresAt])
+  @@index([lastActivityAt])
 }
 
 model RoomParticipant {
@@ -201,4 +230,359 @@ model Friendship {
   @@unique([requesterId, addresseeId])
   @@index([requesterId, status])
   @@index([addresseeId, status])
+}
+
+// ============================================
+// Security & Audit Logging
+// ============================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  timestamp  DateTime @default(now())
+  eventType  String // e.g., 'room.created', 'auth.login', 'participant.kicked'
+  actorId    String? // User who performed the action (null for system events)
+  actorIp    String // IP address of the actor
+  targetType String // 'room', 'user', 'video', 'system'
+  targetId   String // ID of the target entity
+  metadata   Json // Additional event-specific data
+  success    Boolean  @default(true) // Whether the action succeeded
+
+  @@index([timestamp])
+  @@index([actorId])
+  @@index([targetId])
+  @@index([eventType])
+  @@index([eventType, timestamp])
+}
+
+// ============================================
+// Moderation & Abuse Protection
+// ============================================
+
+model UserReport {
+  id              String   @id @default(cuid())
+  reporterId      String
+  reportedUserId  String
+  roomId          String
+  reason          String // harassment, inappropriate_content, spam, cheating, hate_speech, other
+  description     String?
+  evidence        Json? // { chatLogs: string[], timestamp: Date }
+  status          String   @default("pending") // pending, reviewed, actioned, dismissed
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  reporter User @relation("ReportCreator", fields: [reporterId], references: [id])
+  reported User @relation("ReportTarget", fields: [reportedUserId], references: [id])
+  room     Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([reportedUserId])
+  @@index([roomId])
+  @@index([status])
+  @@index([createdAt])
+// Social Features - Reactions
+// ============================================
+
+model VideoReaction {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String?  // null for guest reactions (if allowed)
+  guestName String?  // For guest reactions
+  emoji     String   // Single emoji character
+
+  // Position on video overlay (percentage-based)
+  positionX Float    // 0-100
+  positionY Float    // 0-100
+
+  // Timeline position
+  mediaTimeMs Int    // Video timestamp in milliseconds
+
+  // Animation type
+  animation String   @default("float") // float, burst, bounce
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([roomId, mediaTimeMs])
+  @@index([roomId, createdAt])
+  @@index([userId])
+// Product Analytics
+// ============================================
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+
+  // Session identification
+  sessionId String   // Unique per user session
+  userId    String?  // null for guests
+  roomId    String?  // null for non-room events
+
+  // Event classification
+  eventName String   // e.g., 'session.start', 'sync.play', 'voice.join'
+  category  String   // 'session', 'sync', 'voice', 'chat', 'funnel'
+
+  // Event data
+  properties Json     // Event-specific properties
+
+  // User agent and platform
+  userAgent String?
+  platform  String?  // 'web', 'mobile'
+
+  @@index([timestamp])
+  @@index([sessionId])
+  @@index([userId, timestamp])
+  @@index([roomId, timestamp])
+  @@index([eventName, timestamp])
+  @@index([category, timestamp])
+}
+
+model SyncCorrectionLog {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+
+  roomId    String
+  userId    String?
+  sessionId String
+
+  // Correction details
+  correctionType String // 'soft', 'hard'
+  driftMs        Int    // Drift in milliseconds
+  targetTimeMs   Int    // Target media time
+  actualTimeMs   Int    // Actual media time before correction
+
+  // Context
+  videoSource String? // 'youtube', 'uploaded', 'external'
+  playbackRate Float  @default(1.0)
+  wasPlaying   Boolean
+
+  @@index([roomId, timestamp])
+  @@index([correctionType, timestamp])
+  @@index([sessionId, timestamp])
+}
+
+model VoiceJoinAttempt {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+
+  roomId    String
+  userId    String?
+  sessionId String
+
+  // Join outcome
+  success      Boolean
+  failureReason String? // 'ice_failed', 'media_permission_denied', 'timeout', etc.
+  joinTimeMs   Int?    // Time taken to successfully join (null if failed)
+
+  // WebRTC diagnostics
+  iceState         String? // 'new', 'checking', 'connected', 'completed', 'failed'
+  candidatesCount  Int?
+  turnUsed         Boolean @default(false)
+
+  @@index([roomId, timestamp])
+  @@index([success, timestamp])
+  @@index([sessionId, timestamp])
+}
+
+model FunnelStep {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+
+  sessionId String
+  userId    String?
+
+  // Funnel progression
+  stepName  String   // 'visit', 'create_room', 'add_video', 'invite', 'play', 'complete'
+  stepOrder Int      // 1, 2, 3, 4, 5, 6
+  completed Boolean  @default(true)
+
+  // Context
+  roomId    String?
+  metadata  Json?    // Additional step-specific data
+
+  @@index([sessionId, stepOrder])
+  @@index([stepName, timestamp])
+  @@index([userId, timestamp])
+}
+
+// ============================================
+// Diagnostics & Debug Logs
+// ============================================
+
+model DiagnosticsSnapshot {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+
+  roomId    String
+  userId    String?
+  sessionId String
+
+  // Network metrics
+  latencyMs   Int?
+  jitterMs    Int?
+  packetLoss  Float?  // Percentage
+
+  // Sync metrics
+  serverTimeMs  BigInt
+  localTimeMs   BigInt
+  clockOffsetMs Int
+  driftMs       Int
+  bufferHealth  Float?  // 0.0 to 1.0
+  playbackRate  Float
+
+  // Voice metrics
+  voiceState    String? // 'connected', 'disconnected', 'connecting'
+  audioLevel    Float?  // 0.0 to 1.0
+  iceState      String?
+
+  // Socket metrics
+  socketState       String  // 'connected', 'disconnected', 'reconnecting'
+  reconnectAttempts Int     @default(0)
+
+  @@index([roomId, timestamp])
+  @@index([sessionId, timestamp])
+}
+
+// ============================================
+// Smart Ownership & Room Lifecycle
+// ============================================
+
+// Temporary Host Sessions
+model TemporaryHost {
+  id              String   @id @default(cuid())
+  roomId          String
+  permanentOwnerId String
+  temporaryHostId String
+  grantedAt       DateTime @default(now())
+  expiresAt       DateTime? // null = until revoked
+  permissions     Json // Array of HostPermission strings
+  revoked         Boolean  @default(false)
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, temporaryHostId])
+  @@index([roomId])
+  @@index([temporaryHostId])
+  @@index([expiresAt])
+}
+
+// Playback Voting System
+model PlaybackVote {
+  id           String   @id @default(cuid())
+  roomId       String
+  type         String // 'pause' | 'resume'
+  initiatedBy  String
+  initiatedAt  DateTime @default(now())
+  expiresAt    DateTime
+  threshold    Int // Number of votes needed to pass
+  votes        Json // Map of userId to 'yes' | 'no'
+  resolved     Boolean  @default(false)
+  passed       Boolean  @default(false)
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([resolved])
+  @@index([expiresAt])
+}
+
+// Participant Network Metrics for Auto-Host Selection
+model ParticipantMetrics {
+  id                String   @id @default(cuid())
+  roomId            String
+  userId            String
+  avgLatencyMs      Float    @default(0)
+  packetLossPercent Float    @default(0)
+  connectionUptime  BigInt   @default(0) // milliseconds
+  stabilityScore    Float    @default(0) // Computed score
+  lastUpdated       DateTime @default(now())
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@index([userId])
+}
+
+// Scheduled Rooms
+model ScheduledRoom {
+  id            String   @id @default(cuid())
+  creatorId     String
+  scheduledFor  DateTime
+  timezone      String   @default("UTC")
+  name          String
+  code          String   @unique // Pre-generated invite code
+  maxParticipants Int    @default(5)
+  passwordHash  String?
+  playbackControl String @default("owner_only")
+
+  // Video source (optional, can be set later)
+  videoId        String?
+  youtubeVideoId String?
+  externalUrl    String?
+
+  // Lifecycle
+  status         String   @default("scheduled") // scheduled, active, cancelled, expired
+  remindersSent  Boolean  @default(false)
+  invitedUsers   Json     @default("[]") // Array of user IDs
+
+  // Activation
+  activatedRoomId String? // ID of the actual Room when activated
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([creatorId])
+  @@index([scheduledFor])
+  @@index([status])
+  @@index([code])
+}
+
+// Room Watch History
+model RoomHistory {
+  id              String   @id @default(cuid())
+  roomId          String
+  userId          String
+  roomName        String
+
+  // Source information
+  sourceType      String // 'upload', 'youtube', 'external'
+  sourceData      Json // Stores video metadata or URL
+
+  // Session data
+  watchedAt       DateTime @default(now())
+  watchDurationMs BigInt // How long the user watched
+  participants    Json // Array of participant names/IDs
+  thumbnail       String? // Thumbnail URL if available
+
+  // Privacy
+  isVisible       Boolean  @default(true) // User can hide history entries
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([userId, watchedAt])
+  @@index([roomId])
+}
+
+// Room Templates
+model RoomTemplate {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  isDefault Boolean  @default(false)
+  settings  Json // RoomSettings object
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, isDefault])
 }

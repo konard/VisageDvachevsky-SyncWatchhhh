@@ -15,9 +15,11 @@ import {
 } from '../types/events.js';
 import { chatService } from '../../modules/chat/index.js';
 import { roomService } from '../../modules/room/room.service.js';
+import { moderationService } from '../../modules/moderation/index.js';
 import { prisma } from '../../config/prisma.js';
 import { logger } from '../../config/logger.js';
 import { checkRateLimit } from '../middleware/rate-limit.js';
+import * as analyticsTracker from '../analytics-tracker.js';
 
 type SyncNamespace = Namespace<
   ClientToServerEvents,
@@ -105,6 +107,43 @@ export const handleChatMessage = async (
       return;
     }
 
+    // Check if user is muted
+    const isMuted = await moderationService.isMuted(room.id, participant.userId, 'chat');
+    if (isMuted) {
+      socket.emit(ServerEvents.CHAT_ERROR, {
+        code: ErrorCodes.FORBIDDEN,
+        message: 'You are temporarily muted and cannot send messages',
+      });
+      return;
+    }
+
+    // Check auto-moderation rules
+    const autoModResult = await moderationService.checkAutoModeration(
+      room.id,
+      participant.userId,
+      validatedData.content
+    );
+
+    if (!autoModResult.allowed) {
+      socket.emit(ServerEvents.CHAT_ERROR, {
+        code: ErrorCodes.FORBIDDEN,
+        message: autoModResult.reason || 'Message blocked by auto-moderation',
+      });
+
+      // Log the auto-mod action
+      logger.info({
+        userId: participant.userId,
+        roomId: room.id,
+        action: autoModResult.action,
+        reason: autoModResult.reason,
+      }, 'Auto-moderation action taken');
+
+      return;
+    }
+
+    // Check if user is shadow muted
+    const isShadowMuted = await moderationService.isShadowMuted(room.id, participant.userId);
+
     // Create message in database
     const dbMessage = await chatService.createUserMessage({
       roomId: room.id,
@@ -123,8 +162,22 @@ export const handleChatMessage = async (
       timestamp: dbMessage.createdAt.getTime(),
     };
 
-    // Broadcast to all participants in the room (including sender)
-    io.to(roomCode).emit(ServerEvents.CHAT_MESSAGE, chatMessage);
+    if (isShadowMuted) {
+      // Only send to the sender (shadow muted)
+      socket.emit(ServerEvents.CHAT_MESSAGE, chatMessage);
+      logger.debug({
+        userId: participant.userId,
+        roomId: room.id,
+      }, 'Shadow muted message sent only to sender');
+    } else {
+      // Broadcast to all participants in the room (including sender)
+      io.to(roomCode).emit(ServerEvents.CHAT_MESSAGE, chatMessage);
+    }
+
+    // Track analytics event (async, don't await)
+    analyticsTracker.trackChatMessage(socket, room.id, validatedData.content.length).catch(err =>
+      logger.error({ error: err }, 'Failed to track chat message event')
+    );
 
     logger.debug(
       {

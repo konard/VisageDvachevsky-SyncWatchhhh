@@ -10,6 +10,7 @@ import { authRoutes } from './modules/auth/routes.js';
 import { usersRoutes } from './modules/users/routes.js';
 import { registerRoomRoutes } from './modules/rooms/routes.js';
 import { videoRoutes } from './modules/videos/routes.js';
+import { moderationRoutes } from './modules/moderation/routes.js';
 
 /**
  * Create and configure Fastify application
@@ -22,15 +23,48 @@ export async function createApp() {
     disableRequestLogging: false,
   });
 
-  // CORS
+  // CORS - Strict origin validation
   await app.register(cors, {
-    origin: env.CORS_ORIGIN,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      // Parse allowed origins from env (comma-separated)
+      const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim());
+
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        callback(null, true);
+      } else {
+        logger.warn({ origin, allowedOrigins }, 'CORS origin rejected');
+        callback(new Error('CORS not allowed'), false);
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
   });
 
-  // Security headers
+  // Security headers with strict CSP
   await app.register(helmet, {
-    contentSecurityPolicy: false, // Disable CSP for API
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", 'https://www.youtube.com'],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        mediaSrc: ["'self'", 'blob:', 'https://storage.syncwatch.example'],
+        frameSrc: ['https://www.youtube.com'],
+        connectSrc: ["'self'", 'wss:', 'https:'],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false, // Allow embedding YouTube videos
   });
 
   // JWT authentication
@@ -45,7 +79,7 @@ export async function createApp() {
     redis: rateLimitRedis,
   });
 
-  // Health check endpoint
+  // Health check endpoints (legacy endpoint for backward compatibility)
   app.get('/health', async () => {
     return {
       status: 'ok',
@@ -63,14 +97,29 @@ export async function createApp() {
     };
   });
 
+  // Register health check routes
+  const { healthRoutes } = await import('./modules/health/routes.js');
+  await app.register(healthRoutes);
+
   // Register API routes
   const { friendsRoutes } = await import('./modules/friends/routes.js');
+  const { presenceRoutes } = await import('./modules/presence/routes.js');
+  const { reactionsRoutes } = await import('./modules/reactions/routes.js');
+  const { analyticsRoutes } = await import('./modules/analytics/routes.js');
+  const { registerRoomLifecycleRoutes } = await import(
+    './modules/room-lifecycle/routes.js'
+  );
 
   await app.register(authRoutes, { prefix: '/api/auth' });
   await app.register(friendsRoutes, { prefix: '/api' });
   await app.register(usersRoutes, { prefix: '/api' });
   await app.register(registerRoomRoutes, { prefix: '/api/rooms' });
   await app.register(videoRoutes, { prefix: '/api/videos' });
+  await app.register(moderationRoutes, { prefix: '/api/moderation' });
+  await app.register(presenceRoutes, { prefix: '/api' });
+  await app.register(reactionsRoutes, { prefix: '/api' });
+  await app.register(analyticsRoutes, { prefix: '/api/analytics' });
+  await app.register(registerRoomLifecycleRoutes);
 
   return app;
 }

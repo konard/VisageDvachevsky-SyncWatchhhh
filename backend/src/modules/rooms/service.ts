@@ -7,6 +7,7 @@ import type { Room, RoomParticipant, Prisma } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { prisma } from '../../database/client.js';
 import { generateRoomCode } from '../../common/utils/room-code.js';
+import { generateAnonymousNickname } from '../../common/utils/anonymous-names.js';
 import {
   NotFoundError,
   ConflictError,
@@ -23,6 +24,43 @@ const SALT_ROUNDS = 10;
 
 // Default room expiration: 24 hours from creation
 const DEFAULT_ROOM_EXPIRATION_HOURS = 24;
+
+// Privacy preset configurations
+type PrivacyPreset = 'public' | 'friends_only' | 'private' | 'anonymous';
+
+interface PrivacySettings {
+  allowAnonymous: boolean;
+  requireAuth: boolean;
+  showRealNames: boolean;
+  forceRelayMode: boolean;
+}
+
+const PRIVACY_PRESETS: Record<PrivacyPreset, PrivacySettings> = {
+  public: {
+    allowAnonymous: true,
+    requireAuth: false,
+    showRealNames: true,
+    forceRelayMode: false,
+  },
+  friends_only: {
+    allowAnonymous: false,
+    requireAuth: true,
+    showRealNames: true,
+    forceRelayMode: false,
+  },
+  private: {
+    allowAnonymous: false,
+    requireAuth: true,
+    showRealNames: true,
+    forceRelayMode: false,
+  },
+  anonymous: {
+    allowAnonymous: true,
+    requireAuth: false,
+    showRealNames: false,
+    forceRelayMode: true,
+  },
+};
 
 export class RoomService {
   /**
@@ -42,6 +80,10 @@ export class RoomService {
       passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
     }
 
+    // Get privacy settings based on preset
+    const privacyPreset = (input.privacyPreset || 'public') as PrivacyPreset;
+    const privacySettings = PRIVACY_PRESETS[privacyPreset];
+
     // Create room and add owner as participant in a transaction
     const room = await prisma.$transaction(async (tx) => {
       const newRoom = await tx.room.create({
@@ -53,6 +95,8 @@ export class RoomService {
           passwordHash,
           playbackControl: input.playbackControl || 'owner_only',
           expiresAt,
+          privacyPreset,
+          ...privacySettings,
         },
       });
 
@@ -176,9 +220,16 @@ export class RoomService {
     // Determine role
     const role = userId ? 'participant' : 'guest';
 
-    // Validate guest name if joining as guest
-    if (!userId && !input.guestName) {
-      throw new BadRequestError('Guest name is required for unauthenticated users');
+    // Handle guest name based on room privacy settings
+    let guestName: string | null = null;
+    if (!userId) {
+      if (room.showRealNames) {
+        // Room allows real names - use provided name or generate anonymous
+        guestName = input.guestName || generateAnonymousNickname();
+      } else {
+        // Anonymous room - always generate anonymous nickname
+        guestName = generateAnonymousNickname();
+      }
     }
 
     // Create participant
@@ -186,7 +237,7 @@ export class RoomService {
       data: {
         roomId: room.id,
         userId: userId || null,
-        guestName: userId ? null : input.guestName,
+        guestName,
         role,
         canControl: room.playbackControl === 'all',
       } as Prisma.RoomParticipantCreateInput,
@@ -265,6 +316,13 @@ export class RoomService {
       }
     }
 
+    // Get privacy settings if preset changed
+    let privacySettings: Partial<PrivacySettings> = {};
+    if (input.privacyPreset) {
+      const preset = input.privacyPreset as PrivacyPreset;
+      privacySettings = PRIVACY_PRESETS[preset];
+    }
+
     // Update room
     const updatedRoom = await prisma.room.update({
       where: { id: room.id },
@@ -273,6 +331,8 @@ export class RoomService {
         ...(input.maxParticipants && { maxParticipants: input.maxParticipants }),
         ...(passwordHash !== undefined && { passwordHash }),
         ...(input.playbackControl && { playbackControl: input.playbackControl }),
+        ...(input.privacyPreset && { privacyPreset: input.privacyPreset }),
+        ...privacySettings,
       },
     });
 

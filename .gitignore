@@ -17,6 +17,10 @@ out/
 .env.test.local
 .env.production.local
 .env*.local
+.env.staging
+.env.production
+# Keep example files
+!.env*.example
 
 # Logs
 logs/
@@ -40,6 +44,9 @@ Thumbs.db
 # Testing
 coverage/
 .nyc_output/
+test-results/
+playwright-report/
+*.lcov
 
 # Temporary files
 tmp/

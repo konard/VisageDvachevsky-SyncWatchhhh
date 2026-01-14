@@ -8,7 +8,7 @@ const friendsService = new FriendsService();
 export async function friendsRoutes(fastify: FastifyInstance) {
   // Get all friends
   fastify.get('/friends', {
-    preHandler: authenticateRequired,
+    preHandler: [authenticateRequired],
     handler: async (request, reply) => {
       try {
         if (!request.user) {
@@ -34,7 +34,7 @@ export async function friendsRoutes(fastify: FastifyInstance) {
 
   // Get pending friend requests
   fastify.get('/friends/requests', {
-    preHandler: authenticateRequired,
+    preHandler: [authenticateRequired],
     handler: async (request, reply) => {
       try {
         if (!request.user) {
@@ -60,7 +60,7 @@ export async function friendsRoutes(fastify: FastifyInstance) {
 
   // Send friend request
   fastify.post('/friends/request', {
-    preHandler: authenticateRequired,
+    preHandler: [authenticateRequired],
     schema: {
       body: {
         type: 'object',
@@ -96,7 +96,7 @@ export async function friendsRoutes(fastify: FastifyInstance) {
 
   // Accept friend request
   fastify.post('/friends/accept/:id', {
-    preHandler: authenticateRequired,
+    preHandler: [authenticateRequired],
     schema: {
       params: {
         type: 'object',
@@ -132,7 +132,7 @@ export async function friendsRoutes(fastify: FastifyInstance) {
 
   // Decline friend request
   fastify.delete('/friends/decline/:id', {
-    preHandler: authenticateRequired,
+    preHandler: [authenticateRequired],
     schema: {
       params: {
         type: 'object',
@@ -168,7 +168,7 @@ export async function friendsRoutes(fastify: FastifyInstance) {
 
   // Remove friend
   fastify.delete('/friends/:id', {
-    preHandler: authenticateRequired,
+    preHandler: [authenticateRequired],
     schema: {
       params: {
         type: 'object',
@@ -204,7 +204,7 @@ export async function friendsRoutes(fastify: FastifyInstance) {
 
   // Block user
   fastify.post('/friends/block/:id', {
-    preHandler: authenticateRequired,
+    preHandler: [authenticateRequired],
     schema: {
       params: {
         type: 'object',

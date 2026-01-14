@@ -59,27 +59,30 @@ async function start() {
       }, 30000);
 
       try {
-        // 1. Stop accepting new HTTP connections
+        // 1. Stop background jobs
+        stopRoomLifecycleJobs();
+
+        // 2. Stop accepting new HTTP connections
         httpServer.close(() => {
           logger.info('HTTP server stopped accepting new connections');
         });
 
-        // 2. Notify WebSocket clients and close connections
+        // 3. Notify WebSocket clients and close connections
         await closeSocketServer(io);
 
-        // 3. Close Fastify server (wait for in-flight requests)
+        // 4. Close Fastify server (wait for in-flight requests)
         await app.close();
         logger.info('Fastify server closed');
 
-        // 4. Pause and wait for job queues to finish active jobs
+        // 5. Pause and wait for job queues to finish active jobs
         await closeQueue();
         logger.info('Job queues closed');
 
-        // 5. Close Redis connections
+        // 6. Close Redis connections
         await closeRedisConnections();
         logger.info('Redis connections closed');
 
-        // 6. Close Prisma database connection
+        // 7. Close Prisma database connection
         await closePrisma();
         logger.info('Database connection closed');
 

@@ -146,6 +146,9 @@ export const ClientEvents = {
   SYNC_PAUSE: 'sync:pause',
   SYNC_SEEK: 'sync:seek',
   SYNC_RATE: 'sync:rate',
+  SYNC_RESYNC: 'sync:resync',
+  READY_INITIATE: 'ready:initiate',
+  READY_RESPOND: 'ready:respond',
 } as const;
 
 // ============================================
@@ -272,3 +275,153 @@ export interface VoiceErrorEvent {
   code: string;
   message: string;
 }
+
+// ============================================
+// Presence Events
+// ============================================
+
+export type PresenceStatus = 'online' | 'away' | 'busy' | 'invisible' | 'offline';
+
+export const PresenceUpdateEventSchema = z.object({
+  status: z.enum(['online', 'away', 'busy', 'invisible', 'offline']),
+});
+
+export type PresenceUpdateEvent = z.infer<typeof PresenceUpdateEventSchema>;
+
+export interface UserPresenceEvent {
+  userId: string;
+  status: PresenceStatus;
+  lastSeenAt: number;
+  currentRoomId?: string;
+  currentActivity?: string;
+}
+
+export interface RichPresenceEvent {
+  userId: string;
+  activity: string;
+  details: string;
+  timestamp: number;
+  partySize?: number;
+  partyMax?: number;
+  thumbnailUrl?: string;
+  joinable: boolean;
+  roomCode?: string;
+}
+
+export interface FriendsPresenceEvent {
+  presences: UserPresenceEvent[];
+}
+
+// ============================================
+// Reaction Events
+// ============================================
+
+export type AnimationType = 'float' | 'burst' | 'bounce';
+
+export const ReactionSendEventSchema = z.object({
+  emoji: z.string().min(1).max(10),
+  mediaTimeMs: z.number().min(0),
+  animation: z.enum(['float', 'burst', 'bounce']).optional(),
+});
+
+export type ReactionSendEvent = z.infer<typeof ReactionSendEventSchema>;
+
+export interface ReactionReceivedEvent {
+  id: string;
+  roomId: string;
+  userId?: string;
+  username?: string;
+  guestName?: string;
+  emoji: string;
+  position: { x: number; y: number };
+  mediaTimeMs: number;
+  animation: AnimationType;
+  createdAt: number;
+}
+
+export interface TimelineReactionsEvent {
+  reactions: Array<{
+    mediaTimeMs: number;
+    reactions: Record<string, number>;
+  }>;
+}
+
+// ============================================
+// Ready Check Events
+// ============================================
+
+export type ReadyStatus = 'pending' | 'ready' | 'not_ready' | 'timeout';
+
+export interface ReadyCheckParticipant {
+  userId: string;
+  username: string;
+  status: ReadyStatus;
+}
+
+export interface ReadyCheck {
+  checkId: string;
+  roomId: string;
+  initiatedBy: string;
+  participants: ReadyCheckParticipant[];
+  timeoutMs: number;
+  createdAt: number;
+}
+
+// Client → Server
+export const ReadyInitiateEventSchema = z.object({});
+export const ReadyRespondEventSchema = z.object({
+  checkId: z.string(),
+  status: z.enum(['ready', 'not_ready']),
+});
+
+export type ReadyInitiateEvent = z.infer<typeof ReadyInitiateEventSchema>;
+export type ReadyRespondEvent = z.infer<typeof ReadyRespondEventSchema>;
+
+// Server → Client
+export interface ReadyStartEvent {
+  check: ReadyCheck;
+}
+
+export interface ReadyUpdateEvent {
+  check: ReadyCheck;
+}
+
+export interface ReadyCompleteEvent {
+  checkId: string;
+  allReady: boolean;
+}
+
+export interface ReadyTimeoutEvent {
+  checkId: string;
+}
+
+// ============================================
+// Countdown Events
+// ============================================
+
+export interface CountdownConfig {
+  durationMs: number;
+  steps: (number | string)[];
+  serverStartTime: number;
+}
+
+// Server → Client
+export interface CountdownStartEvent {
+  config: CountdownConfig;
+}
+
+export interface CountdownTickEvent {
+  step: number | string;
+  remaining: number;
+}
+
+export interface CountdownCompleteEvent {
+  // Empty object
+}
+
+// ============================================
+// Sync Resync Event
+// ============================================
+
+export const SyncResyncEventSchema = z.object({});
+export type SyncResyncEvent = z.infer<typeof SyncResyncEventSchema>;

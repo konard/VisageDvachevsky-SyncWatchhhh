@@ -23,7 +23,14 @@ import {
   handleSyncPause,
   handleSyncSeek,
   handleSyncRate,
+  handleSyncResync,
 } from './handlers/sync.handler.js';
+import { handlePresenceUpdate, subscribeFriendPresence } from './handlers/presence.handler.js';
+import { handleReactionSend } from './handlers/reaction.handler.js';
+import {
+  handleReadyInitiate,
+  handleReadyRespond,
+} from './handlers/ready.handler.js';
 import { ClientEvents } from './types/events.js';
 import { logger } from '../config/logger.js';
 import { env } from '../config/env.js';
@@ -76,12 +83,28 @@ export function createSocketServer(
     socket.on(ClientEvents.SYNC_PAUSE, (data) => handleSyncPause(socket, syncNamespace, data));
     socket.on(ClientEvents.SYNC_SEEK, (data) => handleSyncSeek(socket, syncNamespace, data));
     socket.on(ClientEvents.SYNC_RATE, (data) => handleSyncRate(socket, syncNamespace, data));
+    socket.on(ClientEvents.SYNC_RESYNC, (data) => handleSyncResync(socket, syncNamespace, data));
+
+    // Register ready check event handlers
+    socket.on(ClientEvents.READY_INITIATE, (data) => handleReadyInitiate(socket, syncNamespace, data));
+    socket.on(ClientEvents.READY_RESPOND, (data) => handleReadyRespond(socket, syncNamespace, data));
 
     // Register voice event handlers
-    socket.on('voice:join', (data: unknown) => handleVoiceJoin(socket, syncNamespace, data as any));
-    socket.on('voice:leave', (data: unknown) => handleVoiceLeave(socket, syncNamespace, data as any));
-    socket.on('voice:signal', (data: unknown) => handleVoiceSignal(socket, syncNamespace, data as any));
-    socket.on('voice:speaking', (data: unknown) => handleVoiceSpeaking(socket, syncNamespace, data as any));
+    socket.on('voice:join', (data) => handleVoiceJoin(socket, syncNamespace, data));
+    socket.on('voice:leave', (data) => handleVoiceLeave(socket, syncNamespace, data));
+    socket.on('voice:signal', (data) => handleVoiceSignal(socket, syncNamespace, data));
+    socket.on('voice:speaking', (data) => handleVoiceSpeaking(socket, syncNamespace, data));
+
+    // Register presence event handlers
+    socket.on('presence:update', (data: unknown) => handlePresenceUpdate(socket, syncNamespace, data));
+
+    // Register reaction event handlers
+    socket.on('reaction:send', (data: unknown) => handleReactionSend(socket, syncNamespace, data));
+
+    // Subscribe to friend presence updates (for authenticated users)
+    if (socket.data.userId) {
+      subscribeFriendPresence(socket);
+    }
 
     // Handle disconnect
     socket.on('disconnect', () => handleDisconnect(socket, syncNamespace));

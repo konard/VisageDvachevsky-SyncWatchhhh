@@ -20,6 +20,7 @@ import {
 import { voiceStateService } from '../../modules/voice/state.service.js';
 import { roomService } from '../../modules/room/room.service.js';
 import { logger } from '../../config/logger.js';
+import * as analyticsTracker from '../analytics-tracker.js';
 
 type SyncNamespace = Namespace<
   ClientToServerEvents,
@@ -88,6 +89,11 @@ export const handleVoiceJoin = async (
     socket.to(socket.data.roomCode).emit('voice:peer:joined', {
       oderId: socket.data.oderId,
     });
+
+    // Track analytics event (async, don't await)
+    analyticsTracker.trackVoiceJoin(socket, room.id).catch(err =>
+      logger.error({ error: err }, 'Failed to track voice join event')
+    );
 
     logger.info(
       {
@@ -365,4 +371,9 @@ async function leaveVoice(socket: Socket, io: SyncNamespace): Promise<void> {
   io.to(roomCode).emit('voice:peer:left', {
     oderId,
   });
+
+  // Track analytics event (async, don't await)
+  analyticsTracker.trackVoiceLeave(socket, room.id).catch(err =>
+    logger.error({ error: err }, 'Failed to track voice leave event')
+  );
 }

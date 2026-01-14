@@ -34,6 +34,10 @@ export const updateSettingsSchema = z.object({
   soundEffectsEnabled: z.boolean().optional(),
   notificationsEnabled: z.boolean().optional(),
   theme: z.enum(['dark', 'light', 'auto']).optional(),
+  // Privacy settings
+  forceRelay: z.boolean().optional(),
+  hideFromSearch: z.boolean().optional(),
+  blockNonFriends: z.boolean().optional(),
 }).strict();
 
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;
