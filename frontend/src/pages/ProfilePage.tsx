@@ -1,29 +1,165 @@
 import { useState } from 'react';
-import { Mic } from 'lucide-react';
+import { Mic, Upload, Trash2, UserMinus, Check, X } from 'lucide-react';
 import { SoundSettings } from '../components/settings';
 import { useNavigate } from 'react-router-dom';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { AnimatedPage } from '../components/AnimatedPage';
 import clsx from 'clsx';
+import { useProfile, useUpdateProfile, useUpdateAvatar, useChangePassword, useDeleteAccount, useSettings, useUpdateSettings } from '../hooks/useProfile';
+import { useFriends, useFriendRequests, useAcceptFriendRequest, useDeclineFriendRequest, useRemoveFriend } from '../hooks/useFriends';
+import { useWatchHistory } from '../hooks/useWatchHistory';
 
 /**
- * Profile Page - Responsive user profile page
+ * Profile Page - User profile page with backend integration
  */
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { isMobile } = useBreakpoint();
-  const [activeTab, setActiveTab] = useState<'profile' | 'history' | 'settings'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'friends' | 'history' | 'settings'>('profile');
 
-  // Settings state
-  const [settings, setSettings] = useState<any>({
-    voiceMode: 'push_to_talk',
-    pttKey: 'Space',
-    vadThreshold: 0.5,
-    notificationsEnabled: true,
-  });
+  // Fetch user data
+  const { data: user, isLoading: isLoadingProfile } = useProfile();
+  const { data: settings, isLoading: isLoadingSettings } = useSettings();
+  const { data: friends, isLoading: isLoadingFriends } = useFriends();
+  const { data: friendRequests, isLoading: isLoadingRequests } = useFriendRequests();
+  const { data: history, isLoading: isLoadingHistory } = useWatchHistory(20);
 
-  const handleSettingChange = (key: string, value: any) => {
-    setSettings((prev: any) => ({ ...prev, [key]: value }));
+  // Mutations
+  const updateProfile = useUpdateProfile();
+  const updateAvatar = useUpdateAvatar();
+  const changePassword = useChangePassword();
+  const deleteAccount = useDeleteAccount();
+  const updateSettings = useUpdateSettings();
+  const acceptFriendRequest = useAcceptFriendRequest();
+  const declineFriendRequest = useDeclineFriendRequest();
+  const removeFriend = useRemoveFriend();
+
+  // Local state for forms
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ username: '', email: '' });
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Initialize profile form when user data loads
+  if (user && !profileForm.username && !isEditingProfile) {
+    setProfileForm({ username: user.username, email: user.email });
+  }
+
+  const handleSaveProfile = async () => {
+    try {
+      await updateProfile.mutateAsync(profileForm);
+      setIsEditingProfile(false);
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+    }
+  };
+
+  const handleUploadAvatar = async () => {
+    if (!avatarUrl.trim()) return;
+    try {
+      await updateAvatar.mutateAsync(avatarUrl);
+      setAvatarUrl('');
+    } catch (error) {
+      console.error('Failed to update avatar:', error);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      alert('Passwords do not match');
+      return;
+    }
+    try {
+      await changePassword.mutateAsync({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setShowPasswordForm(false);
+      alert('Password changed successfully');
+    } catch (error) {
+      console.error('Failed to change password:', error);
+      alert('Failed to change password. Please check your current password.');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!showDeleteConfirm) {
+      setShowDeleteConfirm(true);
+      return;
+    }
+    try {
+      await deleteAccount.mutateAsync();
+    } catch (error) {
+      console.error('Failed to delete account:', error);
+    }
+  };
+
+  const handleSettingChange = async (key: string, value: any) => {
+    try {
+      await updateSettings.mutateAsync({ [key]: value });
+    } catch (error) {
+      console.error('Failed to update settings:', error);
+    }
+  };
+
+  const handleAcceptFriend = async (friendshipId: string) => {
+    try {
+      await acceptFriendRequest.mutateAsync(friendshipId);
+    } catch (error) {
+      console.error('Failed to accept friend request:', error);
+    }
+  };
+
+  const handleDeclineFriend = async (friendshipId: string) => {
+    try {
+      await declineFriendRequest.mutateAsync(friendshipId);
+    } catch (error) {
+      console.error('Failed to decline friend request:', error);
+    }
+  };
+
+  const handleRemoveFriend = async (friendshipId: string) => {
+    if (confirm('Are you sure you want to remove this friend?')) {
+      try {
+        await removeFriend.mutateAsync(friendshipId);
+      } catch (error) {
+        console.error('Failed to remove friend:', error);
+      }
+    }
+  };
+
+  const formatWatchDuration = (ms: number) => {
+    const minutes = Math.floor(ms / 60000);
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (hours > 0) {
+      return `${hours}h ${remainingMinutes}m`;
+    }
+    return `${minutes}m`;
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 60) return `${diffMins} minutes ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
+  };
+
+  const getVideoTitle = (source: any) => {
+    if (source.youtubeVideoId) return `YouTube: ${source.youtubeVideoId}`;
+    if (source.externalUrl) return source.externalUrl;
+    if (source.fileUrl) return 'Uploaded Video';
+    return 'Unknown Video';
   };
 
   const header = (
@@ -36,7 +172,7 @@ export default function ProfilePage() {
         <span>Back</span>
       </button>
       <h1 className="text-xl font-bold text-white">Profile</h1>
-      <div className="w-16"></div> {/* Spacer for centering */}
+      <div className="w-16"></div>
     </div>
   );
 
@@ -50,7 +186,7 @@ export default function ProfilePage() {
         <button
           onClick={() => setActiveTab('profile')}
           className={clsx(
-            'px-4 py-2 rounded-lg font-medium transition-all',
+            'px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap',
             activeTab === 'profile'
               ? 'glass-button text-white'
               : 'bg-white/5 text-gray-400 hover:bg-white/10'
@@ -59,9 +195,20 @@ export default function ProfilePage() {
           Profile
         </button>
         <button
+          onClick={() => setActiveTab('friends')}
+          className={clsx(
+            'px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap',
+            activeTab === 'friends'
+              ? 'glass-button text-white'
+              : 'bg-white/5 text-gray-400 hover:bg-white/10'
+          )}
+        >
+          Friends
+        </button>
+        <button
           onClick={() => setActiveTab('history')}
           className={clsx(
-            'px-4 py-2 rounded-lg font-medium transition-all',
+            'px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap',
             activeTab === 'history'
               ? 'glass-button text-white'
               : 'bg-white/5 text-gray-400 hover:bg-white/10'
@@ -72,7 +219,7 @@ export default function ProfilePage() {
         <button
           onClick={() => setActiveTab('settings')}
           className={clsx(
-            'px-4 py-2 rounded-lg font-medium transition-all',
+            'px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap',
             activeTab === 'settings'
               ? 'glass-button text-white'
               : 'bg-white/5 text-gray-400 hover:bg-white/10'
@@ -84,162 +231,471 @@ export default function ProfilePage() {
 
       {/* Tab content */}
       <div className="p-4">
+        {/* Profile Tab */}
         {activeTab === 'profile' && (
-          <div className="glass-card p-6 space-y-4">
-            <h2 className="text-2xl font-bold text-white mb-4">Profile Information</h2>
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-accent-cyan to-accent-blue flex items-center justify-center text-white text-2xl font-bold">
-                U
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-white">Username</h3>
-                <p className="text-gray-400">user@example.com</p>
-              </div>
-            </div>
-            <div className="pt-4 space-y-2">
-              <p className="text-gray-300"><span className="font-semibold">Joined:</span> January 2026</p>
-              <p className="text-gray-300"><span className="font-semibold">Total watch time:</span> 12.5 hours</p>
-              <p className="text-gray-300"><span className="font-semibold">Rooms joined:</span> 8</p>
-            </div>
-          </div>
-        )}
+          <div className="space-y-4">
+            <div className="glass-card p-6 space-y-4">
+              <h2 className="text-2xl font-bold text-white mb-4">Profile Information</h2>
 
-        {activeTab === 'history' && (
-          <div className="glass-card p-6">
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-              <Mic className="mr-2" />
-              Voice Settings
-            </h2>
-
-            <div className="space-y-6">
-              {/* Voice Mode */}
-              <div>
-                <label className="block text-gray-300 mb-3 text-lg">Voice Mode</label>
-                <div className="space-y-2">
-                  <label className="flex items-center space-x-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={settings?.voiceMode === 'push_to_talk'}
-                      onChange={() => handleSettingChange('voiceMode', 'push_to_talk')}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <span className="text-white">Push-to-talk</span>
-                  </label>
-                  <label className="flex items-center space-x-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={settings?.voiceMode === 'voice_activity'}
-                      onChange={() => handleSettingChange('voiceMode', 'voice_activity')}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <span className="text-white">Voice activity</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* PTT Key */}
-              {settings?.voiceMode === 'push_to_talk' && (
-                <div>
-                  <label className="block text-gray-300 mb-2">Push-to-talk Key</label>
-                  <input
-                    type="text"
-                    value={settings?.pttKey || 'Space'}
-                    onChange={(e) => handleSettingChange('pttKey', e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
-                  />
-                </div>
-              )}
-
-              {/* VAD Threshold */}
-              {settings?.voiceMode === 'voice_activity' && (
-                <div>
-                  <label className="block text-gray-300 mb-2">
-                    Voice Detection Threshold: {settings?.vadThreshold?.toFixed(2) || 0.5}
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={settings?.vadThreshold || 0.5}
-                    onChange={(e) => handleSettingChange('vadThreshold', parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-sm text-gray-400 mt-1">
-                    <span>More sensitive</span>
-                    <span>Less sensitive</span>
+              {isLoadingProfile ? (
+                <div className="text-center text-gray-400">Loading profile...</div>
+              ) : user ? (
+                <>
+                  {/* Avatar Section */}
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-accent-cyan to-accent-blue flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+                      {user.avatarUrl ? (
+                        <img src={user.avatarUrl} alt={user.username} className="w-full h-full object-cover" />
+                      ) : (
+                        user.username.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-white">{user.username}</h3>
+                      <p className="text-gray-400">{user.email}</p>
+                      <p className="text-sm text-gray-500">Joined {new Date(user.createdAt).toLocaleDateString()}</p>
+                    </div>
                   </div>
-                </div>
+
+                  {/* Avatar Upload */}
+                  <div className="space-y-2">
+                    <label className="block text-gray-300 text-sm">Update Avatar URL</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={avatarUrl}
+                        onChange={(e) => setAvatarUrl(e.target.value)}
+                        placeholder="Enter avatar URL"
+                        className="flex-1 px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
+                      />
+                      <button
+                        onClick={handleUploadAvatar}
+                        disabled={updateAvatar.isPending || !avatarUrl.trim()}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
+                      >
+                        <Upload size={16} />
+                        {updateAvatar.isPending ? 'Uploading...' : 'Upload'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Profile Edit Form */}
+                  {isEditingProfile ? (
+                    <div className="space-y-4 pt-4">
+                      <div>
+                        <label className="block text-gray-300 mb-2">Username</label>
+                        <input
+                          type="text"
+                          value={profileForm.username}
+                          onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
+                          className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-300 mb-2">Email</label>
+                        <input
+                          type="email"
+                          value={profileForm.email}
+                          onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                          className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleSaveProfile}
+                          disabled={updateProfile.isPending}
+                          className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+                        >
+                          {updateProfile.isPending ? 'Saving...' : 'Save Changes'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsEditingProfile(false);
+                            setProfileForm({ username: user.username, email: user.email });
+                          }}
+                          className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setIsEditingProfile(true)}
+                      className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    >
+                      Edit Profile
+                    </button>
+                  )}
+                </>
+              ) : (
+                <div className="text-center text-gray-400">No profile data</div>
               )}
             </div>
           </div>
         )}
 
+        {/* Friends Tab */}
+        {activeTab === 'friends' && (
+          <div className="space-y-4">
+            {/* Friend Requests */}
+            {isLoadingRequests ? (
+              <div className="text-center text-gray-400">Loading requests...</div>
+            ) : friendRequests && (friendRequests.received.length > 0 || friendRequests.sent.length > 0) ? (
+              <div className="glass-card p-6">
+                <h2 className="text-xl font-bold text-white mb-4">Friend Requests</h2>
+
+                {friendRequests.received.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-300 mb-3">Received</h3>
+                    <div className="space-y-2">
+                      {friendRequests.received.map((request) => (
+                        <div key={request.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-cyan to-accent-blue flex items-center justify-center text-white font-bold">
+                              {request.requester?.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-white font-medium">{request.requester?.username}</p>
+                              <p className="text-sm text-gray-400">{formatDate(request.createdAt)}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleAcceptFriend(request.id)}
+                              disabled={acceptFriendRequest.isPending}
+                              className="p-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+                              title="Accept"
+                            >
+                              <Check size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDeclineFriend(request.id)}
+                              disabled={declineFriendRequest.isPending}
+                              className="p-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+                              title="Decline"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {friendRequests.sent.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-300 mb-3">Sent</h3>
+                    <div className="space-y-2">
+                      {friendRequests.sent.map((request) => (
+                        <div key={request.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-cyan to-accent-blue flex items-center justify-center text-white font-bold">
+                              {request.addressee?.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-white font-medium">{request.addressee?.username}</p>
+                              <p className="text-sm text-gray-400">Pending</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            {/* Friends List */}
+            <div className="glass-card p-6">
+              <h2 className="text-xl font-bold text-white mb-4">Friends</h2>
+              {isLoadingFriends ? (
+                <div className="text-center text-gray-400">Loading friends...</div>
+              ) : friends && friends.length > 0 ? (
+                <div className="space-y-2">
+                  {friends.map((friendship) => (
+                    <div key={friendship.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-cyan to-accent-blue flex items-center justify-center text-white font-bold overflow-hidden">
+                          {friendship.friend.avatarUrl ? (
+                            <img src={friendship.friend.avatarUrl} alt={friendship.friend.username} className="w-full h-full object-cover" />
+                          ) : (
+                            friendship.friend.username.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-white font-medium">{friendship.friend.username}</p>
+                          <p className="text-sm text-gray-400">Friends since {new Date(friendship.createdAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveFriend(friendship.id)}
+                        disabled={removeFriend.isPending}
+                        className="p-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+                        title="Remove friend"
+                      >
+                        <UserMinus size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-gray-400">No friends yet</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* History Tab */}
         {activeTab === 'history' && (
           <div className="glass-card p-6">
             <h2 className="text-2xl font-bold text-white mb-4">Watch History</h2>
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                  <div className="w-24 h-16 bg-slate-700 rounded flex items-center justify-center text-gray-500">
-                    Thumbnail
+            {isLoadingHistory ? (
+              <div className="text-center text-gray-400">Loading history...</div>
+            ) : history && history.length > 0 ? (
+              <div className="space-y-3">
+                {history.map((entry) => (
+                  <div key={entry.id} className="flex items-center gap-4 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                    <div className="w-24 h-16 bg-slate-700 rounded flex items-center justify-center text-gray-500 overflow-hidden">
+                      {entry.thumbnail ? (
+                        <img src={entry.thumbnail} alt="Thumbnail" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs">No thumbnail</span>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-white font-medium">{getVideoTitle(entry.source)}</h4>
+                      <p className="text-sm text-gray-400">
+                        Watched {formatDate(entry.watchedAt)} • {formatWatchDuration(entry.watchDurationMs)}
+                      </p>
+                      <p className="text-xs text-gray-500">{entry.participants.length} participant(s)</p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="text-white font-medium">Video Title {i}</h4>
-                    <p className="text-sm text-gray-400">Watched 2 hours ago</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-gray-400">No watch history yet</p>
+            )}
           </div>
         )}
 
+        {/* Settings Tab */}
         {activeTab === 'settings' && (
           <div className="space-y-6">
+            {/* Voice Settings */}
             <div className="glass-card p-6">
-              <h2 className="text-2xl font-bold text-white mb-4">Settings</h2>
+              <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+                <Mic className="mr-2" />
+                Voice Settings
+              </h2>
 
-              {/* Settings Options */}
-              <div className="space-y-4">
-                {/* Sound Effects Setting */}
-                <SoundSettings />
+              {isLoadingSettings ? (
+                <div className="text-center text-gray-400">Loading settings...</div>
+              ) : settings ? (
+                <div className="space-y-6">
+                  {/* Voice Mode */}
+                  <div>
+                    <label className="block text-gray-300 mb-3 text-lg">Voice Mode</label>
+                    <div className="space-y-2">
+                      <label className="flex items-center space-x-3 cursor-pointer">
+                        <input
+                          type="radio"
+                          checked={settings.voiceMode === 'push_to_talk'}
+                          onChange={() => handleSettingChange('voiceMode', 'push_to_talk')}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <span className="text-white">Push-to-talk</span>
+                      </label>
+                      <label className="flex items-center space-x-3 cursor-pointer">
+                        <input
+                          type="radio"
+                          checked={settings.voiceMode === 'voice_activity'}
+                          onChange={() => handleSettingChange('voiceMode', 'voice_activity')}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <span className="text-white">Voice activity</span>
+                      </label>
+                    </div>
+                  </div>
 
-                {/* Notifications */}
-                <div>
-                  <label className="flex items-center space-x-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={settings?.notificationsEnabled || false}
-                      onChange={(e) => handleSettingChange('notificationsEnabled', e.target.checked)}
-                      className="w-4 h-4 text-blue-600 rounded"
-                    />
-                    <span className="text-white">Notifications</span>
-                  </label>
+                  {/* PTT Key */}
+                  {settings.voiceMode === 'push_to_talk' && (
+                    <div>
+                      <label className="block text-gray-300 mb-2">Push-to-talk Key</label>
+                      <input
+                        type="text"
+                        value={settings.pttKey}
+                        onChange={(e) => handleSettingChange('pttKey', e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+                  )}
+
+                  {/* VAD Threshold */}
+                  {settings.voiceMode === 'voice_activity' && (
+                    <div>
+                      <label className="block text-gray-300 mb-2">
+                        Voice Detection Threshold: {settings.vadThreshold.toFixed(2)}
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={settings.vadThreshold}
+                        onChange={(e) => handleSettingChange('vadThreshold', parseFloat(e.target.value))}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-sm text-gray-400 mt-1">
+                        <span>More sensitive</span>
+                        <span>Less sensitive</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Audio Processing */}
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settings.noiseSuppression}
+                        onChange={(e) => handleSettingChange('noiseSuppression', e.target.checked)}
+                        className="w-4 h-4 text-blue-600 rounded"
+                      />
+                      <span className="text-white">Noise Suppression</span>
+                    </label>
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settings.echoCancellation}
+                        onChange={(e) => handleSettingChange('echoCancellation', e.target.checked)}
+                        className="w-4 h-4 text-blue-600 rounded"
+                      />
+                      <span className="text-white">Echo Cancellation</span>
+                    </label>
+                  </div>
                 </div>
-
-                {/* Auto-play */}
-                <div className="flex items-center justify-between p-4 rounded-lg bg-white/5">
-                  <span className="text-gray-300">Auto-play</span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" />
-                    <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-cyan"></div>
-                  </label>
-                </div>
-              </div>
+              ) : (
+                <div className="text-center text-gray-400">No settings found</div>
+              )}
             </div>
 
+            {/* General Settings */}
+            <div className="glass-card p-6">
+              <h2 className="text-2xl font-bold text-white mb-4">General Settings</h2>
+
+              {isLoadingSettings ? null : settings ? (
+                <div className="space-y-4">
+                  <SoundSettings />
+
+                  <div>
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settings.notificationsEnabled}
+                        onChange={(e) => handleSettingChange('notificationsEnabled', e.target.checked)}
+                        className="w-4 h-4 text-blue-600 rounded"
+                      />
+                      <span className="text-white">Notifications</span>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-300 mb-2">Theme</label>
+                    <select
+                      value={settings.theme}
+                      onChange={(e) => handleSettingChange('theme', e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="dark">Dark</option>
+                      <option value="light">Light</option>
+                      <option value="auto">Auto</option>
+                    </select>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Account Actions */}
             <div className="glass-card p-6">
               <h2 className="text-xl font-bold text-white mb-4">Account Actions</h2>
               <div className="space-y-3">
-                <button className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                  Edit Profile
-                </button>
-                <button className="w-full px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors">
-                  Change Password
-                </button>
-                <button className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                {!showPasswordForm ? (
+                  <button
+                    onClick={() => setShowPasswordForm(true)}
+                    className="w-full px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
+                  >
+                    Change Password
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <input
+                      type="password"
+                      placeholder="Current Password"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                      className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
+                    />
+                    <input
+                      type="password"
+                      placeholder="New Password"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                      className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
+                    />
+                    <input
+                      type="password"
+                      placeholder="Confirm New Password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                      className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleChangePassword}
+                        disabled={changePassword.isPending}
+                        className="flex-1 px-4 py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+                      >
+                        {changePassword.isPending ? 'Changing...' : 'Confirm'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowPasswordForm(false);
+                          setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                        }}
+                        className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('refreshToken');
+                    navigate('/login');
+                  }}
+                  className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
                   Logout
                 </button>
+
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleteAccount.isPending}
+                  className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <Trash2 size={16} />
+                  {showDeleteConfirm ? 'Click again to confirm deletion' : 'Delete Account'}
+                </button>
+                {showDeleteConfirm && (
+                  <p className="text-sm text-red-400 text-center">
+                    Warning: This action cannot be undone!
+                  </p>
+                )}
               </div>
             </div>
           </div>
