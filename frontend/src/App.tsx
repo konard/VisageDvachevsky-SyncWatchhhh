@@ -5,7 +5,6 @@ import { GlassSpinner } from './components/ui/glass';
 import { ErrorBoundary } from './components/error';
 import { ToastContainer } from './components/toast';
 import { soundManager } from './services';
-import { AnimatedPage } from './components/AnimatedPage';
 import { DiagnosticsOverlay } from './components/diagnostics';
 import { useDiagnosticsKeyboard } from './hooks/useDiagnosticsKeyboard';
 
@@ -13,6 +12,8 @@ import { useDiagnosticsKeyboard } from './hooks/useDiagnosticsKeyboard';
 const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })));
 const RoomPage = lazy(() => import('./pages/RoomPage').then(module => ({ default: module.RoomPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const LoginPage = lazy(() => import('./pages/LoginPage').then(module => ({ default: module.LoginPage })));
+const RegisterPage = lazy(() => import('./pages/RegisterPage').then(module => ({ default: module.RegisterPage })));
 const YouTubePlayerDemo = lazy(() => import('./components/YouTubePlayerDemo').then(module => ({ default: module.YouTubePlayerDemo })));
 const GlassDesignSystemDemo = lazy(() => import('./components/GlassDesignSystemDemo').then(module => ({ default: module.GlassDesignSystemDemo })));
 const SoundEffectsDemo = lazy(() => import('./components/SoundEffectsDemo').then(module => ({ default: module.SoundEffectsDemo })));
@@ -22,18 +23,6 @@ const LoadingFallback = () => (
   <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
     <GlassSpinner size="lg" />
   </div>
-);
-
-const LoginPage = () => (
-  <AnimatedPage className="min-h-screen bg-slate-900 flex items-center justify-center">
-    <p className="text-white">Login - Coming soon...</p>
-  </AnimatedPage>
-);
-
-const RegisterPage = () => (
-  <AnimatedPage className="min-h-screen bg-slate-900 flex items-center justify-center">
-    <p className="text-white">Register - Coming soon...</p>
-  </AnimatedPage>
 );
 
 const queryClient = new QueryClient({
