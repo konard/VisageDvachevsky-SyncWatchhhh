@@ -39,7 +39,7 @@ function parseDuration(duration: string): number {
 export function generateAccessToken(payload: TokenPayload): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const now = Math.floor(Date.now() / 1000);
-  const expiresIn = Math.floor(parseDuration(env.JWT_ACCESS_EXPIRES_IN) / 1000);
+  const expiresIn = Math.floor(parseDuration(env.JWT_EXPIRES_IN) / 1000);
 
   const claims = {
     ...payload,

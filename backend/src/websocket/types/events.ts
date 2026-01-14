@@ -102,7 +102,54 @@ export const ClientEvents = {
   ROOM_JOIN: 'room:join',
   ROOM_LEAVE: 'room:leave',
   TIME_PING: 'time:ping',
+  SYNC_PLAY: 'sync:play',
+  SYNC_PAUSE: 'sync:pause',
+  SYNC_SEEK: 'sync:seek',
+  SYNC_RATE: 'sync:rate',
 } as const;
+
+// ============================================
+// Sync Commands (for synchronization protocol)
+// ============================================
+
+export type SyncCommand =
+  | { type: 'PLAY'; atServerTime: number; sequenceNumber: number }
+  | { type: 'PAUSE'; atServerTime: number; sequenceNumber: number }
+  | { type: 'SEEK'; targetMediaTime: number; atServerTime: number; sequenceNumber: number }
+  | { type: 'SET_RATE'; rate: number; atServerTime: number; sequenceNumber: number }
+  | { type: 'STATE_SNAPSHOT'; state: PlaybackState };
+
+// Sync event schemas
+export const SyncPlayEventSchema = z.object({
+  atServerTime: z.number().optional(),
+});
+
+export const SyncPauseEventSchema = z.object({
+  atServerTime: z.number().optional(),
+});
+
+export const SyncSeekEventSchema = z.object({
+  targetMediaTime: z.number().min(0),
+  atServerTime: z.number().optional(),
+});
+
+export const SyncRateEventSchema = z.object({
+  rate: z.number().min(0.1).max(4.0),
+  atServerTime: z.number().optional(),
+});
+
+export type SyncPlayEvent = z.infer<typeof SyncPlayEventSchema>;
+export type SyncPauseEvent = z.infer<typeof SyncPauseEventSchema>;
+export type SyncSeekEvent = z.infer<typeof SyncSeekEventSchema>;
+export type SyncRateEvent = z.infer<typeof SyncRateEventSchema>;
+
+export interface SyncCommandEvent {
+  command: SyncCommand;
+}
+
+export interface SyncStateEvent {
+  state: PlaybackState;
+}
 
 export const ServerEvents = {
   ROOM_STATE: 'room:state',
@@ -110,4 +157,6 @@ export const ServerEvents = {
   ROOM_PARTICIPANT_LEFT: 'room:participant:left',
   ROOM_ERROR: 'room:error',
   TIME_PONG: 'time:pong',
+  SYNC_COMMAND: 'sync:command',
+  SYNC_STATE: 'sync:state',
 } as const;

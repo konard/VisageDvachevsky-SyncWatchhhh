@@ -148,6 +148,41 @@ export class RoomStateService {
   }
 
   /**
+   * Get and increment sequence number for a room
+   */
+  async incrementSequenceNumber(roomId: string): Promise<number> {
+    try {
+      const key = `room:${roomId}:sequence`;
+      const sequence = await stateRedis.incr(key);
+
+      // Set TTL if this is the first increment
+      if (sequence === 1) {
+        await stateRedis.expire(key, ROOM_STATE_TTL);
+      }
+
+      logger.debug({ roomId, sequence }, 'Sequence number incremented');
+      return sequence;
+    } catch (error) {
+      logger.error({ error: (error as Error).message, roomId }, 'Failed to increment sequence number');
+      throw error;
+    }
+  }
+
+  /**
+   * Get current sequence number for a room
+   */
+  async getSequenceNumber(roomId: string): Promise<number> {
+    try {
+      const key = `room:${roomId}:sequence`;
+      const sequence = await stateRedis.get(key);
+      return sequence ? parseInt(sequence, 10) : 0;
+    } catch (error) {
+      logger.error({ error: (error as Error).message, roomId }, 'Failed to get sequence number');
+      throw error;
+    }
+  }
+
+  /**
    * Clear all state for a room
    */
   async clearRoomState(roomId: string): Promise<void> {
@@ -156,6 +191,7 @@ export class RoomStateService {
         `room:${roomId}:playback`,
         `room:${roomId}:participants`,
         `room:${roomId}:online`,
+        `room:${roomId}:sequence`,
       ];
 
       await stateRedis.del(...keys);
