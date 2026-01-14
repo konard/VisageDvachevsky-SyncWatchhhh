@@ -63,4 +63,4 @@ jobs:
         uses: daun/playwright-report-comment@v3
         if: always()
         with:
-          report-path: extracted/playwright-report
+          report-file: extracted/test-results/results.json
