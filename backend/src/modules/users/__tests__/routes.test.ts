@@ -26,7 +26,8 @@ describe('Users Routes Integration', () => {
     app = Fastify();
     await app.register(jwt, { secret: env.JWT_SECRET });
     await app.register(authRoutes, { prefix: '/auth' });
-    await app.register(usersRoutes, { prefix: '/users' });
+    // Routes already define /users/* paths, so no prefix needed
+    await app.register(usersRoutes);
     await app.ready();
 
     // Create test user 1 (main test user)
