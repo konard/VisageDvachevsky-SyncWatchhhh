@@ -4,6 +4,7 @@ import { SoundSettings } from '../components/settings';
 import { useNavigate } from 'react-router-dom';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { AnimatedPage } from '../components/AnimatedPage';
+import { GlassInput, GlassButton, GlassSlider, GlassDropdown, GlassToggle } from '../components/ui/glass';
 import clsx from 'clsx';
 import { useProfile, useUpdateProfile, useUpdateAvatar, useChangePassword, useDeleteAccount, useSettings, useUpdateSettings } from '../hooks/useProfile';
 import { useFriends, useFriendRequests, useAcceptFriendRequest, useDeclineFriendRequest, useRemoveFriend } from '../hooks/useFriends';
@@ -261,71 +262,68 @@ export default function ProfilePage() {
                   <div className="space-y-2">
                     <label className="block text-gray-300 text-sm">Update Avatar URL</label>
                     <div className="flex gap-2">
-                      <input
+                      <GlassInput
                         type="text"
                         value={avatarUrl}
                         onChange={(e) => setAvatarUrl(e.target.value)}
                         placeholder="Enter avatar URL"
-                        className="flex-1 px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
+                        className="flex-1"
                       />
-                      <button
+                      <GlassButton
                         onClick={handleUploadAvatar}
                         disabled={updateAvatar.isPending || !avatarUrl.trim()}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
+                        size="md"
                       >
-                        <Upload size={16} />
-                        {updateAvatar.isPending ? 'Uploading...' : 'Upload'}
-                      </button>
+                        <span className="flex items-center gap-2">
+                          <Upload size={16} />
+                          {updateAvatar.isPending ? 'Uploading...' : 'Upload'}
+                        </span>
+                      </GlassButton>
                     </div>
                   </div>
 
                   {/* Profile Edit Form */}
                   {isEditingProfile ? (
                     <div className="space-y-4 pt-4">
-                      <div>
-                        <label className="block text-gray-300 mb-2">Username</label>
-                        <input
-                          type="text"
-                          value={profileForm.username}
-                          onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
-                          className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-300 mb-2">Email</label>
-                        <input
-                          type="email"
-                          value={profileForm.email}
-                          onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                          className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
-                        />
-                      </div>
+                      <GlassInput
+                        label="Username"
+                        type="text"
+                        value={profileForm.username}
+                        onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
+                      />
+                      <GlassInput
+                        label="Email"
+                        type="email"
+                        value={profileForm.email}
+                        onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                      />
                       <div className="flex gap-2">
-                        <button
+                        <GlassButton
                           onClick={handleSaveProfile}
                           disabled={updateProfile.isPending}
-                          className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+                          fullWidth
                         >
                           {updateProfile.isPending ? 'Saving...' : 'Save Changes'}
-                        </button>
-                        <button
+                        </GlassButton>
+                        <GlassButton
                           onClick={() => {
                             setIsEditingProfile(false);
                             setProfileForm({ username: user.username, email: user.email });
                           }}
-                          className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                          variant="secondary"
+                          fullWidth
                         >
                           Cancel
-                        </button>
+                        </GlassButton>
                       </div>
                     </div>
                   ) : (
-                    <button
+                    <GlassButton
                       onClick={() => setIsEditingProfile(true)}
-                      className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                      fullWidth
                     >
                       Edit Profile
-                    </button>
+                    </GlassButton>
                   )}
                 </>
               ) : (
@@ -361,22 +359,24 @@ export default function ProfilePage() {
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <button
+                            <GlassButton
                               onClick={() => handleAcceptFriend(request.id)}
                               disabled={acceptFriendRequest.isPending}
-                              className="p-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+                              variant="success"
+                              size="sm"
                               title="Accept"
                             >
                               <Check size={16} />
-                            </button>
-                            <button
+                            </GlassButton>
+                            <GlassButton
                               onClick={() => handleDeclineFriend(request.id)}
                               disabled={declineFriendRequest.isPending}
-                              className="p-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+                              variant="danger"
+                              size="sm"
                               title="Decline"
                             >
                               <X size={16} />
-                            </button>
+                            </GlassButton>
                           </div>
                         </div>
                       ))}
@@ -429,14 +429,15 @@ export default function ProfilePage() {
                           <p className="text-sm text-gray-400">Friends since {new Date(friendship.createdAt).toLocaleDateString()}</p>
                         </div>
                       </div>
-                      <button
+                      <GlassButton
                         onClick={() => handleRemoveFriend(friendship.id)}
                         disabled={removeFriend.isPending}
-                        className="p-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+                        variant="danger"
+                        size="sm"
                         title="Remove friend"
                       >
                         <UserMinus size={16} />
-                      </button>
+                      </GlassButton>
                     </div>
                   ))}
                 </div>
@@ -521,31 +522,25 @@ export default function ProfilePage() {
 
                   {/* PTT Key */}
                   {settings.voiceMode === 'push_to_talk' && (
-                    <div>
-                      <label className="block text-gray-300 mb-2">Push-to-talk Key</label>
-                      <input
-                        type="text"
-                        value={settings.pttKey}
-                        onChange={(e) => handleSettingChange('pttKey', e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
+                    <GlassInput
+                      label="Push-to-talk Key"
+                      type="text"
+                      value={settings.pttKey}
+                      onChange={(e) => handleSettingChange('pttKey', e.target.value)}
+                    />
                   )}
 
                   {/* VAD Threshold */}
                   {settings.voiceMode === 'voice_activity' && (
                     <div>
-                      <label className="block text-gray-300 mb-2">
-                        Voice Detection Threshold: {settings.vadThreshold.toFixed(2)}
-                      </label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
+                      <GlassSlider
+                        label="Voice Detection Threshold"
+                        min={0}
+                        max={1}
+                        step={0.05}
                         value={settings.vadThreshold}
-                        onChange={(e) => handleSettingChange('vadThreshold', parseFloat(e.target.value))}
-                        className="w-full"
+                        onChange={(value) => handleSettingChange('vadThreshold', value)}
+                        formatValue={(val) => val.toFixed(2)}
                       />
                       <div className="flex justify-between text-sm text-gray-400 mt-1">
                         <span>More sensitive</span>
@@ -555,25 +550,17 @@ export default function ProfilePage() {
                   )}
 
                   {/* Audio Processing */}
-                  <div className="space-y-2">
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={settings.noiseSuppression}
-                        onChange={(e) => handleSettingChange('noiseSuppression', e.target.checked)}
-                        className="w-4 h-4 text-blue-600 rounded"
-                      />
-                      <span className="text-white">Noise Suppression</span>
-                    </label>
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={settings.echoCancellation}
-                        onChange={(e) => handleSettingChange('echoCancellation', e.target.checked)}
-                        className="w-4 h-4 text-blue-600 rounded"
-                      />
-                      <span className="text-white">Echo Cancellation</span>
-                    </label>
+                  <div className="space-y-3">
+                    <GlassToggle
+                      label="Noise Suppression"
+                      checked={settings.noiseSuppression}
+                      onChange={(checked) => handleSettingChange('noiseSuppression', checked)}
+                    />
+                    <GlassToggle
+                      label="Echo Cancellation"
+                      checked={settings.echoCancellation}
+                      onChange={(checked) => handleSettingChange('echoCancellation', checked)}
+                    />
                   </div>
                 </div>
               ) : (
@@ -589,30 +576,22 @@ export default function ProfilePage() {
                 <div className="space-y-4">
                   <SoundSettings />
 
-                  <div>
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={settings.notificationsEnabled}
-                        onChange={(e) => handleSettingChange('notificationsEnabled', e.target.checked)}
-                        className="w-4 h-4 text-blue-600 rounded"
-                      />
-                      <span className="text-white">Notifications</span>
-                    </label>
-                  </div>
+                  <GlassToggle
+                    label="Notifications"
+                    checked={settings.notificationsEnabled}
+                    onChange={(checked) => handleSettingChange('notificationsEnabled', checked)}
+                  />
 
-                  <div>
-                    <label className="block text-gray-300 mb-2">Theme</label>
-                    <select
-                      value={settings.theme}
-                      onChange={(e) => handleSettingChange('theme', e.target.value)}
-                      className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
-                    >
-                      <option value="dark">Dark</option>
-                      <option value="light">Light</option>
-                      <option value="auto">Auto</option>
-                    </select>
-                  </div>
+                  <GlassDropdown
+                    label="Theme"
+                    value={settings.theme}
+                    onChange={(value) => handleSettingChange('theme', value)}
+                    options={[
+                      { value: 'dark', label: 'Dark' },
+                      { value: 'light', label: 'Light' },
+                      { value: 'auto', label: 'Auto' },
+                    ]}
+                  />
                 </div>
               ) : null}
             </div>
@@ -622,75 +601,77 @@ export default function ProfilePage() {
               <h2 className="text-xl font-bold text-white mb-4">Account Actions</h2>
               <div className="space-y-3">
                 {!showPasswordForm ? (
-                  <button
+                  <GlassButton
                     onClick={() => setShowPasswordForm(true)}
-                    className="w-full px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
+                    fullWidth
                   >
                     Change Password
-                  </button>
+                  </GlassButton>
                 ) : (
                   <div className="space-y-3">
-                    <input
+                    <GlassInput
                       type="password"
                       placeholder="Current Password"
                       value={passwordForm.currentPassword}
                       onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                      className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
                     />
-                    <input
+                    <GlassInput
                       type="password"
                       placeholder="New Password"
                       value={passwordForm.newPassword}
                       onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                      className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
                     />
-                    <input
+                    <GlassInput
                       type="password"
                       placeholder="Confirm New Password"
                       value={passwordForm.confirmPassword}
                       onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                      className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
                     />
                     <div className="flex gap-2">
-                      <button
+                      <GlassButton
                         onClick={handleChangePassword}
                         disabled={changePassword.isPending}
-                        className="flex-1 px-4 py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+                        fullWidth
                       >
                         {changePassword.isPending ? 'Changing...' : 'Confirm'}
-                      </button>
-                      <button
+                      </GlassButton>
+                      <GlassButton
                         onClick={() => {
                           setShowPasswordForm(false);
                           setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
                         }}
-                        className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                        variant="secondary"
+                        fullWidth
                       >
                         Cancel
-                      </button>
+                      </GlassButton>
                     </div>
                   </div>
                 )}
 
-                <button
+                <GlassButton
                   onClick={() => {
                     localStorage.removeItem('accessToken');
                     localStorage.removeItem('refreshToken');
                     navigate('/login');
                   }}
-                  className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  variant="primary"
+                  fullWidth
                 >
                   Logout
-                </button>
+                </GlassButton>
 
-                <button
+                <GlassButton
                   onClick={handleDeleteAccount}
                   disabled={deleteAccount.isPending}
-                  className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+                  variant="danger"
+                  fullWidth
                 >
-                  <Trash2 size={16} />
-                  {showDeleteConfirm ? 'Click again to confirm deletion' : 'Delete Account'}
-                </button>
+                  <span className="flex items-center justify-center gap-2">
+                    <Trash2 size={16} />
+                    {showDeleteConfirm ? 'Click again to confirm deletion' : 'Delete Account'}
+                  </span>
+                </GlassButton>
                 {showDeleteConfirm && (
                   <p className="text-sm text-red-400 text-center">
                     Warning: This action cannot be undone!
