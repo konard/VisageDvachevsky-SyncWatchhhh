@@ -1,6 +1,9 @@
 # Multi-stage build for production
 FROM node:20-alpine AS builder
 
+# Install OpenSSL 1.1 compatibility for Prisma
+RUN apk add --no-cache openssl1.1-compat
+
 WORKDIR /app
 
 # Copy workspace root package files (exclude lock file to get platform-specific deps)
@@ -33,8 +36,8 @@ RUN npm run build --workspace=backend
 # Production stage
 FROM node:20-alpine
 
-# Install bash for entrypoint script
-RUN apk add --no-cache bash
+# Install bash for entrypoint script and OpenSSL 1.1 compatibility for Prisma
+RUN apk add --no-cache bash openssl1.1-compat
 
 WORKDIR /app
 
