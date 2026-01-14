@@ -6,6 +6,12 @@ import {
   RoomParticipantJoinedEvent,
   RoomParticipantLeftEvent,
   RoomErrorEvent,
+  SyncPlayEvent,
+  SyncPauseEvent,
+  SyncSeekEvent,
+  SyncRateEvent,
+  SyncCommandEvent,
+  SyncStateEvent,
 } from './events.js';
 
 // ============================================
@@ -15,6 +21,10 @@ import {
 export interface ClientToServerEvents {
   'room:join': (data: RoomJoinEvent) => void;
   'room:leave': (data: RoomLeaveEvent) => void;
+  'sync:play': (data: SyncPlayEvent) => void;
+  'sync:pause': (data: SyncPauseEvent) => void;
+  'sync:seek': (data: SyncSeekEvent) => void;
+  'sync:rate': (data: SyncRateEvent) => void;
 }
 
 export interface ServerToClientEvents {
@@ -22,6 +32,8 @@ export interface ServerToClientEvents {
   'room:participant:joined': (data: RoomParticipantJoinedEvent) => void;
   'room:participant:left': (data: RoomParticipantLeftEvent) => void;
   'room:error': (data: RoomErrorEvent) => void;
+  'sync:command': (data: SyncCommandEvent) => void;
+  'sync:state': (data: SyncStateEvent) => void;
 }
 
 export interface InterServerEvents {
