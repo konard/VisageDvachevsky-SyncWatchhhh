@@ -188,7 +188,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=sha,prefix={{branch}}-
+            type=sha,prefix=sha-
 
       - name: Build and push backend image
         uses: docker/build-push-action@v5
@@ -208,7 +208,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=sha,prefix={{branch}}-
+            type=sha,prefix=sha-
 
       - name: Build and push frontend image
         uses: docker/build-push-action@v5
@@ -228,7 +228,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=sha,prefix={{branch}}-
+            type=sha,prefix=sha-
 
       - name: Build and push transcoder image
         uses: docker/build-push-action@v5
