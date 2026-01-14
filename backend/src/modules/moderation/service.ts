@@ -16,7 +16,6 @@ import type {
   UpdateReportStatusInput,
   MuteUserInput,
   ShadowMuteInput,
-  ReportReason,
 } from './schemas.js';
 
 export class ModerationService {

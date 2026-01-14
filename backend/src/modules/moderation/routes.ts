@@ -5,6 +5,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ModerationService } from './service.js';
+import { authenticateRequired } from '../../common/middleware/auth.js';
 import {
   createReportSchema,
   updateReportStatusSchema,
@@ -29,11 +30,10 @@ export async function moderationRoutes(fastify: FastifyInstance) {
     '/reports',
     {
       schema: {
-        tags: ['Moderation'],
         description: 'Report a user for abuse or misconduct',
         body: createReportSchema,
       },
-      preHandler: [fastify.authenticate],
+      preHandler: [authenticateRequired],
     },
     async (request: FastifyRequest<{ Body: CreateReportInput }>, reply: FastifyReply) => {
       const userId = request.user!.userId;
@@ -60,10 +60,9 @@ export async function moderationRoutes(fastify: FastifyInstance) {
     '/reports',
     {
       schema: {
-        tags: ['Moderation'],
         description: 'Get all user reports (moderator only)',
       },
-      preHandler: [fastify.authenticate],
+      preHandler: [authenticateRequired],
     },
     async (request, reply: FastifyReply) => {
       // TODO: Add moderator role check in production
@@ -87,11 +86,10 @@ export async function moderationRoutes(fastify: FastifyInstance) {
     '/reports/:reportId',
     {
       schema: {
-        tags: ['Moderation'],
         description: 'Update report status (moderator only)',
         body: updateReportStatusSchema,
       },
-      preHandler: [fastify.authenticate],
+      preHandler: [authenticateRequired],
     },
     async (
       request: FastifyRequest<{
@@ -125,11 +123,10 @@ export async function moderationRoutes(fastify: FastifyInstance) {
     '/mute',
     {
       schema: {
-        tags: ['Moderation'],
         description: 'Temporarily mute a user in a room',
         body: muteUserSchema,
       },
-      preHandler: [fastify.authenticate],
+      preHandler: [authenticateRequired],
     },
     async (request: FastifyRequest<{ Body: MuteUserInput }>, reply: FastifyReply) => {
       const userId = request.user!.userId;
@@ -155,10 +152,9 @@ export async function moderationRoutes(fastify: FastifyInstance) {
     '/mute',
     {
       schema: {
-        tags: ['Moderation'],
         description: 'Remove mute from a user',
       },
-      preHandler: [fastify.authenticate],
+      preHandler: [authenticateRequired],
     },
     async (request, reply: FastifyReply) => {
       const { roomId, userId } = request.query;
@@ -181,11 +177,10 @@ export async function moderationRoutes(fastify: FastifyInstance) {
     '/shadow-mute',
     {
       schema: {
-        tags: ['Moderation'],
         description: 'Shadow mute a user (admin only)',
         body: shadowMuteSchema,
       },
-      preHandler: [fastify.authenticate],
+      preHandler: [authenticateRequired],
     },
     async (request: FastifyRequest<{ Body: ShadowMuteInput }>, reply: FastifyReply) => {
       const userId = request.user!.userId;
@@ -211,10 +206,9 @@ export async function moderationRoutes(fastify: FastifyInstance) {
     '/shadow-mute',
     {
       schema: {
-        tags: ['Moderation'],
         description: 'Remove shadow mute from a user',
       },
-      preHandler: [fastify.authenticate],
+      preHandler: [authenticateRequired],
     },
     async (request, reply: FastifyReply) => {
       const { roomId, userId } = request.query;
