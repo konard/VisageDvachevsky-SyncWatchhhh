@@ -1,10 +1,13 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AnimatePresence } from 'framer-motion';
 import { GlassSpinner } from './components/ui/glass';
 import { ErrorBoundary } from './components/error';
 import { ToastContainer } from './components/toast';
 import { soundManager } from './services';
+import { soundManager } from './services';
+import { AnimatedPage } from './components/AnimatedPage';
 
 // Lazy load pages for code splitting
 const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })));
@@ -14,16 +17,23 @@ const YouTubePlayerDemo = lazy(() => import('./components/YouTubePlayerDemo').th
 const GlassDesignSystemDemo = lazy(() => import('./components/GlassDesignSystemDemo').then(module => ({ default: module.GlassDesignSystemDemo })));
 const SoundEffectsDemo = lazy(() => import('./components/SoundEffectsDemo').then(module => ({ default: module.SoundEffectsDemo })));
 
-const LoginPage = () => (
-  <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-    <p className="text-white">Login - Coming soon...</p>
+// Loading fallback component
+const LoadingFallback = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
+    <GlassSpinner size="lg" />
   </div>
 );
 
+const LoginPage = () => (
+  <AnimatedPage className="min-h-screen bg-slate-900 flex items-center justify-center">
+    <p className="text-white">Login - Coming soon...</p>
+  </AnimatedPage>
+);
+
 const RegisterPage = () => (
-  <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+  <AnimatedPage className="min-h-screen bg-slate-900 flex items-center justify-center">
     <p className="text-white">Register - Coming soon...</p>
-  </div>
+  </AnimatedPage>
 );
 
 const queryClient = new QueryClient({
@@ -35,12 +45,26 @@ const queryClient = new QueryClient({
   },
 });
 
-// Loading fallback component
-const LoadingFallback = () => (
-  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
-    <GlassSpinner size="lg" />
-  </div>
-);
+function AnimatedRoutes() {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/room/:code" element={<RoomPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/youtube-demo" element={<YouTubePlayerDemo />} />
+          <Route path="/design-system" element={<GlassDesignSystemDemo />} />
+          <Route path="/sound-effects" element={<SoundEffectsDemo />} />
+        </Routes>
+      </Suspense>
+    </AnimatePresence>
+  );
+}
 
 function App() {
   // Preload sound effects on app initialization
