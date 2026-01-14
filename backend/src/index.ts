@@ -6,6 +6,7 @@ import { ensureBuckets } from './config/minio.js';
 import { closeQueue } from './config/queue.js';
 import { logger } from './config/logger.js';
 import { env } from './config/env.js';
+import { stopRoomLifecycleJobs } from './jobs/room-lifecycle.js';
 
 /**
  * Start the server
