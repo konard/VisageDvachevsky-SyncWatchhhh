@@ -6,6 +6,8 @@ import {
   RoomParticipantJoinedEvent,
   RoomParticipantLeftEvent,
   RoomErrorEvent,
+  TimePingEvent,
+  TimePongEvent,
   SyncPlayEvent,
   SyncPauseEvent,
   SyncSeekEvent,
@@ -21,6 +23,7 @@ import {
 export interface ClientToServerEvents {
   'room:join': (data: RoomJoinEvent) => void;
   'room:leave': (data: RoomLeaveEvent) => void;
+  'time:ping': (data: TimePingEvent) => void;
   'sync:play': (data: SyncPlayEvent) => void;
   'sync:pause': (data: SyncPauseEvent) => void;
   'sync:seek': (data: SyncSeekEvent) => void;
@@ -32,6 +35,7 @@ export interface ServerToClientEvents {
   'room:participant:joined': (data: RoomParticipantJoinedEvent) => void;
   'room:participant:left': (data: RoomParticipantLeftEvent) => void;
   'room:error': (data: RoomErrorEvent) => void;
+  'time:pong': (data: TimePongEvent) => void;
   'sync:command': (data: SyncCommandEvent) => void;
   'sync:state': (data: SyncStateEvent) => void;
 }
