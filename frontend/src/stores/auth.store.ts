@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { authService, type User, type LoginRequest, type RegisterRequest } from '../services/auth.service';
+import { oauthService, type OAuthProvider } from '../services/oauth.service';
 
 /**
  * Token storage keys
@@ -31,6 +32,8 @@ interface AuthState {
   getCurrentUser: () => Promise<void>;
   initialize: () => Promise<void>;
   clearError: () => void;
+  loginWithOAuth: (provider: OAuthProvider) => void;
+  handleOAuthCallback: (provider: OAuthProvider, code: string, state: string) => Promise<void>;
 }
 
 /**
@@ -304,6 +307,56 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    */
   clearError: () => {
     set({ error: null });
+  },
+
+  /**
+   * Login with OAuth provider (Google, GitHub)
+   * Redirects to OAuth provider's authorization page
+   *
+   * NOTE: Requires backend OAuth endpoints to be implemented
+   */
+  loginWithOAuth: (provider: OAuthProvider) => {
+    try {
+      oauthService.initiateOAuth(provider);
+    } catch (error: any) {
+      set({
+        error: error.message || `Failed to initiate ${provider} OAuth`,
+      });
+    }
+  },
+
+  /**
+   * Handle OAuth callback after user authorizes
+   * Called from OAuth callback page with code and state params
+   *
+   * NOTE: Requires backend OAuth callback endpoint to be implemented
+   */
+  handleOAuthCallback: async (provider: OAuthProvider, code: string, state: string) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      const response = await oauthService.handleCallback(provider, code, state);
+
+      // Store tokens (always remember for OAuth users)
+      storeTokens(response.accessToken, response.refreshToken, true);
+
+      // Update state
+      set({
+        user: response.user,
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error: any) {
+      const errorMessage = error.message || `Failed to complete ${provider} OAuth`;
+      set({
+        error: errorMessage,
+        isLoading: false,
+      });
+      throw error;
+    }
   },
 }));
 

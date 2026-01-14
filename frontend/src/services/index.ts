@@ -12,3 +12,5 @@ export type {
   AuthResponse,
   RefreshResponse,
 } from './auth.service';
+export { oauthService, OAuthService } from './oauth.service';
+export type { OAuthProvider } from './oauth.service';
