@@ -57,8 +57,10 @@ interface VoiceState {
 const defaultSettings: VoiceSettings = {
   mode: 'push_to_talk',
   pttKey: 'Space',
+  pttMouseButton: undefined,
   vadThreshold: 0.3,
-  noiseSuppression: true,
+  noiseSuppressionLevel: 'moderate',
+  noiseSuppression: true, // Legacy support
   echoCancellation: true,
   autoGainControl: true,
 };
@@ -97,7 +99,9 @@ export const useVoiceStore = create<VoiceState>((set) => ({
             username: peerId,
             isSpeaking: false,
             isMuted: false,
+            isGloballyMuted: false,
             volume: 1.0,
+            audioLevel: 0,
           });
         }
       }
@@ -113,7 +117,9 @@ export const useVoiceStore = create<VoiceState>((set) => ({
           username: username || peerId,
           isSpeaking: false,
           isMuted: false,
+          isGloballyMuted: false,
           volume: 1.0,
+          audioLevel: 0,
         });
       }
       return { peers };
