@@ -45,7 +45,7 @@ export async function createApp() {
     redis: rateLimitRedis,
   });
 
-  // Health check endpoint
+  // Health check endpoints (legacy endpoint for backward compatibility)
   app.get('/health', async () => {
     return {
       status: 'ok',
@@ -62,6 +62,10 @@ export async function createApp() {
       status: 'running',
     };
   });
+
+  // Register health check routes
+  const { healthRoutes } = await import('./modules/health/routes.js');
+  await app.register(healthRoutes);
 
   // Register API routes
   const { friendsRoutes } = await import('./modules/friends/routes.js');

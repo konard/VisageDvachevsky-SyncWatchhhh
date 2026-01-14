@@ -11,8 +11,11 @@ import { Client as MinioClient } from 'minio';
 import { Redis } from 'ioredis';
 import path from 'path';
 import fs from 'fs/promises';
+import { spawn, ChildProcess } from 'child_process';
 import { logger } from './logger.js';
 import { prisma, closePrisma } from './db.js';
+import { createHealthServer, setTranscoderWorker, setLastJobCompleted, setLastJobFailed } from './health.js';
+import { FFmpegProcessMonitor, DEFAULT_FFMPEG_LIMITS, applyNiceLevel } from './ffmpeg-limits.js';
 
 interface TranscodeJob {
   videoId: string;
@@ -201,7 +204,7 @@ async function generateMasterPlaylist(
 }
 
 /**
- * Transcode a single variant
+ * Transcode a single variant with resource limits
  */
 async function transcodeVariant(
   inputPath: string,
@@ -213,7 +216,9 @@ async function transcodeVariant(
   await fs.mkdir(variantDir, { recursive: true });
 
   return new Promise<void>((resolve, reject) => {
-    ffmpeg(inputPath)
+    let processMonitor: FFmpegProcessMonitor | null = null;
+
+    const command = ffmpeg(inputPath)
       .outputOptions([
         // Video settings
         '-c:v libx264',
@@ -236,20 +241,52 @@ async function transcodeVariant(
         '-hls_playlist_type vod',
       ])
       .output(path.join(variantDir, 'playlist.m3u8'))
-      .on('start', (cmd) => {
+      .on('start', async (cmd) => {
         logger.debug({ cmd, variant: variant.name }, 'FFmpeg command');
+
+        // Get the child process and apply resource limits
+        const proc = (command as any).ffmpegProc as ChildProcess;
+        if (proc && proc.pid) {
+          // Apply nice level to lower priority
+          await applyNiceLevel(proc.pid, DEFAULT_FFMPEG_LIMITS.niceLevel);
+
+          // Start monitoring
+          processMonitor = new FFmpegProcessMonitor(
+            proc,
+            DEFAULT_FFMPEG_LIMITS,
+            (reason) => {
+              logger.error({ variant: variant.name, reason }, 'FFmpeg process killed by monitor');
+              reject(new Error(`FFmpeg process killed: ${reason}`));
+            }
+          );
+          processMonitor.start();
+        }
       })
       .on('progress', (progress) => {
-        if (progress.percent && onProgress) {
-          onProgress(progress.percent);
+        if (progress.percent) {
+          // Update monitor with progress
+          if (processMonitor) {
+            processMonitor.updateProgress(progress.percent);
+          }
+
+          // Call user progress callback
+          if (onProgress) {
+            onProgress(progress.percent);
+          }
         }
       })
       .on('end', () => {
         logger.info({ variant: variant.name }, 'Variant transcoding completed');
+        if (processMonitor) {
+          processMonitor.stop();
+        }
         resolve();
       })
       .on('error', (err) => {
         logger.error({ error: err.message, variant: variant.name }, 'Variant transcoding failed');
+        if (processMonitor) {
+          processMonitor.stop();
+        }
         reject(err);
       })
       .run();
@@ -361,6 +398,10 @@ async function main(): Promise<void> {
 
   logger.info('Starting transcoding worker');
 
+  // Start health check server
+  const healthPort = parseInt(process.env.HEALTH_PORT || '3001');
+  const healthServer = createHealthServer(healthPort);
+
   // Timeout for transcoding jobs (2 hours)
   const TRANSCODE_TIMEOUT = 2 * 60 * 60 * 1000;
 
@@ -379,11 +420,16 @@ async function main(): Promise<void> {
     },
   });
 
+  // Set worker instance for health checks
+  setTranscoderWorker(worker);
+
   worker.on('completed', (job, result) => {
+    setLastJobCompleted(new Date());
     logger.info({ jobId: job.id, videoId: job.data.videoId, result }, 'Job completed');
   });
 
   worker.on('failed', (job, err) => {
+    setLastJobFailed(new Date());
     logger.error({
       jobId: job?.id,
       videoId: job?.data.videoId,
@@ -399,6 +445,11 @@ async function main(): Promise<void> {
   // Graceful shutdown
   const shutdown = async () => {
     logger.info('Shutting down gracefully');
+
+    // Close health server
+    healthServer.close();
+
+    // Close worker
     await worker.close();
     await closePrisma();
     await redis.quit();
