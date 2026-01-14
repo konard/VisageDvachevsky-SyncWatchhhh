@@ -4,6 +4,7 @@ import { useBreakpoint } from '../hooks/useBreakpoint';
 import { useProfile } from '../hooks/useProfile';
 import { AnimatedPage } from '../components/AnimatedPage';
 import { CreateRoomModal, type RoomOptions } from '../components/room';
+import { roomApiService } from '../services';
 import {
   Play,
   Users,
@@ -29,12 +30,22 @@ export function HomePage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const { data: user, isLoading: isLoadingProfile } = useProfile();
 
-  const handleCreateRoom = (options: RoomOptions) => {
-    // Generate random room code (placeholder)
-    // In production, this would call the API with options
-    console.log('Creating room with options:', options);
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    navigate(`/room/${code}`);
+  const handleCreateRoom = async (options: RoomOptions) => {
+    try {
+      // Call backend API to create room
+      const room = await roomApiService.createRoom({
+        name: options.name,
+        maxParticipants: options.maxParticipants,
+        password: options.password,
+        playbackControl: options.playbackControl,
+      });
+
+      // Navigate to the newly created room using the code from backend
+      navigate(`/room/${room.code}`);
+    } catch (error) {
+      // Error is handled and displayed in CreateRoomModal
+      throw error;
+    }
   };
 
   const handleJoinRoom = (e: React.FormEvent) => {

@@ -8,6 +8,7 @@ import {
   EyeOff,
   Settings2,
   ArrowRight,
+  AlertCircle,
 } from 'lucide-react';
 import { GlassModal, GlassButton, GlassInput } from '../ui/glass';
 import clsx from 'clsx';
@@ -76,10 +77,12 @@ export function CreateRoomModal({
   const [playbackControl, setPlaybackControl] =
     useState<RoomOptions['playbackControl']>('owner_only');
   const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsCreating(true);
+    setError(null);
 
     try {
       await onCreateRoom({
@@ -88,6 +91,22 @@ export function CreateRoomModal({
         password: usePassword && password ? password : undefined,
         playbackControl,
       });
+      // If successful, the modal will be closed by navigation
+    } catch (err: any) {
+      // Handle different types of errors
+      let errorMessage = 'Failed to create room. Please try again.';
+
+      if (err.response?.status === 401) {
+        errorMessage = 'You must be logged in to create a room.';
+      } else if (err.response?.status === 400) {
+        errorMessage = err.response?.data?.error?.message || 'Invalid room configuration.';
+      } else if (err.response?.status === 429) {
+        errorMessage = 'Too many requests. Please wait a moment and try again.';
+      } else if (err.message === 'Network Error') {
+        errorMessage = 'Network error. Please check your connection.';
+      }
+
+      setError(errorMessage);
     } finally {
       setIsCreating(false);
     }
@@ -101,6 +120,7 @@ export function CreateRoomModal({
     setShowPassword(false);
     setUsePassword(false);
     setPlaybackControl('owner_only');
+    setError(null);
     onClose();
   };
 
@@ -261,6 +281,14 @@ export function CreateRoomModal({
             </div>
           )}
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/50">
+            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-300">{error}</p>
+          </div>
+        )}
 
         {/* Create Button */}
         <GlassButton
