@@ -28,6 +28,7 @@ model User {
   messages               ChatMessage[]
   uploadedVideos         Video[]
   refreshTokens          RefreshToken[]
+  settings               UserSettings?
 
   @@index([email])
   @@index([username])
@@ -43,6 +44,32 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
+  @@index([userId])
+}
+
+model UserSettings {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Voice settings
+  voiceMode        String  @default("push_to_talk") // push_to_talk, voice_activity
+  pttKey           String  @default("Space")
+  vadThreshold     Float   @default(0.5) // 0.0 to 1.0
+  noiseSuppression Boolean @default(true)
+  echoCancellation Boolean @default(true)
+
+  // UI settings
+  soundEffectsEnabled   Boolean @default(true)
+  notificationsEnabled  Boolean @default(true)
+
+  // Display settings
+  theme String @default("dark") // dark, light, auto
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }
 

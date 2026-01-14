@@ -9,6 +9,14 @@ const RoomPage = lazy(() => import('./pages/RoomPage').then(module => ({ default
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(module => ({ default: module.ProfilePage })));
 const YouTubePlayerDemo = lazy(() => import('./components/YouTubePlayerDemo').then(module => ({ default: module.YouTubePlayerDemo })));
 const GlassDesignSystemDemo = lazy(() => import('./components/GlassDesignSystemDemo').then(module => ({ default: module.GlassDesignSystemDemo })));
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { YouTubePlayerDemo } from './components/YouTubePlayerDemo';
+import { GlassDesignSystemDemo } from './components/GlassDesignSystemDemo';
+import { SoundEffectsDemo } from './components/SoundEffectsDemo';
+import { HomePage, RoomPage, ProfilePage } from './pages';
+import { soundManager } from './services';
 
 const LoginPage = () => (
   <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -39,6 +47,13 @@ const LoadingFallback = () => (
 );
 
 function App() {
+  // Preload sound effects on app initialization
+  useEffect(() => {
+    soundManager.preload().catch((error) => {
+      console.warn('Failed to preload sounds:', error);
+    });
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
