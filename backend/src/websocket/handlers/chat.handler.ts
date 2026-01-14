@@ -19,6 +19,7 @@ import { moderationService } from '../../modules/moderation/index.js';
 import { prisma } from '../../config/prisma.js';
 import { logger } from '../../config/logger.js';
 import { checkRateLimit } from '../middleware/rate-limit.js';
+import * as analyticsTracker from '../analytics-tracker.js';
 
 type SyncNamespace = Namespace<
   ClientToServerEvents,
@@ -172,6 +173,11 @@ export const handleChatMessage = async (
       // Broadcast to all participants in the room (including sender)
       io.to(roomCode).emit(ServerEvents.CHAT_MESSAGE, chatMessage);
     }
+
+    // Track analytics event (async, don't await)
+    analyticsTracker.trackChatMessage(socket, room.id, validatedData.content.length).catch(err =>
+      logger.error({ error: err }, 'Failed to track chat message event')
+    );
 
     logger.debug(
       {

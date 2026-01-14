@@ -31,6 +31,7 @@ model User {
   settings               UserSettings?
   reportsCreated         UserReport[]      @relation("ReportCreator")
   reportsReceived        UserReport[]      @relation("ReportTarget")
+  reactions              VideoReaction[]
 
   @@index([email])
   @@index([username])
@@ -71,6 +72,10 @@ model UserSettings {
   forceRelay       Boolean @default(false) // Force TURN-only mode (hide IP)
   hideFromSearch   Boolean @default(false)
   blockNonFriends  Boolean @default(false)
+  // Presence settings
+  invisibleMode       Boolean @default(false)
+  showRichPresence    Boolean @default(true)
+  allowFriendJoin     Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -277,6 +282,170 @@ model UserReport {
   @@index([roomId])
   @@index([status])
   @@index([createdAt])
+// Social Features - Reactions
+// ============================================
+
+model VideoReaction {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String?  // null for guest reactions (if allowed)
+  guestName String?  // For guest reactions
+  emoji     String   // Single emoji character
+
+  // Position on video overlay (percentage-based)
+  positionX Float    // 0-100
+  positionY Float    // 0-100
+
+  // Timeline position
+  mediaTimeMs Int    // Video timestamp in milliseconds
+
+  // Animation type
+  animation String   @default("float") // float, burst, bounce
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([roomId, mediaTimeMs])
+  @@index([roomId, createdAt])
+  @@index([userId])
+// Product Analytics
+// ============================================
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+
+  // Session identification
+  sessionId String   // Unique per user session
+  userId    String?  // null for guests
+  roomId    String?  // null for non-room events
+
+  // Event classification
+  eventName String   // e.g., 'session.start', 'sync.play', 'voice.join'
+  category  String   // 'session', 'sync', 'voice', 'chat', 'funnel'
+
+  // Event data
+  properties Json     // Event-specific properties
+
+  // User agent and platform
+  userAgent String?
+  platform  String?  // 'web', 'mobile'
+
+  @@index([timestamp])
+  @@index([sessionId])
+  @@index([userId, timestamp])
+  @@index([roomId, timestamp])
+  @@index([eventName, timestamp])
+  @@index([category, timestamp])
+}
+
+model SyncCorrectionLog {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+
+  roomId    String
+  userId    String?
+  sessionId String
+
+  // Correction details
+  correctionType String // 'soft', 'hard'
+  driftMs        Int    // Drift in milliseconds
+  targetTimeMs   Int    // Target media time
+  actualTimeMs   Int    // Actual media time before correction
+
+  // Context
+  videoSource String? // 'youtube', 'uploaded', 'external'
+  playbackRate Float  @default(1.0)
+  wasPlaying   Boolean
+
+  @@index([roomId, timestamp])
+  @@index([correctionType, timestamp])
+  @@index([sessionId, timestamp])
+}
+
+model VoiceJoinAttempt {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+
+  roomId    String
+  userId    String?
+  sessionId String
+
+  // Join outcome
+  success      Boolean
+  failureReason String? // 'ice_failed', 'media_permission_denied', 'timeout', etc.
+  joinTimeMs   Int?    // Time taken to successfully join (null if failed)
+
+  // WebRTC diagnostics
+  iceState         String? // 'new', 'checking', 'connected', 'completed', 'failed'
+  candidatesCount  Int?
+  turnUsed         Boolean @default(false)
+
+  @@index([roomId, timestamp])
+  @@index([success, timestamp])
+  @@index([sessionId, timestamp])
+}
+
+model FunnelStep {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+
+  sessionId String
+  userId    String?
+
+  // Funnel progression
+  stepName  String   // 'visit', 'create_room', 'add_video', 'invite', 'play', 'complete'
+  stepOrder Int      // 1, 2, 3, 4, 5, 6
+  completed Boolean  @default(true)
+
+  // Context
+  roomId    String?
+  metadata  Json?    // Additional step-specific data
+
+  @@index([sessionId, stepOrder])
+  @@index([stepName, timestamp])
+  @@index([userId, timestamp])
+}
+
+// ============================================
+// Diagnostics & Debug Logs
+// ============================================
+
+model DiagnosticsSnapshot {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+
+  roomId    String
+  userId    String?
+  sessionId String
+
+  // Network metrics
+  latencyMs   Int?
+  jitterMs    Int?
+  packetLoss  Float?  // Percentage
+
+  // Sync metrics
+  serverTimeMs  BigInt
+  localTimeMs   BigInt
+  clockOffsetMs Int
+  driftMs       Int
+  bufferHealth  Float?  // 0.0 to 1.0
+  playbackRate  Float
+
+  // Voice metrics
+  voiceState    String? // 'connected', 'disconnected', 'connecting'
+  audioLevel    Float?  // 0.0 to 1.0
+  iceState      String?
+
+  // Socket metrics
+  socketState       String  // 'connected', 'disconnected', 'reconnecting'
+  reconnectAttempts Int     @default(0)
+
+  @@index([roomId, timestamp])
+  @@index([sessionId, timestamp])
 }
 
 // ============================================
