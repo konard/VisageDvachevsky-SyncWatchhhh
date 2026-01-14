@@ -71,8 +71,9 @@ describe('ClockSync', () => {
       const offset = await syncPromise;
 
       expect(clockSync.isSynced()).toBe(true);
-      expect(offset).toBeCloseTo(1000, -1); // Within 10ms tolerance
-      expect(clockSync.getOffset()).toBeCloseTo(1000, -1);
+      // Offset should be within 10ms of expected value
+      expect(Math.abs(offset - 1000)).toBeLessThan(10);
+      expect(Math.abs(clockSync.getOffset() - 1000)).toBeLessThan(10);
       expect(clockSync.getSamples()).toHaveLength(5);
     });
 
@@ -85,8 +86,8 @@ describe('ClockSync', () => {
 
       const offset = await syncPromise;
 
-      expect(offset).toBeCloseTo(-500, -1);
-      expect(clockSync.getOffset()).toBeCloseTo(-500, -1);
+      expect(Math.abs(offset - (-500))).toBeLessThan(10);
+      expect(Math.abs(clockSync.getOffset() - (-500))).toBeLessThan(10);
     });
 
     it('should handle zero offset (clocks in sync)', async () => {
@@ -98,7 +99,7 @@ describe('ClockSync', () => {
 
       const offset = await syncPromise;
 
-      expect(offset).toBeCloseTo(0, -1);
+      expect(Math.abs(offset)).toBeLessThan(10);
     });
 
     it('should take the specified number of samples', async () => {
@@ -140,7 +141,7 @@ describe('ClockSync', () => {
       const clientTime = Date.now();
       const serverTime = clockSync.getServerTime();
 
-      expect(serverTime).toBeCloseTo(clientTime + 2000, -1);
+      expect(Math.abs(serverTime - (clientTime + 2000))).toBeLessThan(10);
     });
 
     it('should return client time when not synced', () => {
