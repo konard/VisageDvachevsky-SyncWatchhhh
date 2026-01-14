@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import Fastify, { FastifyInstance } from 'fastify';
+import jwt from '@fastify/jwt';
 import { authRoutes } from '../routes.js';
 import { prisma } from '../../../common/utils/prisma.js';
+import { env } from '../../../config/env.js';
 
 describe('Auth Routes Integration', () => {
   let app: FastifyInstance;
@@ -13,6 +15,8 @@ describe('Auth Routes Integration', () => {
 
   beforeAll(async () => {
     app = Fastify();
+    // Register JWT plugin before routes that use authenticateRequired
+    await app.register(jwt, { secret: env.JWT_SECRET });
     await app.register(authRoutes, { prefix: '/auth' });
     await app.ready();
   });
