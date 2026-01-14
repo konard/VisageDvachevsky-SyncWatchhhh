@@ -100,6 +100,7 @@ export interface ServerToClientEvents {
   'countdown:start': (data: CountdownStartEvent) => void;
   'countdown:tick': (data: CountdownTickEvent) => void;
   'countdown:complete': (data: CountdownCompleteEvent) => void;
+  'server:shutdown': (data: { message: string; reconnectIn: number }) => void;
 }
 
 export interface InterServerEvents {

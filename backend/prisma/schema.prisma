@@ -130,6 +130,7 @@ model Room {
   playbackVotes      PlaybackVote[]
   participantMetrics ParticipantMetrics[]
   historyEntries     RoomHistory[]
+  videoReactions     VideoReaction[]
 
   @@index([code])
   @@index([ownerId])
@@ -282,6 +283,9 @@ model UserReport {
   @@index([roomId])
   @@index([status])
   @@index([createdAt])
+}
+
+// ============================================
 // Social Features - Reactions
 // ============================================
 
@@ -311,6 +315,9 @@ model VideoReaction {
   @@index([roomId, mediaTimeMs])
   @@index([roomId, createdAt])
   @@index([userId])
+}
+
+// ============================================
 // Product Analytics
 // ============================================
 
