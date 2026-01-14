@@ -6,6 +6,10 @@ import {
   RoomParticipantJoinedEvent,
   RoomParticipantLeftEvent,
   RoomErrorEvent,
+  ChatMessageEvent,
+  ChatMessage,
+  ChatHistoryEvent,
+  ChatErrorEvent,
   VoiceJoinEvent,
   VoiceLeaveEvent,
   VoiceSignalEvent,
@@ -33,6 +37,7 @@ import {
 export interface ClientToServerEvents {
   'room:join': (data: RoomJoinEvent) => void;
   'room:leave': (data: RoomLeaveEvent) => void;
+  'chat:message': (data: ChatMessageEvent) => void;
   'voice:join': (data: VoiceJoinEvent) => void;
   'voice:leave': (data: VoiceLeaveEvent) => void;
   'voice:signal': (data: VoiceSignalEvent) => void;
@@ -49,6 +54,9 @@ export interface ServerToClientEvents {
   'room:participant:joined': (data: RoomParticipantJoinedEvent) => void;
   'room:participant:left': (data: RoomParticipantLeftEvent) => void;
   'room:error': (data: RoomErrorEvent) => void;
+  'chat:message': (data: ChatMessage) => void;
+  'chat:history': (data: ChatHistoryEvent) => void;
+  'chat:error': (data: ChatErrorEvent) => void;
   'voice:peers': (data: VoicePeersEvent) => void;
   'voice:peer:joined': (data: VoicePeerJoinedEvent) => void;
   'voice:peer:left': (data: VoicePeerLeftEvent) => void;

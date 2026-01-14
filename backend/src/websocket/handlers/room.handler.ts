@@ -21,6 +21,8 @@ import { roomStateService } from '../../modules/room/state.service.js';
 import { handleVoiceCleanup } from './voice.handler.js';
 import { logger } from '../../config/logger.js';
 import { nanoid } from 'nanoid';
+import { sendChatHistory, broadcastSystemMessage } from './chat.handler.js';
+import { prisma } from '../../config/prisma.js';
 
 type SyncNamespace = Namespace<
   ClientToServerEvents,
@@ -175,6 +177,9 @@ export const handleRoomJoin = async (
       playback: playbackState,
     });
 
+    // Send chat history to the joining user
+    await sendChatHistory(socket, room.id);
+
     // Send state snapshot if playback state exists
     if (playbackState) {
       socket.emit(ServerEvents.SYNC_STATE, {
@@ -185,6 +190,17 @@ export const handleRoomJoin = async (
     // Notify others in the room
     socket.to(room.code).emit(ServerEvents.ROOM_PARTICIPANT_JOINED, {
       participant,
+    });
+
+    // Get username for system message
+    const username = socket.data.isGuest
+      ? socket.data.guestName!
+      : (await prisma.user.findUnique({ where: { id: socket.data.userId } }))?.username || 'Unknown';
+
+    // Broadcast system message about user joining
+    await broadcastSystemMessage(_io, room.code, room.id, {
+      kind: 'join',
+      username,
     });
 
     logger.info(
@@ -294,6 +310,12 @@ async function leaveRoom(socket: Socket, io: SyncNamespace): Promise<void> {
     return;
   }
 
+  // Get participant info before removing (for system message)
+  const participant = await roomService.getParticipantByOderId(room.id, oderId);
+  const username = socket.data.isGuest
+    ? socket.data.guestName!
+    : (participant?.userId ? (await prisma.user.findUnique({ where: { id: participant.userId } }))?.username : null) || 'Unknown';
+
   // Remove from Socket.io room
   await socket.leave(roomCode);
 
@@ -301,16 +323,20 @@ async function leaveRoom(socket: Socket, io: SyncNamespace): Promise<void> {
   await roomStateService.removeParticipant(room.id, oderId);
   await roomStateService.removeOnlineSocket(room.id, socket.id);
 
-  // Get participant from database
-  const participant = await roomService.getParticipantByOderId(room.id, oderId);
+  // Remove from database
   if (participant) {
-    // Remove from database
     await roomService.removeParticipant(participant.id);
   }
 
   // Notify others in the room
   io.to(roomCode).emit(ServerEvents.ROOM_PARTICIPANT_LEFT, {
     oderId,
+  });
+
+  // Broadcast system message about user leaving
+  await broadcastSystemMessage(io, roomCode, room.id, {
+    kind: 'leave',
+    username,
   });
 
   // Clear socket data
