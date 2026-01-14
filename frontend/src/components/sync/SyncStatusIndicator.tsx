@@ -137,15 +137,16 @@ export function SyncStatusIcon({ className }: { className?: string }) {
   const Icon = config.icon;
 
   return (
-    <Icon
-      className={clsx(
-        'w-5 h-5',
-        config.color,
-        config.animate && 'animate-spin',
-        className
-      )}
-      title={config.title}
-      aria-label={config.title}
-    />
+    <div title={config.title} className="inline-block">
+      <Icon
+        className={clsx(
+          'w-5 h-5',
+          config.color,
+          config.animate && 'animate-spin',
+          className
+        )}
+        aria-label={config.title}
+      />
+    </div>
   );
 }
