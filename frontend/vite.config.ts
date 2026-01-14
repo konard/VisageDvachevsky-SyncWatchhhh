@@ -157,11 +157,14 @@ export default defineConfig({
         '**/*.d.ts',
       ],
       thresholds: {
-        lines: 70,
-        functions: 70,
-        branches: 70,
-        statements: 70,
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80,
       },
+      include: [
+        'src/**/*.{ts,tsx}',
+      ],
     },
   },
 });

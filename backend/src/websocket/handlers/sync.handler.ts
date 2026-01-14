@@ -11,10 +11,12 @@ import {
   SyncPauseEvent,
   SyncSeekEvent,
   SyncRateEvent,
+  SyncResyncEvent,
   SyncPlayEventSchema,
   SyncPauseEventSchema,
   SyncSeekEventSchema,
   SyncRateEventSchema,
+  SyncResyncEventSchema,
   ErrorCodes,
   ServerEvents,
   SyncCommand,
@@ -527,6 +529,58 @@ export const handleSyncRate = async (
     socket.emit(ServerEvents.ROOM_ERROR, {
       code: ErrorCodes.INTERNAL_ERROR,
       message: 'Failed to process rate change command',
+    });
+  }
+};
+
+/**
+ * Handle sync:resync event
+ * Sends fresh playback state snapshot to requesting client
+ */
+export const handleSyncResync = async (
+  socket: Socket,
+  io: SyncNamespace,
+  data: SyncResyncEvent
+): Promise<void> => {
+  try {
+    // Validate input
+    SyncResyncEventSchema.parse(data);
+
+    // Validate room membership
+    const roomInfo = await validateInRoom(socket);
+    if (!roomInfo) return;
+
+    const { room, participant } = roomInfo;
+
+    // Get current playback state
+    const currentState = await roomStateService.getPlaybackState(room.id);
+    if (!currentState) {
+      socket.emit(ServerEvents.ROOM_ERROR, {
+        code: ErrorCodes.INTERNAL_ERROR,
+        message: 'No playback state found',
+      });
+      return;
+    }
+
+    // Send fresh state snapshot to requesting client only
+    socket.emit(ServerEvents.SYNC_STATE, { state: currentState });
+
+    logger.info(
+      {
+        roomId: room.id,
+        oderId: participant.oderId,
+        sequenceNumber: currentState.sequenceNumber,
+      },
+      'Manual resync state sent'
+    );
+  } catch (error) {
+    logger.error(
+      { error: (error as Error).message, stack: (error as Error).stack },
+      'Error handling sync:resync'
+    );
+    socket.emit(ServerEvents.ROOM_ERROR, {
+      code: ErrorCodes.INTERNAL_ERROR,
+      message: 'Failed to process resync request',
     });
   }
 };

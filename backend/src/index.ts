@@ -7,6 +7,10 @@ import { closeQueue } from './config/queue.js';
 import { logger } from './config/logger.js';
 import { env } from './config/env.js';
 import { scheduleAuditLogCleanup } from './jobs/audit-cleanup.js';
+import {
+  startRoomLifecycleJobs,
+  stopRoomLifecycleJobs,
+} from './jobs/room-lifecycle.js';
 
 /**
  * Start the server
@@ -35,6 +39,9 @@ async function start() {
     // Schedule audit log cleanup (runs daily at 2 AM)
     scheduleAuditLogCleanup();
 
+    // Start room lifecycle background jobs
+    startRoomLifecycleJobs();
+
     logger.info(
       {
         port: env.PORT,
@@ -49,6 +56,9 @@ async function start() {
       logger.info({ signal }, 'Shutdown signal received');
 
       try {
+        // Stop background jobs
+        stopRoomLifecycleJobs();
+
         // Close Socket.io server
         await closeSocketServer(io);
 

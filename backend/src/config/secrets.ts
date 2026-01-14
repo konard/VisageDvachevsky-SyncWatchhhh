@@ -13,6 +13,7 @@
  */
 
 import { readFileSync, existsSync } from 'fs';
+import { randomBytes } from 'crypto';
 
 /**
  * Read a secret from Docker Secrets or environment variable
@@ -243,6 +244,5 @@ export function loadAndValidateSecrets(): Map<string, string> {
  * @returns Base64-encoded random secret
  */
 export function generateSecret(length: number = 32): string {
-  const crypto = require('crypto');
-  return crypto.randomBytes(length).toString('base64');
+  return randomBytes(length).toString('base64');
 }
