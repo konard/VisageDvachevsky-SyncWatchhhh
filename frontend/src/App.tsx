@@ -3,13 +3,16 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AnimatePresence } from 'framer-motion';
 import { GlassSpinner } from './components/ui/glass';
+import { ErrorBoundary } from './components/error';
+import { ToastContainer } from './components/toast';
+import { soundManager } from './services';
 import { soundManager } from './services';
 import { AnimatedPage } from './components/AnimatedPage';
 
 // Lazy load pages for code splitting
 const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })));
 const RoomPage = lazy(() => import('./pages/RoomPage').then(module => ({ default: module.RoomPage })));
-const ProfilePage = lazy(() => import('./pages/ProfilePage').then(module => ({ default: module.ProfilePage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const YouTubePlayerDemo = lazy(() => import('./components/YouTubePlayerDemo').then(module => ({ default: module.YouTubePlayerDemo })));
 const GlassDesignSystemDemo = lazy(() => import('./components/GlassDesignSystemDemo').then(module => ({ default: module.GlassDesignSystemDemo })));
 const SoundEffectsDemo = lazy(() => import('./components/SoundEffectsDemo').then(module => ({ default: module.SoundEffectsDemo })));
@@ -72,11 +75,25 @@ function App() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AnimatedRoutes />
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/room/:code" element={<RoomPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/youtube-demo" element={<YouTubePlayerDemo />} />
+              <Route path="/design-system" element={<GlassDesignSystemDemo />} />
+              <Route path="/sound-demo" element={<SoundEffectsDemo />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+        <ToastContainer />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

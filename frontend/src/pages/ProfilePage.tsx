@@ -1,4 +1,18 @@
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import {
+  useProfile,
+  useUpdateProfile,
+  useUpdateAvatar,
+  useChangePassword,
+  useDeleteAccount,
+  useSettings,
+  useUpdateSettings,
+} from '../hooks/useProfile';
+import { User, UserCircle, Lock, Trash2, Mic, Volume2, Settings, Save } from 'lucide-react';
+import { SoundSettings } from '../components/settings';
 import { useNavigate } from 'react-router-dom';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { SoundSettings } from '../components/settings';
@@ -93,6 +107,68 @@ export function ProfilePage() {
 
         {activeTab === 'history' && (
           <div className="glass-card p-6">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+              <Mic className="mr-2" />
+              Voice Settings
+            </h2>
+
+            <div className="space-y-6">
+              {/* Voice Mode */}
+              <div>
+                <label className="block text-gray-300 mb-3 text-lg">Voice Mode</label>
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={settings?.voiceMode === 'push_to_talk'}
+                      onChange={() => handleSettingChange('voiceMode', 'push_to_talk')}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-white">Push-to-talk</span>
+                  </label>
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={settings?.voiceMode === 'voice_activity'}
+                      onChange={() => handleSettingChange('voiceMode', 'voice_activity')}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-white">Voice activity</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* PTT Key */}
+              {settings?.voiceMode === 'push_to_talk' && (
+                <div>
+                  <label className="block text-gray-300 mb-2">Push-to-talk Key</label>
+                  <input
+                    type="text"
+                    value={settings?.pttKey || 'Space'}
+                    onChange={(e) => handleSettingChange('pttKey', e.target.value)}
+                    className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+              )}
+
+              {/* VAD Threshold */}
+              {settings?.voiceMode === 'voice_activity' && (
+                <div>
+                  <label className="block text-gray-300 mb-2">
+                    Voice Detection Threshold: {settings?.vadThreshold?.toFixed(2) || 0.5}
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={settings?.vadThreshold || 0.5}
+                    onChange={(e) => handleSettingChange('vadThreshold', parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-sm text-gray-400 mt-1">
+                    <span>More sensitive</span>
+                    <span>Less sensitive</span>
             <h2 className="text-2xl font-bold text-white mb-4">Watch History</h2>
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
@@ -128,6 +204,20 @@ export function ProfilePage() {
                   </label>
                 </div>
 
+              {/* Sound Effects */}
+              <SoundSettings />
+
+              {/* Notifications */}
+              <div>
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings?.notificationsEnabled || false}
+                    onChange={(e) => handleSettingChange('notificationsEnabled', e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded"
+                  />
+                  <span className="text-white">Notifications</span>
+                </label>
                 <div className="flex items-center justify-between p-4 rounded-lg bg-white/5">
                   <span className="text-gray-300">Auto-play</span>
                   <label className="relative inline-flex items-center cursor-pointer">
