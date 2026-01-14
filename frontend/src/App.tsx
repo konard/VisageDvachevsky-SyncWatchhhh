@@ -35,6 +35,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/youtube-demo" element={<YouTubePlayerDemo />} />
+          <Route path="/design-system" element={<GlassDesignSystemDemo />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
