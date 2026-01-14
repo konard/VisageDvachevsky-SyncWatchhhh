@@ -5,6 +5,17 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
 import type { SyncCommand } from '@syncwatch/shared';
 
+// YouTube PlayerState constants (safe to use before API loads)
+// These match the values from the YouTube IFrame API
+export const YT_PLAYER_STATE = {
+  UNSTARTED: -1,
+  ENDED: 0,
+  PLAYING: 1,
+  PAUSED: 2,
+  BUFFERING: 3,
+  CUED: 5,
+} as const;
+
 export interface UseYouTubePlayerOptions {
   onPlay?: () => void;
   onPause?: () => void;
@@ -37,7 +48,8 @@ export interface UseYouTubePlayerResult {
 export function useYouTubePlayer(options: UseYouTubePlayerOptions = {}): UseYouTubePlayerResult {
   const playerRef = useRef<YT.Player | null>(null);
   const [isReady, setIsReady] = useState(false);
-  const [currentState] = useState<YT.PlayerState>(YT.PlayerState.UNSTARTED);
+  // Use numeric constant instead of YT.PlayerState.UNSTARTED to avoid "YT is not defined" error
+  const [currentState] = useState<YT.PlayerState>(YT_PLAYER_STATE.UNSTARTED as YT.PlayerState);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
@@ -166,7 +178,7 @@ export function useYouTubePlayer(options: UseYouTubePlayerOptions = {}): UseYouT
     if (playerRef.current && isReady) {
       return playerRef.current.getPlayerState();
     }
-    return YT.PlayerState.UNSTARTED;
+    return YT_PLAYER_STATE.UNSTARTED as YT.PlayerState;
   }, [isReady]);
 
   // Set player ready state

@@ -5,7 +5,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { YouTubePlayer } from './YouTubePlayer';
-import { useYouTubePlayer } from '../hooks/useYouTubePlayer';
+import { useYouTubePlayer, YT_PLAYER_STATE } from '../hooks/useYouTubePlayer';
 import type { SyncCommand } from '@syncwatch/shared';
 
 export interface SyncedYouTubePlayerProps {
@@ -84,7 +84,7 @@ export const SyncedYouTubePlayer = ({
     onStateChange: (state: YT.PlayerState) => {
       setVideoState(prev => ({
         ...prev,
-        isPlaying: state === YT.PlayerState.PLAYING,
+        isPlaying: state === YT_PLAYER_STATE.PLAYING,
       }));
     },
     onError: (error: YT.PlayerError) => {
@@ -95,7 +95,7 @@ export const SyncedYouTubePlayer = ({
   // Update video state
   useEffect(() => {
     setVideoState({
-      isPlaying: currentState === YT.PlayerState.PLAYING,
+      isPlaying: currentState === YT_PLAYER_STATE.PLAYING,
       currentTime,
       duration,
     });
@@ -112,7 +112,7 @@ export const SyncedYouTubePlayer = ({
       const state = getPlayerState();
       onPlaybackReport({
         currentTime: time,
-        isPlaying: state === YT.PlayerState.PLAYING,
+        isPlaying: state === YT_PLAYER_STATE.PLAYING,
       });
     }, 5000); // Report every 5 seconds
 
@@ -128,7 +128,7 @@ export const SyncedYouTubePlayer = ({
   const handleStateChange = useCallback((state: YT.PlayerState) => {
     setVideoState(prev => ({
       ...prev,
-      isPlaying: state === YT.PlayerState.PLAYING,
+      isPlaying: state === YT_PLAYER_STATE.PLAYING,
     }));
   }, []);
 
