@@ -25,6 +25,8 @@ import {
   handleSyncRate,
   handleSyncResync,
 } from './handlers/sync.handler.js';
+import { handlePresenceUpdate, subscribeFriendPresence } from './handlers/presence.handler.js';
+import { handleReactionSend } from './handlers/reaction.handler.js';
 import {
   handleReadyInitiate,
   handleReadyRespond,
@@ -92,6 +94,17 @@ export function createSocketServer(
     socket.on('voice:leave', (data) => handleVoiceLeave(socket, syncNamespace, data));
     socket.on('voice:signal', (data) => handleVoiceSignal(socket, syncNamespace, data));
     socket.on('voice:speaking', (data) => handleVoiceSpeaking(socket, syncNamespace, data));
+
+    // Register presence event handlers
+    socket.on('presence:update', (data: unknown) => handlePresenceUpdate(socket, syncNamespace, data));
+
+    // Register reaction event handlers
+    socket.on('reaction:send', (data: unknown) => handleReactionSend(socket, syncNamespace, data));
+
+    // Subscribe to friend presence updates (for authenticated users)
+    if (socket.data.userId) {
+      subscribeFriendPresence(socket);
+    }
 
     // Handle disconnect
     socket.on('disconnect', () => handleDisconnect(socket, syncNamespace));

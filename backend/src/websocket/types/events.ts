@@ -277,6 +277,76 @@ export interface VoiceErrorEvent {
 }
 
 // ============================================
+// Presence Events
+// ============================================
+
+export type PresenceStatus = 'online' | 'away' | 'busy' | 'invisible' | 'offline';
+
+export const PresenceUpdateEventSchema = z.object({
+  status: z.enum(['online', 'away', 'busy', 'invisible', 'offline']),
+});
+
+export type PresenceUpdateEvent = z.infer<typeof PresenceUpdateEventSchema>;
+
+export interface UserPresenceEvent {
+  userId: string;
+  status: PresenceStatus;
+  lastSeenAt: number;
+  currentRoomId?: string;
+  currentActivity?: string;
+}
+
+export interface RichPresenceEvent {
+  userId: string;
+  activity: string;
+  details: string;
+  timestamp: number;
+  partySize?: number;
+  partyMax?: number;
+  thumbnailUrl?: string;
+  joinable: boolean;
+  roomCode?: string;
+}
+
+export interface FriendsPresenceEvent {
+  presences: UserPresenceEvent[];
+}
+
+// ============================================
+// Reaction Events
+// ============================================
+
+export type AnimationType = 'float' | 'burst' | 'bounce';
+
+export const ReactionSendEventSchema = z.object({
+  emoji: z.string().min(1).max(10),
+  mediaTimeMs: z.number().min(0),
+  animation: z.enum(['float', 'burst', 'bounce']).optional(),
+});
+
+export type ReactionSendEvent = z.infer<typeof ReactionSendEventSchema>;
+
+export interface ReactionReceivedEvent {
+  id: string;
+  roomId: string;
+  userId?: string;
+  username?: string;
+  guestName?: string;
+  emoji: string;
+  position: { x: number; y: number };
+  mediaTimeMs: number;
+  animation: AnimationType;
+  createdAt: number;
+}
+
+export interface TimelineReactionsEvent {
+  reactions: Array<{
+    mediaTimeMs: number;
+    reactions: Record<string, number>;
+  }>;
+}
+
+// ============================================
 // Ready Check Events
 // ============================================
 
