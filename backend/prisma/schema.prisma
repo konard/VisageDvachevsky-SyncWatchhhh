@@ -282,6 +282,9 @@ model UserReport {
   @@index([roomId])
   @@index([status])
   @@index([createdAt])
+}
+
+// ============================================
 // Social Features - Reactions
 // ============================================
 
@@ -311,6 +314,9 @@ model VideoReaction {
   @@index([roomId, mediaTimeMs])
   @@index([roomId, createdAt])
   @@index([userId])
+}
+
+// ============================================
 // Product Analytics
 // ============================================
 
