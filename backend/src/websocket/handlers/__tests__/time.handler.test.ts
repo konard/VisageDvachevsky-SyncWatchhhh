@@ -1,8 +1,9 @@
+/**
+ * @vitest-environment node
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { handleTimePing } from '../time.handler.js';
-import { ServerEvents } from '../../types/events.js';
 
-// Mock logger
+// Mock logger before importing the handler
 vi.mock('../../../config/logger.js', () => ({
   logger: {
     debug: vi.fn(),
@@ -11,6 +12,10 @@ vi.mock('../../../config/logger.js', () => ({
     warn: vi.fn(),
   },
 }));
+
+// Import after mocks are set up
+const { handleTimePing } = await import('../time.handler.js');
+const { ServerEvents } = await import('../../types/events.js');
 
 describe('Time Handler', () => {
   let mockSocket: any;
