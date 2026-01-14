@@ -3,16 +3,16 @@ import { ClockSync } from '../ClockSync';
 
 // Mock Socket.io client
 class MockSocket {
-  private handlers: Map<string, Function[]> = new Map();
+  private handlers: Map<string, ((...args: any[]) => void)[]> = new Map();
 
-  on(event: string, handler: Function) {
+  on(event: string, handler: (...args: any[]) => void) {
     if (!this.handlers.has(event)) {
       this.handlers.set(event, []);
     }
     this.handlers.get(event)!.push(handler);
   }
 
-  off(event: string, handler: Function) {
+  off(event: string, handler: (...args: any[]) => void) {
     const handlers = this.handlers.get(event);
     if (handlers) {
       const index = handlers.indexOf(handler);
