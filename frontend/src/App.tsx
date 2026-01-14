@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { YouTubePlayerDemo } from './components/YouTubePlayerDemo';
+import { YouTubePlayerDemo, GlassDesignSystemDemo } from './components';
 import { HomePage, RoomPage, ProfilePage } from './pages';
+import { ErrorBoundary } from './components/error';
+import { ToastContainer } from './components/toast';
 
 const LoginPage = () => (
   <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -26,19 +28,22 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/room/:code" element={<RoomPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/youtube-demo" element={<YouTubePlayerDemo />} />
-          <Route path="/design-system" element={<GlassDesignSystemDemo />} />
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/room/:code" element={<RoomPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/youtube-demo" element={<YouTubePlayerDemo />} />
+            <Route path="/design-system" element={<GlassDesignSystemDemo />} />
+          </Routes>
+        </BrowserRouter>
+        <ToastContainer />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

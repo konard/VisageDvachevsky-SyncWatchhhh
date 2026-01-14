@@ -17,3 +17,12 @@ export { useBreakpoint, breakpoints } from './useBreakpoint';
 export type { Breakpoint, DeviceType } from './useBreakpoint';
 export { useOrientation } from './useOrientation';
 export type { Orientation } from './useOrientation';
+
+// Error handling hooks
+export { useApiError } from './useApiError';
+export { useVideoError, YouTubeErrorCode } from './useVideoError';
+export { useVoiceError, VoiceErrorType } from './useVoiceError';
+
+// WebSocket hooks
+export { useSocket, useRoom } from './websocket';
+export type { ConnectionStatus } from './websocket';
