@@ -86,4 +86,5 @@ describe('UploadSecurityService', () => {
 describe('UploadBandwidthThrottler', () => {
   // Bandwidth throttler tests would require time-based testing
   // which is more complex. Skipping for now but would be good to add.
+  it.todo('should limit upload rate based on configured bandwidth');
 });

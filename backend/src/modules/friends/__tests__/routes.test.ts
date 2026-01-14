@@ -13,12 +13,14 @@ describe('Friends Routes Integration', () => {
   let user2Id: string;
   let user3Id: string;
 
-  const testEmail1 = `friend-test-1-${Date.now()}@example.com`;
-  const testEmail2 = `friend-test-2-${Date.now()}@example.com`;
-  const testEmail3 = `friend-test-3-${Date.now()}@example.com`;
-  const testUsername1 = `friendtest1${Date.now()}`;
-  const testUsername2 = `friendtest2${Date.now()}`;
-  const testUsername3 = `friendtest3${Date.now()}`;
+  // Use shorter unique suffix (last 6 digits of timestamp) to stay within 20 char limit
+  const suffix = Date.now().toString().slice(-6);
+  const testEmail1 = `frt1-${suffix}@example.com`;
+  const testEmail2 = `frt2-${suffix}@example.com`;
+  const testEmail3 = `frt3-${suffix}@example.com`;
+  const testUsername1 = `frt1${suffix}`;
+  const testUsername2 = `frt2${suffix}`;
+  const testUsername3 = `frt3${suffix}`;
   const testPassword = 'testPassword123';
 
   beforeAll(async () => {

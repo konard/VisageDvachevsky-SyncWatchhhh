@@ -13,10 +13,12 @@ describe('Users Routes Integration', () => {
   let testAccessToken: string;
   let user2Id: string;
 
-  const testEmail = `usertest-${Date.now()}@example.com`;
-  const testUsername = `usertest${Date.now()}`;
-  const testEmail2 = `user-search-2-${Date.now()}@example.com`;
-  const testUsername2 = `searchtest2${Date.now()}`;
+  // Use shorter unique suffix (last 6 digits of timestamp) to stay within 20 char limit
+  const suffix = Date.now().toString().slice(-6);
+  const testEmail = `ut-${suffix}@example.com`;
+  const testUsername = `ut${suffix}`;
+  const testEmail2 = `uts-${suffix}@example.com`;
+  const testUsername2 = `uts${suffix}`;
   const testPassword = 'testPassword123';
 
   beforeAll(async () => {

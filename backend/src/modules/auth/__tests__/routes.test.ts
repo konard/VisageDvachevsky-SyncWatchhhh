@@ -5,8 +5,10 @@ import { prisma } from '../../../common/utils/prisma.js';
 
 describe('Auth Routes Integration', () => {
   let app: FastifyInstance;
-  const testEmail = `test-${Date.now()}@example.com`;
-  const testUsername = `testuser${Date.now()}`;
+  // Use shorter unique suffix (last 6 digits of timestamp) to stay within 20 char limit
+  const suffix = Date.now().toString().slice(-6);
+  const testEmail = `test-${suffix}@example.com`;
+  const testUsername = `user${suffix}`;
   const testPassword = 'testPassword123';
 
   beforeAll(async () => {
@@ -53,7 +55,7 @@ describe('Auth Routes Integration', () => {
         url: '/auth/register',
         payload: {
           email: testEmail,
-          username: `different${testUsername}`,
+          username: `diff${suffix}`,
           password: testPassword,
         },
       });
@@ -68,7 +70,7 @@ describe('Auth Routes Integration', () => {
         method: 'POST',
         url: '/auth/register',
         payload: {
-          email: `different-${testEmail}`,
+          email: `alt-${suffix}@example.com`,
           username: testUsername,
           password: testPassword,
         },
