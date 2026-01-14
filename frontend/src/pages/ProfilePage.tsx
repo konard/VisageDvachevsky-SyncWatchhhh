@@ -233,7 +233,6 @@ export function ProfilePage() {
                   </label>
                 </div>
               </div>
-              </div>
             </div>
 
             <div className="glass-card p-6">
