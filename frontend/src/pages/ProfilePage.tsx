@@ -15,7 +15,6 @@ import { User, UserCircle, Lock, Trash2, Mic, Volume2, Settings, Save } from 'lu
 import { SoundSettings } from '../components/settings';
 import { useNavigate } from 'react-router-dom';
 import { useBreakpoint } from '../hooks/useBreakpoint';
-import { SoundSettings } from '../components/settings';
 import { AnimatedPage } from '../components/AnimatedPage';
 import clsx from 'clsx';
 
