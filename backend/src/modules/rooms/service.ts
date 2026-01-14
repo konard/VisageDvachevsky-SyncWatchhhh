@@ -12,7 +12,6 @@ import {
   NotFoundError,
   ConflictError,
   ForbiddenError,
-  BadRequestError,
 } from '../../common/errors/index.js';
 import type {
   CreateRoomInput,

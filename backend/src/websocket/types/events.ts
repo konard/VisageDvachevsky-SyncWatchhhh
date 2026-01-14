@@ -94,6 +94,7 @@ export const ErrorCodes = {
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
   GUEST_CANNOT_CHAT: 'GUEST_CANNOT_CHAT',
+  FORBIDDEN: 'FORBIDDEN',
 } as const;
 
 // ============================================

@@ -98,7 +98,7 @@ export class IdleRoomService {
   /**
    * Close a room due to inactivity
    */
-  private async closeRoom(roomId: string, reason: string): Promise<void> {
+  private async closeRoom(roomId: string, _reason: string): Promise<void> {
     // Delete the room (cascades to participants, messages, etc.)
     await prisma.room.delete({
       where: { id: roomId },

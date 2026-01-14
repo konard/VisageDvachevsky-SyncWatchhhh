@@ -314,13 +314,13 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
         const parser = new Parser({ fields });
         const csv = parser.parse(flatData);
 
-        reply.header('Content-Type', 'text/csv');
-        reply.header('Content-Disposition', `attachment; filename="room-${room.code}-logs.csv"`);
+        _reply.header('Content-Type', 'text/csv');
+        _reply.header('Content-Disposition', `attachment; filename="room-${room.code}-logs.csv"`);
         return csv;
       } else {
         // Return JSON
-        reply.header('Content-Type', 'application/json');
-        reply.header('Content-Disposition', `attachment; filename="room-${room.code}-logs.json"`);
+        _reply.header('Content-Type', 'application/json');
+        _reply.header('Content-Disposition', `attachment; filename="room-${room.code}-logs.json"`);
         return exportData;
       }
     }

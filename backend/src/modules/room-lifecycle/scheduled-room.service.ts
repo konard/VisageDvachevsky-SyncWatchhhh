@@ -14,7 +14,6 @@ import {
 import type {
   ScheduledRoom,
   CreateScheduledRoomInput,
-  ScheduledRoomStatus,
 } from './types.js';
 
 const SALT_ROUNDS = 10;

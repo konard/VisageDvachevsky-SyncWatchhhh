@@ -539,7 +539,7 @@ export const handleSyncRate = async (
  */
 export const handleSyncResync = async (
   socket: Socket,
-  io: SyncNamespace,
+  _io: SyncNamespace,
   data: SyncResyncEvent
 ): Promise<void> => {
   try {
