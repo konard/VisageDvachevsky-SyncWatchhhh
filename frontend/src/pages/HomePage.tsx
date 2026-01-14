@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useBreakpoint } from '../hooks/useBreakpoint';
+import { useProfile } from '../hooks/useProfile';
 import { AnimatedPage } from '../components/AnimatedPage';
 import { CreateRoomModal, type RoomOptions } from '../components/room';
 import {
@@ -13,6 +14,8 @@ import {
   Youtube,
   LogIn,
   UserPlus,
+  User,
+  LogOut,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -24,6 +27,7 @@ export function HomePage() {
   const { isMobile } = useBreakpoint();
   const [roomCode, setRoomCode] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const { data: user, isLoading: isLoadingProfile } = useProfile();
 
   const handleCreateRoom = (options: RoomOptions) => {
     // Generate random room code (placeholder)
@@ -40,6 +44,12 @@ export function HomePage() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    window.location.reload();
+  };
+
   return (
     <AnimatedPage className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 animated-gradient">
       {/* Navigation Header */}
@@ -54,20 +64,42 @@ export function HomePage() {
             <span className="text-xl font-bold text-gradient hidden sm:block">SyncWatch</span>
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              to="/login"
-              className="flex items-center gap-2 px-4 py-2 text-sm text-white/80 hover:text-white transition-colors"
-            >
-              <LogIn className="w-4 h-4" />
-              <span className="hidden sm:inline">Login</span>
-            </Link>
-            <Link
-              to="/register"
-              className="flex items-center gap-2 px-4 py-2 glass-button text-sm text-white"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span className="hidden sm:inline">Sign Up</span>
-            </Link>
+            {user ? (
+              // Show user info when authenticated
+              <>
+                <div className="flex items-center gap-2 px-4 py-2 glass-panel text-sm text-white">
+                  <User className="w-4 h-4" />
+                  <span className="hidden sm:inline">{user.username}</span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-white/80 hover:text-white transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">Logout</span>
+                </button>
+              </>
+            ) : (
+              // Show login/register when not authenticated
+              !isLoadingProfile && (
+                <>
+                  <Link
+                    to="/login"
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-white/80 hover:text-white transition-colors"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span className="hidden sm:inline">Login</span>
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="flex items-center gap-2 px-4 py-2 glass-button text-sm text-white"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span className="hidden sm:inline">Sign Up</span>
+                  </Link>
+                </>
+              )
+            )}
           </div>
         </div>
       </header>

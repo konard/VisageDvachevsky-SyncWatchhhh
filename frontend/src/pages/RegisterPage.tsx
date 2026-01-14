@@ -13,6 +13,7 @@ import {
 import { AnimatedPage } from '../components/AnimatedPage';
 import { GlassButton, GlassInput } from '../components/ui/glass';
 import clsx from 'clsx';
+import api from '../lib/api';
 
 /**
  * Register Page - Sign up page with liquid-glass design
@@ -55,15 +56,23 @@ export function RegisterPage() {
 
     setIsLoading(true);
 
-    // TODO: Implement actual registration logic
     try {
-      // Simulating API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Call the register API
+      const response = await api.post('/api/auth/register', {
+        username,
+        email,
+        password,
+      });
 
-      // For now, redirect to login on success
-      navigate('/login');
-    } catch {
-      setError('Registration failed. Please try again.');
+      // Store tokens in localStorage
+      localStorage.setItem('accessToken', response.data.accessToken);
+      localStorage.setItem('refreshToken', response.data.refreshToken);
+
+      // Redirect to home on success (user is now logged in)
+      navigate('/');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || 'Registration failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
