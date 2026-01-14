@@ -90,7 +90,7 @@ describe('usePlaybackStore', () => {
     store.addCommandToBuffer(command1, Date.now() + 1000);
     store.addCommandToBuffer(command2, Date.now() + 2000);
 
-    expect(store.commandBuffer).toHaveLength(2);
+    expect(usePlaybackStore.getState().commandBuffer).toHaveLength(2);
 
     store.removeCommandFromBuffer(0);
 
@@ -110,7 +110,7 @@ describe('usePlaybackStore', () => {
     store.addCommandToBuffer(command, Date.now() + 1000);
     store.addCommandToBuffer(command, Date.now() + 2000);
 
-    expect(store.commandBuffer).toHaveLength(2);
+    expect(usePlaybackStore.getState().commandBuffer).toHaveLength(2);
 
     store.clearCommandBuffer();
 
