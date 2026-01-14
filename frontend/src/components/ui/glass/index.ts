@@ -41,14 +41,12 @@ export type { GlassAvatarProps } from './GlassAvatar';
 export { GlassSpinner } from './GlassSpinner';
 export type { GlassSpinnerProps } from './GlassSpinner';
 
-// Optical effects system
-export { GlassEffectsProvider, useGlassEffects, useGlassEffectsContext } from './GlassEffectsProvider';
-export type {
-  GlassEffectsProviderProps,
-  GlassEffectsContextValue,
-  GlassEffectsConfig,
-  LightPosition,
-} from './GlassEffectsProvider';
+// Morph Transition Components
+export { GlassMorphModal } from './GlassMorphModal';
+export type { GlassMorphModalProps } from './GlassMorphModal';
 
-export { GlassSvgFilters } from './GlassSvgFilters';
-export type { GlassSvgFiltersProps } from './GlassSvgFilters';
+export { GlassMorphButton } from './GlassMorphButton';
+export type { GlassMorphButtonProps, GlassMorphButtonRef } from './GlassMorphButton';
+
+export { MorphTarget } from './MorphTarget';
+export type { MorphTargetProps, MorphTargetRef } from './MorphTarget';

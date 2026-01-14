@@ -202,257 +202,74 @@
     height: 200%;
   }
 
-  /* ============================================
-   * LIQUID GLASS OPTICAL EFFECTS
-   * Refraction, specular highlights, and edge effects
-   * ============================================ */
-
-  /* CSS Custom Properties for glass effects */
-  :root {
-    --glass-refraction-intensity: 0.5;
-    --glass-specular-intensity: 0.3;
-    --glass-specular-x: 50%;
-    --glass-specular-y: 30%;
-    --glass-specular-angle: 135deg;
+  /* Liquid Glass Morph Transitions */
+  .glass-morph-source,
+  .glass-morph-target {
+    --morph-delta-x: 0px;
+    --morph-delta-y: 0px;
+    --morph-scale-x: 1;
+    --morph-scale-y: 1;
+    --morph-source-radius: 12px;
+    will-change: transform, opacity, border-radius;
   }
 
-  /* Specular highlight overlay - shared base */
-  .glass-specular-overlay,
-  .glass-panel-specular-overlay,
-  .glass-modal-specular-overlay,
-  .glass-button-specular-overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 1;
-    border-radius: inherit;
-    overflow: hidden;
+  .glass-morph-source {
+    transform-origin: center center;
   }
 
-  /* GlassCard specular overlay */
-  .glass-specular-overlay {
-    background: radial-gradient(
-      ellipse 80% 50% at var(--specular-x, 50%) var(--specular-y, 30%),
-      rgba(255, 255, 255, calc(var(--glass-specular-intensity, 0.3) * 0.4)) 0%,
-      rgba(255, 255, 255, calc(var(--glass-specular-intensity, 0.3) * 0.1)) 40%,
-      transparent 70%
-    );
-    transition: background 0.15s ease-out;
+  .glass-morph-target {
+    transform-origin: center center;
   }
 
-  /* GlassPanel specular overlay - more subtle */
-  .glass-panel-specular-overlay {
-    background: radial-gradient(
-      ellipse 100% 60% at var(--specular-x, 50%) var(--specular-y, 20%),
-      rgba(255, 255, 255, calc(var(--glass-specular-intensity, 0.25) * 0.3)) 0%,
-      rgba(255, 255, 255, calc(var(--glass-specular-intensity, 0.25) * 0.05)) 50%,
-      transparent 80%
-    );
-    transition: background 0.2s ease-out;
+  /* Morph animating state */
+  .morph-animating {
+    backface-visibility: hidden;
+    perspective: 1000px;
   }
 
-  /* GlassModal specular overlay */
-  .glass-modal-specular-overlay {
-    background: radial-gradient(
-      ellipse 70% 40% at var(--specular-x, 50%) var(--specular-y, 30%),
-      rgba(255, 255, 255, calc(var(--glass-specular-intensity, 0.35) * 0.5)) 0%,
-      rgba(255, 255, 255, calc(var(--glass-specular-intensity, 0.35) * 0.15)) 35%,
-      transparent 65%
-    );
-    transition: background 0.15s ease-out;
+  /* Morph expand animation */
+  @keyframes morph-expand {
+    0% {
+      transform: translate(var(--morph-delta-x), var(--morph-delta-y))
+                 scale(var(--morph-scale-x), var(--morph-scale-y));
+      border-radius: var(--morph-source-radius);
+      opacity: 0.8;
+    }
+    100% {
+      transform: translate(0, 0) scale(1, 1);
+      border-radius: 1rem;
+      opacity: 1;
+    }
   }
 
-  /* GlassButton specular overlay */
-  .glass-button-specular-overlay {
-    background: radial-gradient(
-      ellipse 60% 40% at var(--specular-x, 50%) var(--specular-y, 30%),
-      rgba(255, 255, 255, calc(var(--glass-specular-intensity, 0.2) * 0.6)) 0%,
-      rgba(255, 255, 255, calc(var(--glass-specular-intensity, 0.2) * 0.2)) 30%,
-      transparent 60%
-    );
-    transition: background 0.1s ease-out;
+  /* Morph collapse animation */
+  @keyframes morph-collapse {
+    0% {
+      transform: translate(0, 0) scale(1, 1);
+      border-radius: 1rem;
+      opacity: 1;
+    }
+    100% {
+      transform: translate(var(--morph-delta-x), var(--morph-delta-y))
+                 scale(var(--morph-scale-x), var(--morph-scale-y));
+      border-radius: var(--morph-source-radius);
+      opacity: 0;
+    }
   }
 
-  /* Edge highlight - subtle light at glass edges */
-  .glass-edge-highlight,
-  .glass-panel-edge-highlight,
-  .glass-modal-edge-highlight,
-  .glass-button-edge-highlight {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 1;
-    border-radius: inherit;
-  }
-
-  .glass-edge-highlight {
-    border: 1px solid transparent;
-    border-image: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.3) 0%,
-      rgba(255, 255, 255, 0.05) 30%,
-      rgba(255, 255, 255, 0) 50%,
-      rgba(255, 255, 255, 0.05) 70%,
-      rgba(255, 255, 255, 0.15) 100%
-    ) 1;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.1),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.1);
-  }
-
-  .glass-panel-edge-highlight {
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.05);
-  }
-
-  .glass-modal-edge-highlight {
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.15),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.15),
-      0 0 30px rgba(0, 229, 255, 0.05);
-  }
-
-  .glass-button-edge-highlight {
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.2),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.1);
-  }
-
-  /* Refraction effect - subtle background distortion */
-  .glass-refraction-effect {
-    isolation: isolate;
-  }
-
-  .glass-refraction-effect::after {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    z-index: -1;
-    border-radius: inherit;
-    filter: url(#glass-refraction);
-    opacity: var(--glass-refraction-intensity, 0.5);
-    pointer-events: none;
-  }
-
-  .glass-refraction-strong::after {
-    filter: url(#glass-refraction-strong);
-  }
-
-  /* Panel refraction - more subtle */
-  .glass-panel-refraction {
-    isolation: isolate;
-  }
-
-  .glass-panel-refraction::after {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    z-index: -1;
-    border-radius: inherit;
-    filter: url(#glass-noise);
-    opacity: calc(var(--glass-refraction-intensity, 0.4) * 0.6);
-    pointer-events: none;
-  }
-
-  /* Modal refraction */
-  .glass-modal-refraction::after {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    z-index: -1;
-    border-radius: inherit;
-    filter: url(#glass-refraction);
-    opacity: var(--glass-refraction-intensity, 0.5);
-    pointer-events: none;
-  }
-
-  /* Button refraction - very subtle, on hover only */
-  .glass-button-refraction:hover::after {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    z-index: -1;
-    border-radius: inherit;
-    filter: url(#glass-noise);
-    opacity: 0.3;
-    pointer-events: none;
-  }
-
-  /* Chromatic aberration effect - subtle color split at edges */
-  .glass-chromatic-effect {
-    position: relative;
-  }
-
-  .glass-chromatic-effect::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border-radius: inherit;
+  /* Glass flow effect for liquid-like transitions */
+  .glass-flow {
     background: linear-gradient(
-      90deg,
-      rgba(255, 0, 0, 0.02) 0%,
-      transparent 3%,
-      transparent 97%,
-      rgba(0, 0, 255, 0.02) 100%
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0.1) 100%
     );
-    pointer-events: none;
-    z-index: 2;
+    background-size: 200% 200%;
+    animation: glass-flow-shimmer 2s ease-in-out infinite;
   }
 
-  /* Edge glow effect - cyan accent glow */
-  .glass-edge-glow-effect {
-    box-shadow:
-      0 8px 32px 0 rgba(31, 38, 135, 0.37),
-      0 0 1px rgba(0, 229, 255, 0.3);
-  }
-
-  .glass-edge-glow-effect:hover {
-    box-shadow:
-      0 8px 32px 0 rgba(31, 38, 135, 0.37),
-      0 0 2px rgba(0, 229, 255, 0.5),
-      0 0 8px rgba(0, 229, 255, 0.1);
-  }
-
-  .glass-panel-edge-glow {
-    box-shadow:
-      0 4px 24px 0 rgba(15, 23, 42, 0.5),
-      0 0 1px rgba(0, 229, 255, 0.15);
-  }
-
-  .glass-modal-edge-glow {
-    box-shadow:
-      0 25px 50px -12px rgba(0, 0, 0, 0.4),
-      0 0 2px rgba(0, 229, 255, 0.3);
-  }
-
-  .glass-button-edge-glow:hover {
-    box-shadow:
-      0 4px 16px 0 rgba(0, 229, 255, 0.3),
-      0 0 2px rgba(0, 229, 255, 0.5);
-  }
-
-  /* Thickness variations - affects blur and refraction intensity */
-  [data-glass-thickness="thin"] {
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    background: rgba(255, 255, 255, 0.03);
-  }
-
-  [data-glass-thickness="medium"] {
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  [data-glass-thickness="thick"] {
-    backdrop-filter: blur(30px);
-    -webkit-backdrop-filter: blur(30px);
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-  /* Animation keyframes */
-  @keyframes gradient {
+  @keyframes glass-flow-shimmer {
     0% {
       background-position: 0% 50%;
     }
@@ -464,60 +281,48 @@
     }
   }
 
-  @keyframes specular-pulse {
-    0%, 100% {
-      opacity: 0.8;
-    }
-    50% {
-      opacity: 1;
-    }
+  /* Shape morphing utilities */
+  .morph-circle {
+    border-radius: 50%;
   }
 
-  /* Reduced motion - disable animations */
-  @media (prefers-reduced-motion: reduce) {
-    .glass-specular-overlay,
-    .glass-panel-specular-overlay,
-    .glass-modal-specular-overlay,
-    .glass-button-specular-overlay {
-      display: none;
-    }
-
-    .glass-refraction-effect::after,
-    .glass-panel-refraction::after,
-    .glass-modal-refraction::after,
-    .glass-button-refraction:hover::after {
-      display: none;
-    }
-
-    .glass-chromatic-effect::before {
-      display: none;
-    }
-
-    .glass-card::before,
-    .glass-button::after {
-      display: none;
-    }
+  .morph-pill {
+    border-radius: 9999px;
   }
 
-  /* Fallback for browsers without backdrop-filter */
-  @supports not (backdrop-filter: blur(20px)) {
-    .glass-card,
-    .glass-panel,
-    .glass-modal,
-    .glass-button {
-      background: rgba(15, 23, 42, 0.95);
-    }
+  .morph-rounded {
+    border-radius: 1rem;
+  }
 
-    .glass-specular-overlay,
-    .glass-panel-specular-overlay,
-    .glass-modal-specular-overlay,
-    .glass-button-specular-overlay,
-    .glass-refraction-effect::after,
-    .glass-panel-refraction::after,
-    .glass-modal-refraction::after,
-    .glass-chromatic-effect::before {
-      display: none;
-    }
+  .morph-square {
+    border-radius: 0.5rem;
+  }
+
+  /* Clip path morphing for complex shapes */
+  .clip-circle {
+    clip-path: circle(50%);
+  }
+
+  .clip-pill {
+    clip-path: inset(0 round 9999px);
+  }
+
+  .clip-rounded {
+    clip-path: inset(0 round 1rem);
+  }
+
+  /* Morph transition timing */
+  .morph-ease {
+    transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Content fade during morph */
+  .morph-content-fade {
+    transition: opacity 0.15s ease-out;
+  }
+
+  .morph-animating .morph-content-fade {
+    opacity: 0;
   }
 }
 
