@@ -34,3 +34,6 @@ export { useVoiceError, VoiceErrorType } from './useVoiceError';
 // WebSocket hooks
 export { useSocket, useRoom } from './websocket';
 export type { ConnectionStatus } from './websocket';
+
+// Chat hook
+export { useChat } from './useChat';

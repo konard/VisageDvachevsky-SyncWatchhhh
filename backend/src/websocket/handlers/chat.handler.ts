@@ -9,9 +9,14 @@ import {
 import {
   ChatMessageEvent,
   ChatMessageEventSchema,
+  ChatTypingEvent,
+  ChatTypingEventSchema,
+  ChatLoadHistoryEvent,
+  ChatLoadHistoryEventSchema,
   ErrorCodes,
   ServerEvents,
   ChatMessage,
+  ChatTypingStatusEvent,
 } from '../types/events.js';
 import { chatService } from '../../modules/chat/index.js';
 import { roomService } from '../../modules/room/room.service.js';
@@ -253,5 +258,147 @@ export const broadcastSystemMessage = async (
   } catch (error) {
     logger.error({ error: (error as Error).message, roomCode, event }, 'Error broadcasting system message');
     // Don't throw - this is a background operation
+  }
+};
+
+/**
+ * Handle chat:typing event
+ */
+export const handleChatTyping = async (
+  socket: Socket,
+  io: SyncNamespace,
+  data: ChatTypingEvent
+): Promise<void> => {
+  try {
+    // Validate input
+    const validatedData = ChatTypingEventSchema.parse(data);
+
+    // Check if user is in a room
+    if (!socket.data.roomCode || !socket.data.oderId) {
+      return; // Silently ignore - typing indicators are not critical
+    }
+
+    // Block guests from sending typing indicators
+    if (socket.data.isGuest) {
+      return; // Silently ignore
+    }
+
+    const userId = socket.data.userId!;
+    const roomCode = socket.data.roomCode;
+
+    // Get user info from database
+    const room = await roomService.getRoomByCode(roomCode);
+    if (!room) {
+      return;
+    }
+
+    const participant = await prisma.roomParticipant.findUnique({
+      where: {
+        roomId_oderId: {
+          roomId: room.id,
+          oderId: socket.data.oderId,
+        },
+      },
+      include: {
+        user: {
+          select: {
+            username: true,
+          },
+        },
+      },
+    });
+
+    if (!participant || !participant.user) {
+      return;
+    }
+
+    // Broadcast typing status to all other participants in the room
+    const typingStatus: ChatTypingStatusEvent = {
+      userId,
+      username: participant.user.username,
+      isTyping: validatedData.isTyping,
+    };
+
+    socket.to(roomCode).emit(ServerEvents.CHAT_TYPING, typingStatus);
+
+    logger.debug(
+      {
+        roomCode,
+        userId,
+        isTyping: validatedData.isTyping,
+      },
+      'Typing indicator broadcast'
+    );
+  } catch (error) {
+    // Silently ignore typing indicator errors - they are not critical
+    logger.debug({ error: (error as Error).message }, 'Error handling chat:typing');
+  }
+};
+
+/**
+ * Handle chat:load-history event
+ */
+export const handleChatLoadHistory = async (
+  socket: Socket,
+  io: SyncNamespace,
+  data: ChatLoadHistoryEvent
+): Promise<void> => {
+  try {
+    // Validate input
+    const validatedData = ChatLoadHistoryEventSchema.parse(data);
+
+    // Check if user is in a room
+    if (!socket.data.roomCode || !socket.data.oderId) {
+      socket.emit(ServerEvents.CHAT_ERROR, {
+        code: ErrorCodes.NOT_IN_ROOM,
+        message: 'You must be in a room to load chat history',
+      });
+      return;
+    }
+
+    const roomCode = socket.data.roomCode;
+
+    // Get room
+    const room = await roomService.getRoomByCode(roomCode);
+    if (!room) {
+      socket.emit(ServerEvents.CHAT_ERROR, {
+        code: ErrorCodes.ROOM_NOT_FOUND,
+        message: 'Room not found',
+      });
+      return;
+    }
+
+    // Load chat history with pagination
+    const limit = validatedData.limit || 50;
+    const before = validatedData.before ? new Date(validatedData.before) : undefined;
+
+    const messages = await chatService.getChatHistoryPaginated(room.id, limit, before);
+
+    // Check if there are more messages available
+    const hasMore = messages.length === limit;
+
+    socket.emit(ServerEvents.CHAT_HISTORY, {
+      messages,
+      hasMore,
+    });
+
+    logger.debug(
+      {
+        roomId: room.id,
+        messageCount: messages.length,
+        before: validatedData.before,
+        hasMore,
+      },
+      'Paginated chat history sent'
+    );
+  } catch (error) {
+    logger.error(
+      { error: (error as Error).message, stack: (error as Error).stack },
+      'Error handling chat:load-history'
+    );
+    socket.emit(ServerEvents.CHAT_ERROR, {
+      code: ErrorCodes.INTERNAL_ERROR,
+      message: 'Failed to load chat history',
+    });
   }
 };
