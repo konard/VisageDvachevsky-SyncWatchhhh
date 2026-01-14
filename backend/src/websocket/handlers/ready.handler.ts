@@ -13,7 +13,7 @@ import {
   ErrorCodes,
 } from '../types/events.js';
 import { logger } from '../../config/logger.js';
-import { getParticipants } from '../../modules/room/state.service.js';
+import { roomStateService } from '../../modules/room/state.service.js';
 import { nanoid } from 'nanoid';
 import { startCountdown } from './countdown.handler.js';
 
@@ -79,7 +79,7 @@ export function handleReadyInitiate(
   }
 
   // Get all participants in the room
-  getParticipants(roomCode)
+  roomStateService.getParticipants(roomCode)
     .then((participants) => {
       // Create ready check participants with pending status
       const readyCheckParticipants: ReadyCheckParticipant[] = participants.map((p) => ({

@@ -102,6 +102,7 @@ export async function createApp() {
 
   // Register API routes
   const { friendsRoutes } = await import('./modules/friends/routes.js');
+  const { analyticsRoutes } = await import('./modules/analytics/routes.js');
   const { registerRoomLifecycleRoutes } = await import(
     './modules/room-lifecycle/routes.js'
   );
@@ -111,6 +112,7 @@ export async function createApp() {
   await app.register(usersRoutes, { prefix: '/api' });
   await app.register(registerRoomRoutes, { prefix: '/api/rooms' });
   await app.register(videoRoutes, { prefix: '/api/videos' });
+  await app.register(analyticsRoutes, { prefix: '/api/analytics' });
   await app.register(registerRoomLifecycleRoutes);
 
   return app;

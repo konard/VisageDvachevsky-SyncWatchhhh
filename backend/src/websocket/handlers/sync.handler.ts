@@ -28,6 +28,7 @@ import { roomService } from '../../modules/room/room.service.js';
 import { roomStateService } from '../../modules/room/state.service.js';
 import { logger } from '../../config/logger.js';
 import { stateRedis } from '../../config/redis.js';
+import * as analyticsTracker from '../analytics-tracker.js';
 
 type SyncNamespace = Namespace<
   ClientToServerEvents,
@@ -198,6 +199,11 @@ export const handleSyncPlay = async (
 
     io.to(room.code).emit(ServerEvents.SYNC_COMMAND, { command });
 
+    // Track analytics event (async, don't await)
+    analyticsTracker.trackSyncPlay(socket, room.id).catch(err =>
+      logger.error({ error: err }, 'Failed to track sync play event')
+    );
+
     logger.info(
       {
         roomId: room.id,
@@ -297,6 +303,11 @@ export const handleSyncPause = async (
 
     io.to(room.code).emit(ServerEvents.SYNC_COMMAND, { command });
 
+    // Track analytics event (async, don't await)
+    analyticsTracker.trackSyncPause(socket, room.id).catch(err =>
+      logger.error({ error: err }, 'Failed to track sync pause event')
+    );
+
     logger.info(
       {
         roomId: room.id,
@@ -388,6 +399,11 @@ export const handleSyncSeek = async (
     };
 
     io.to(room.code).emit(ServerEvents.SYNC_COMMAND, { command });
+
+    // Track analytics event (async, don't await)
+    analyticsTracker.trackSyncSeek(socket, room.id, validatedData.targetMediaTime).catch(err =>
+      logger.error({ error: err }, 'Failed to track sync seek event')
+    );
 
     logger.info(
       {
@@ -489,6 +505,11 @@ export const handleSyncRate = async (
     };
 
     io.to(room.code).emit(ServerEvents.SYNC_COMMAND, { command });
+
+    // Track analytics event (async, don't await)
+    analyticsTracker.trackSyncRateChange(socket, room.id, validatedData.rate).catch(err =>
+      logger.error({ error: err }, 'Failed to track sync rate change event')
+    );
 
     logger.info(
       {
