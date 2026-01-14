@@ -18,6 +18,9 @@ export type { Breakpoint, DeviceType } from './useBreakpoint';
 export { useOrientation } from './useOrientation';
 export type { Orientation } from './useOrientation';
 
+// Sound hook
+export { useSound } from './useSound';
+
 // Error handling hooks
 export { useApiError } from './useApiError';
 export { useVideoError, YouTubeErrorCode } from './useVideoError';

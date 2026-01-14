@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import clsx from 'clsx';
+import { useSound } from '@/hooks';
 
 interface VideoControlsProps {
   className?: string;
@@ -13,6 +14,7 @@ export function VideoControls({ className }: VideoControlsProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration] = useState(1425); // 23:45 in seconds
+  const { playClick } = useSound();
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -28,7 +30,10 @@ export function VideoControls({ className }: VideoControlsProps) {
     <div className={clsx('flex items-center gap-3', className)}>
       {/* Play/Pause Button */}
       <button
-        onClick={() => setIsPlaying(!isPlaying)}
+        onClick={() => {
+          setIsPlaying(!isPlaying);
+          playClick();
+        }}
         className="w-10 h-10 rounded-full glass-button flex items-center justify-center hover:scale-110 transition-transform"
         aria-label={isPlaying ? 'Pause' : 'Play'}
       >

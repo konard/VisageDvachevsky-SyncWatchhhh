@@ -1,10 +1,13 @@
 import { defineConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   test: {
     globals: true,
     environment: 'node',
-    setupFiles: ['./src/__tests__/setup.ts'],
+    // Only load setup files if not in unit test mode
+    setupFiles: process.env.VITEST_UNIT ? [] : ['./src/__tests__/setup.ts'],
+    env: loadEnv('test', process.cwd(), ''),
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -17,4 +20,4 @@ export default defineConfig({
       ],
     },
   },
-});
+}));
