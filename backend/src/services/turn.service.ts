@@ -8,6 +8,13 @@ export interface TURNCredentials {
   credentialType: 'password';
 }
 
+export interface IceServer {
+  urls: string | string[];
+  username?: string;
+  credential?: string;
+  credentialType?: 'password';
+}
+
 /**
  * Generate time-limited TURN credentials using HMAC-SHA1
  * Based on RFC 5389 and coturn's REST API
@@ -20,12 +27,13 @@ export function generateTURNCredentials(userId: string): TURNCredentials {
   const username = `${unixTimestamp}:${userId}`;
 
   // Generate HMAC-SHA1 credential
-  const hmac = crypto.createHmac('sha1', env.TURN_SERVER_SECRET);
+  const turnSecret = env.TURN_SECRET || 'default_turn_secret_change_in_production';
+  const hmac = crypto.createHmac('sha1', turnSecret);
   hmac.update(username);
   const credential = hmac.digest('base64');
 
   // Parse TURN URL to generate all transport variants
-  const turnUrl = env.TURN_SERVER_URL;
+  const turnUrl = env.TURN_SERVER_URL || 'turn:localhost:3478';
   const urls = [
     turnUrl,
     turnUrl.replace('turn:', 'turn:') + '?transport=tcp',
@@ -43,7 +51,7 @@ export function generateTURNCredentials(userId: string): TURNCredentials {
 /**
  * Get ICE servers configuration for WebRTC
  */
-export function getIceServers(userId: string): RTCIceServer[] {
+export function getIceServers(userId: string): IceServer[] {
   const turnCredentials = generateTURNCredentials(userId);
 
   return [
