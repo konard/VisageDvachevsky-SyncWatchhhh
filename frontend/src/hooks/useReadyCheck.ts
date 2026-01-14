@@ -1,6 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useSocket } from './useSocket';
+import type { Socket } from 'socket.io-client';
 import type { ReadyCheck, CountdownConfig } from '@syncwatch/shared';
+
+interface UseReadyCheckOptions {
+  socket: Socket | null;
+  isConnected: boolean;
+}
 
 interface UseReadyCheckReturn {
   activeCheck: ReadyCheck | null;
@@ -12,8 +17,8 @@ interface UseReadyCheckReturn {
 /**
  * Hook to manage ready checks and countdown sequences
  */
-export function useReadyCheck(): UseReadyCheckReturn {
-  const { socket, isConnected } = useSocket();
+export function useReadyCheck(options: UseReadyCheckOptions): UseReadyCheckReturn {
+  const { socket, isConnected } = options;
   const [activeCheck, setActiveCheck] = useState<ReadyCheck | null>(null);
   const [countdownConfig, setCountdownConfig] = useState<CountdownConfig | null>(null);
 

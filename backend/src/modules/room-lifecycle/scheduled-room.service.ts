@@ -4,6 +4,7 @@
  */
 
 import bcrypt from 'bcrypt';
+import { nanoid } from 'nanoid';
 import { prisma } from '../../database/client.js';
 import { generateRoomCode } from '../../common/utils/room-code.js';
 import {
@@ -13,10 +14,41 @@ import {
 } from '../../common/errors/index.js';
 import type {
   ScheduledRoom,
+  ScheduledRoomStatus,
   CreateScheduledRoomInput,
 } from './types.js';
 
 const SALT_ROUNDS = 10;
+
+/**
+ * Helper to convert Prisma ScheduledRoom to typed ScheduledRoom
+ */
+function toScheduledRoom(room: {
+  id: string;
+  creatorId: string;
+  scheduledFor: Date;
+  timezone: string;
+  name: string;
+  code: string;
+  maxParticipants: number;
+  passwordHash: string | null;
+  playbackControl: string;
+  videoId: string | null;
+  youtubeVideoId: string | null;
+  externalUrl: string | null;
+  status: string;
+  remindersSent: boolean;
+  invitedUsers: unknown;
+  activatedRoomId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): ScheduledRoom {
+  return {
+    ...room,
+    status: room.status as ScheduledRoomStatus,
+    invitedUsers: JSON.parse(room.invitedUsers as string) as string[],
+  };
+}
 
 export class ScheduledRoomService {
   /**
@@ -56,10 +88,7 @@ export class ScheduledRoomService {
       },
     });
 
-    return {
-      ...scheduledRoom,
-      invitedUsers: JSON.parse(scheduledRoom.invitedUsers as string) as string[],
-    };
+    return toScheduledRoom(scheduledRoom);
   }
 
   /**
@@ -74,10 +103,7 @@ export class ScheduledRoomService {
       throw new NotFoundError('Scheduled room');
     }
 
-    return {
-      ...room,
-      invitedUsers: JSON.parse(room.invitedUsers as string) as string[],
-    };
+    return toScheduledRoom(room);
   }
 
   /**
@@ -92,10 +118,7 @@ export class ScheduledRoomService {
       throw new NotFoundError('Scheduled room');
     }
 
-    return {
-      ...room,
-      invitedUsers: JSON.parse(room.invitedUsers as string) as string[],
-    };
+    return toScheduledRoom(room);
   }
 
   /**
@@ -112,10 +135,7 @@ export class ScheduledRoomService {
       orderBy: { scheduledFor: 'asc' },
     });
 
-    return rooms.map((room) => ({
-      ...room,
-      invitedUsers: JSON.parse(room.invitedUsers as string) as string[],
-    }));
+    return rooms.map(toScheduledRoom);
   }
 
   /**
@@ -163,10 +183,7 @@ export class ScheduledRoomService {
       data,
     });
 
-    return {
-      ...updated,
-      invitedUsers: JSON.parse(updated.invitedUsers as string) as string[],
-    };
+    return toScheduledRoom(updated);
   }
 
   /**
@@ -218,6 +235,7 @@ export class ScheduledRoomService {
     await prisma.roomParticipant.create({
       data: {
         roomId: room.id,
+        oderId: nanoid(10),
         userId: scheduledRoom.creatorId,
         role: 'owner',
         canControl: true,
@@ -250,10 +268,7 @@ export class ScheduledRoomService {
       },
     });
 
-    return rooms.map((room) => ({
-      ...room,
-      invitedUsers: JSON.parse(room.invitedUsers as string) as string[],
-    }));
+    return rooms.map(toScheduledRoom);
   }
 
   /**
@@ -274,10 +289,7 @@ export class ScheduledRoomService {
       },
     });
 
-    return rooms.map((room) => ({
-      ...room,
-      invitedUsers: JSON.parse(room.invitedUsers as string) as string[],
-    }));
+    return rooms.map(toScheduledRoom);
   }
 
   /**

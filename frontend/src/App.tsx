@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AnimatePresence } from 'framer-motion';
 import { GlassSpinner } from './components/ui/glass';
 import { ErrorBoundary } from './components/error';
 import { ToastContainer } from './components/toast';
@@ -45,27 +44,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-function AnimatedRoutes() {
-  const location = useLocation();
-
-  return (
-    <AnimatePresence mode="wait">
-      <Suspense fallback={<LoadingFallback />}>
-        <Routes location={location} key={location.pathname}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/room/:code" element={<RoomPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/youtube-demo" element={<YouTubePlayerDemo />} />
-          <Route path="/design-system" element={<GlassDesignSystemDemo />} />
-          <Route path="/sound-effects" element={<SoundEffectsDemo />} />
-        </Routes>
-      </Suspense>
-    </AnimatePresence>
-  );
-}
 
 function App() {
   // Enable diagnostics keyboard shortcuts (Ctrl+Shift+D)

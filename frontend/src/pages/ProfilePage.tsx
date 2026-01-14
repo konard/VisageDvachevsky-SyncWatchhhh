@@ -1,17 +1,5 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import {
-  useProfile,
-  useUpdateProfile,
-  useUpdateAvatar,
-  useChangePassword,
-  useDeleteAccount,
-  useSettings,
-  useUpdateSettings,
-} from '../hooks/useProfile';
-import { User, UserCircle, Lock, Trash2, Mic, Volume2 } from 'lucide-react';
+import { Mic } from 'lucide-react';
 import { SoundSettings } from '../components/settings';
 import { useNavigate } from 'react-router-dom';
 import { useBreakpoint } from '../hooks/useBreakpoint';
@@ -21,7 +9,7 @@ import clsx from 'clsx';
 /**
  * Profile Page - Responsive user profile page
  */
-export function ProfilePage() {
+export default function ProfilePage() {
   const navigate = useNavigate();
   const { isMobile } = useBreakpoint();
   const [activeTab, setActiveTab] = useState<'profile' | 'history' | 'settings'>('profile');

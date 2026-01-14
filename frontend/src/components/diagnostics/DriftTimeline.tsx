@@ -3,9 +3,9 @@
  * Visualizes drift over time with sync corrections
  */
 
-import React, { memo, useMemo } from 'react';
-import { LineChart, TrendingUp } from 'lucide-react';
-import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Scatter } from 'recharts';
+import { memo, useMemo } from 'react';
+import { TrendingUp } from 'lucide-react';
+import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { useDiagnosticsStore } from '../../stores/diagnostics.store';
 import { MetricsSection } from './MetricsSection';
 

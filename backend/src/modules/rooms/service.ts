@@ -5,6 +5,7 @@
 
 import type { Room, RoomParticipant, Prisma } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { nanoid } from 'nanoid';
 import { prisma } from '../../database/client.js';
 import { generateRoomCode } from '../../common/utils/room-code.js';
 import { generateAnonymousNickname } from '../../common/utils/anonymous-names.js';
@@ -103,10 +104,11 @@ export class RoomService {
       await tx.roomParticipant.create({
         data: {
           roomId: newRoom.id,
+          oderId: nanoid(10),
           userId: ownerId,
           role: 'owner',
           canControl: true,
-        } as Prisma.RoomParticipantCreateInput,
+        } as Prisma.RoomParticipantUncheckedCreateInput,
       });
 
       return newRoom;
@@ -235,11 +237,12 @@ export class RoomService {
     const participant = await prisma.roomParticipant.create({
       data: {
         roomId: room.id,
+        oderId: nanoid(10),
         userId: userId || null,
         guestName,
         role,
         canControl: room.playbackControl === 'all',
-      } as Prisma.RoomParticipantCreateInput,
+      } as Prisma.RoomParticipantUncheckedCreateInput,
     });
 
     return { room, participant };

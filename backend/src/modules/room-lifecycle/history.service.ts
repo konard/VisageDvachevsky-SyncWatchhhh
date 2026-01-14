@@ -86,6 +86,7 @@ export class RoomHistoryService {
 
     return {
       ...historyEntry,
+      sourceType: historyEntry.sourceType as SourceType,
       sourceData: JSON.parse(historyEntry.sourceData as string),
       participants: JSON.parse(historyEntry.participants as string) as string[],
     };
@@ -111,6 +112,7 @@ export class RoomHistoryService {
 
     return entries.map((entry) => ({
       ...entry,
+      sourceType: entry.sourceType as SourceType,
       sourceData: JSON.parse(entry.sourceData as string),
       participants: JSON.parse(entry.participants as string) as string[],
     }));
@@ -130,6 +132,7 @@ export class RoomHistoryService {
 
     return {
       ...entry,
+      sourceType: entry.sourceType as SourceType,
       sourceData: JSON.parse(entry.sourceData as string),
       participants: JSON.parse(entry.participants as string) as string[],
     };

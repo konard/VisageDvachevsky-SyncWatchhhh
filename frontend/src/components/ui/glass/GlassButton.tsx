@@ -4,7 +4,7 @@ import { clsx } from 'clsx';
 export interface GlassButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
   className?: string;
-  variant?: 'default' | 'outline' | 'ghost';
+  variant?: 'default' | 'outline' | 'ghost' | 'primary' | 'secondary' | 'success' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
 }
@@ -29,6 +29,10 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
       default: 'glass-button text-white font-medium',
       outline: 'glass-card border-2 border-accent-cyan/50 text-white font-medium hover:border-accent-cyan hover:shadow-glow',
       ghost: 'bg-transparent text-white hover:bg-white/10 transition-colors',
+      primary: 'bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors',
+      secondary: 'bg-gray-600 hover:bg-gray-700 text-white font-medium transition-colors',
+      success: 'bg-green-600 hover:bg-green-700 text-white font-medium transition-colors',
+      danger: 'bg-red-600 hover:bg-red-700 text-white font-medium transition-colors',
     };
 
     return (

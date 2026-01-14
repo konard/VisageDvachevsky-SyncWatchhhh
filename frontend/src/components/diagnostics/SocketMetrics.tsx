@@ -3,7 +3,7 @@
  * Displays real-time socket connection metrics
  */
 
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { Globe } from 'lucide-react';
 import { useDiagnosticsStore } from '../../stores/diagnostics.store';
 import { MetricsSection } from './MetricsSection';
