@@ -25,6 +25,8 @@ import { SyncedYouTubePlayer } from '../components/SyncedYouTubePlayer';
 import { HLSPlayer } from '../components/player/HLSPlayer';
 import { useVideoSourceStore, PlayerControls } from '../stores';
 import { apiClient } from '../utils/api/apiClient';
+import { useSocket } from '../hooks/useSocket';
+import { useVoice } from '../hooks/useVoice';
 
 /**
  * Room Page - Main watch room with liquid-glass design
@@ -91,14 +93,15 @@ export function RoomPage() {
   const handleLeaveVoice = () => {
     console.log('Leave voice chat');
   };
+  // Socket connection for voice chat
+  const { socket } = useSocket(import.meta.env.VITE_API_URL || 'http://localhost:3000', {
+    namespace: '/sync',
+    autoConnect: true,
+    showToasts: false, // Avoid duplicate toasts
+  });
 
-  const handleToggleMute = () => {
-    console.log('Toggle mute');
-  };
-
-  const handleSetPeerVolume = (peerId: string, volume: number) => {
-    console.log('Set peer volume', peerId, volume);
-  };
+  // Voice chat functionality
+  const { joinVoice, leaveVoice, toggleMute, setPeerVolume } = useVoice(socket);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(code || '');
@@ -328,10 +331,10 @@ export function RoomPage() {
   // Voice component
   const voice = (
     <VoicePanel
-      onJoinVoice={handleJoinVoice}
-      onLeaveVoice={handleLeaveVoice}
-      onToggleMute={handleToggleMute}
-      onSetPeerVolume={handleSetPeerVolume}
+      onJoinVoice={joinVoice}
+      onLeaveVoice={leaveVoice}
+      onToggleMute={toggleMute}
+      onSetPeerVolume={setPeerVolume}
     />
   );
 
@@ -354,10 +357,10 @@ export function RoomPage() {
           icon: <Headphones className="w-4 h-4" />,
           content: (
             <VoicePanel
-              onJoinVoice={handleJoinVoice}
-              onLeaveVoice={handleLeaveVoice}
-              onToggleMute={handleToggleMute}
-              onSetPeerVolume={handleSetPeerVolume}
+              onJoinVoice={joinVoice}
+              onLeaveVoice={leaveVoice}
+              onToggleMute={toggleMute}
+              onSetPeerVolume={setPeerVolume}
             />
           ),
         },
