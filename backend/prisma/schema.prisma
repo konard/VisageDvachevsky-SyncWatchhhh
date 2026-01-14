@@ -130,6 +130,7 @@ model Room {
   playbackVotes      PlaybackVote[]
   participantMetrics ParticipantMetrics[]
   historyEntries     RoomHistory[]
+  reactions          VideoReaction[]
 
   @@index([code])
   @@index([ownerId])
