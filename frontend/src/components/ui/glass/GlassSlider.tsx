@@ -1,5 +1,6 @@
-import { useState, useRef, InputHTMLAttributes, forwardRef } from 'react';
+import { useState, useRef, InputHTMLAttributes, forwardRef, useEffect } from 'react';
 import { clsx } from 'clsx';
+import { useGlassInteraction, useReducedMotion } from '@/hooks';
 
 export interface GlassSliderProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange'> {
   label?: string;
@@ -11,6 +12,8 @@ export interface GlassSliderProps extends Omit<InputHTMLAttributes<HTMLInputElem
   showValue?: boolean;
   className?: string;
   formatValue?: (value: number) => string;
+  /** Enable interactive glass effects (stretch on drag) */
+  interactive?: boolean;
 }
 
 export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
@@ -24,10 +27,33 @@ export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
     showValue = true,
     className,
     formatValue = (val) => val.toString(),
+    interactive = false,
     ...props
   }, ref) => {
     const [internalValue, setInternalValue] = useState(value);
+    const [isDragging, setIsDragging] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
     const sliderRef = useRef<HTMLInputElement>(null);
+    const prefersReducedMotion = useReducedMotion();
+
+    const { isReducedMotion } = useGlassInteraction(containerRef, {
+      enablePointerTracking: false,
+      enablePressEffect: false,
+      enableScrollResponse: false,
+      enableDragEffect: interactive,
+    });
+
+    // Apply CSS custom properties for stretch effect
+    useEffect(() => {
+      if (!interactive || !containerRef.current || isReducedMotion) return;
+
+      // Calculate stretch based on drag direction
+      if (isDragging) {
+        containerRef.current.style.setProperty('--glass-stretch', '1.02');
+      } else {
+        containerRef.current.style.setProperty('--glass-stretch', '1');
+      }
+    }, [isDragging, interactive, isReducedMotion]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = parseFloat(e.target.value);
@@ -35,10 +61,38 @@ export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
       onChange?.(newValue);
     };
 
+    const handlePointerDown = () => {
+      if (!prefersReducedMotion && interactive) {
+        setIsDragging(true);
+      }
+    };
+
+    const handlePointerUp = () => {
+      setIsDragging(false);
+    };
+
+    useEffect(() => {
+      // Add global pointer up listener to handle dragging outside the slider
+      if (isDragging) {
+        window.addEventListener('pointerup', handlePointerUp);
+        return () => window.removeEventListener('pointerup', handlePointerUp);
+      }
+    }, [isDragging]);
+
     const percentage = ((internalValue - min) / (max - min)) * 100;
 
+    const isInteractive = interactive && !prefersReducedMotion;
+
     return (
-      <div className={clsx('w-full', className)}>
+      <div
+        ref={containerRef}
+        className={clsx(
+          'w-full',
+          isInteractive && 'glass-slider-interactive',
+          className
+        )}
+        data-dragging={isDragging}
+      >
         <div className="flex items-center justify-between mb-2">
           {label && (
             <label className="text-sm font-medium text-gray-300">
@@ -60,6 +114,7 @@ export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
             step={step}
             value={internalValue}
             onChange={handleChange}
+            onPointerDown={handlePointerDown}
             className="slider-input w-full h-2 rounded-full appearance-none cursor-pointer"
             style={{
               background: `linear-gradient(to right,
@@ -119,6 +174,19 @@ export const GlassSlider = forwardRef<HTMLInputElement, GlassSliderProps>(
 
           .slider-input:focus::-moz-range-thumb {
             box-shadow: 0 0 20px rgba(0, 229, 255, 0.8);
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .slider-input::-webkit-slider-thumb,
+            .slider-input::-moz-range-thumb {
+              transition: none;
+            }
+
+            .slider-input::-webkit-slider-thumb:hover,
+            .slider-input::-webkit-slider-thumb:active,
+            .slider-input::-moz-range-thumb:hover {
+              transform: none;
+            }
           }
         `}</style>
       </div>
