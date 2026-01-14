@@ -4,6 +4,7 @@ import { Mail, Lock, LogIn, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { AnimatedPage } from '../components/AnimatedPage';
 import { GlassButton, GlassInput } from '../components/ui/glass';
 import clsx from 'clsx';
+import api from '../lib/api';
 
 /**
  * Login Page - Authentication page with liquid-glass design
@@ -21,15 +22,22 @@ export function LoginPage() {
     setError(null);
     setIsLoading(true);
 
-    // TODO: Implement actual login logic
     try {
-      // Simulating API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Call the login API
+      const response = await api.post('/api/auth/login', {
+        email,
+        password,
+      });
 
-      // For now, redirect to home on success
+      // Store tokens in localStorage
+      localStorage.setItem('accessToken', response.data.accessToken);
+      localStorage.setItem('refreshToken', response.data.refreshToken);
+
+      // Redirect to home on success
       navigate('/');
-    } catch {
-      setError('Invalid email or password. Please try again.');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || 'Invalid email or password. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
