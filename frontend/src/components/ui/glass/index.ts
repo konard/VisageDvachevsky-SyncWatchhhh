@@ -3,6 +3,12 @@
  *
  * A collection of glassmorphic UI components with liquid effects,
  * matching the SyncWatch brand aesthetic.
+ *
+ * Features:
+ * - Refraction: Light bending through the glass surface
+ * - Specular highlights: Dynamic highlights responding to light position
+ * - Edge effects: Subtle glow and chromatic aberration at edges
+ * - Accessibility: Reduced motion support for all effects
  */
 
 export { GlassCard } from './GlassCard';
@@ -34,3 +40,15 @@ export type { GlassAvatarProps } from './GlassAvatar';
 
 export { GlassSpinner } from './GlassSpinner';
 export type { GlassSpinnerProps } from './GlassSpinner';
+
+// Optical effects system
+export { GlassEffectsProvider, useGlassEffects, useGlassEffectsContext } from './GlassEffectsProvider';
+export type {
+  GlassEffectsProviderProps,
+  GlassEffectsContextValue,
+  GlassEffectsConfig,
+  LightPosition,
+} from './GlassEffectsProvider';
+
+export { GlassSvgFilters } from './GlassSvgFilters';
+export type { GlassSvgFiltersProps } from './GlassSvgFilters';
