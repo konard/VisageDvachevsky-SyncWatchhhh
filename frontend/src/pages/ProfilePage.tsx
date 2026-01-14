@@ -1,4 +1,30 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useBreakpoint } from '../hooks/useBreakpoint';
+import { SoundSettings } from '../components/settings';
+import clsx from 'clsx';
+
+/**
+ * Profile Page - Responsive user profile page
+ */
+export function ProfilePage() {
+  const navigate = useNavigate();
+  const { isMobile, isTablet } = useBreakpoint();
+  const [activeTab, setActiveTab] = useState<'profile' | 'history' | 'settings'>('profile');
+
+  const header = (
+    <div className="flex items-center justify-between">
+      <button
+        onClick={() => navigate('/')}
+        className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+      >
+        <span>←</span>
+        <span>Back</span>
+      </button>
+      <h1 className="text-xl font-bold text-white">Profile</h1>
+      <div className="w-16"></div> {/* Spacer for centering */}
+    </div>
+  );
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -330,6 +356,29 @@ export default function ProfilePage() {
                 </div>
               )}
 
+              {activeTab === 'settings' && (
+                <div className="space-y-6">
+                  <h2 className="text-2xl font-bold text-white mb-4">Settings</h2>
+
+                  {/* Settings Options */}
+                  <div className="space-y-4">
+                    {/* Sound Effects Setting */}
+                    <SoundSettings />
+
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-white/5">
+                      <span className="text-gray-300">Notifications</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" defaultChecked />
+                        <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-cyan"></div>
+                      </label>
+                    </div>
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-white/5">
+                      <span className="text-gray-300">Auto-play</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" />
+                        <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-cyan"></div>
+                      </label>
+                    </div>
               {/* VAD Threshold */}
               {settings?.voiceMode === 'voice_activity' && (
                 <div>
