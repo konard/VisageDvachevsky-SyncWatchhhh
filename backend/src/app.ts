@@ -6,6 +6,8 @@ import rateLimit from '@fastify/rate-limit';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { rateLimitRedis } from './config/redis.js';
+import { authRoutes } from './modules/auth/routes.js';
+import { usersRoutes } from './modules/users/routes.js';
 
 /**
  * Create and configure Fastify application
@@ -59,10 +61,11 @@ export async function createApp() {
     };
   });
 
-  // TODO: Register API routes here
-  // app.register(authRoutes, { prefix: '/api/auth' });
-  // app.register(roomRoutes, { prefix: '/api/rooms' });
-  // app.register(userRoutes, { prefix: '/api/users' });
+  // Register API routes
+  await app.register(authRoutes, { prefix: '/api/auth' });
+  await app.register(usersRoutes, { prefix: '/api/users' });
+  // TODO: Register other routes
+  // await app.register(roomRoutes, { prefix: '/api/rooms' });
 
   return app;
 }
