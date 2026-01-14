@@ -55,6 +55,7 @@ describe('ClockSync', () => {
   });
 
   afterEach(() => {
+    vi.clearAllTimers();
     vi.useRealTimers();
   });
 
@@ -123,10 +124,14 @@ describe('ClockSync', () => {
 
       const syncPromise = clockSync.sync(brokenSocket as any, 1, 0);
 
+      // Set up the rejection expectation first, then advance timers
+      // This ensures we're waiting for the rejection before it fires
+      const expectPromise = expect(syncPromise).rejects.toThrow('Time sync timeout');
+
       // Fast-forward past the 5 second timeout
       await vi.advanceTimersByTimeAsync(6000);
 
-      await expect(syncPromise).rejects.toThrow('Time sync timeout');
+      await expectPromise;
     });
   });
 

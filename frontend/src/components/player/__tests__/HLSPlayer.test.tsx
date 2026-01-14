@@ -7,37 +7,42 @@ import { render, screen } from '@testing-library/react';
 import { HLSPlayer } from '../HLSPlayer';
 import Hls from 'hls.js';
 
-// Mock hls.js - all mock setup must be inside the factory function
-// because vi.mock is hoisted and runs before any module-level variables
+// Mock hls.js - must use class to allow 'new' keyword
+// vi.mock is hoisted and runs before any module-level variables
 vi.mock('hls.js', () => {
-  const mockHlsInstance = {
-    loadSource: vi.fn(),
-    attachMedia: vi.fn(),
-    on: vi.fn(),
-    destroy: vi.fn(),
-    currentLevel: -1,
-  };
-
-  // Create a constructor function that returns the mock instance
-  function MockHlsConstructor() {
-    return mockHlsInstance;
-  }
-
-  // Add static properties
-  MockHlsConstructor.isSupported = vi.fn(() => true);
-  MockHlsConstructor.Events = {
+  // Define Events as a named export (the hook imports { Events } from 'hls.js')
+  const Events = {
     MANIFEST_PARSED: 'hlsManifestParsed',
     LEVEL_SWITCHED: 'hlsLevelSwitched',
     FRAG_BUFFERED: 'hlsFragBuffered',
     ERROR: 'hlsError',
   };
-  MockHlsConstructor.ErrorTypes = {
+
+  const ErrorTypes = {
     NETWORK_ERROR: 'networkError',
     MEDIA_ERROR: 'mediaError',
   };
 
+  // Use a class so it can be instantiated with 'new'
+  class MockHls {
+    loadSource = vi.fn();
+    attachMedia = vi.fn();
+    on = vi.fn();
+    destroy = vi.fn();
+    startLoad = vi.fn();
+    recoverMediaError = vi.fn();
+    currentLevel = -1;
+
+    static isSupported = vi.fn(() => true);
+    static Events = Events;
+    static ErrorTypes = ErrorTypes;
+  }
+
   return {
-    default: MockHlsConstructor,
+    default: MockHls,
+    Events,
+    ErrorTypes,
+    __esModule: true,
   };
 });
 
