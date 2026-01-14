@@ -10,6 +10,13 @@ import {
 import { authMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/error.js';
 import { handleRoomJoin, handleRoomLeave, handleDisconnect } from './handlers/room.handler.js';
+import {
+  handleVoiceJoin,
+  handleVoiceLeave,
+  handleVoiceSignal,
+  handleVoiceSpeaking,
+  handleVoiceDisconnect,
+} from './handlers/voice.handler.js';
 import { ClientEvents } from './types/events.js';
 import { logger } from '../config/logger.js';
 import { env } from '../config/env.js';
@@ -49,10 +56,21 @@ export function createSocketServer(
       'Socket connected to /sync namespace'
     );
 
-    // Register event handlers
+    // Register room event handlers
     socket.on(ClientEvents.ROOM_JOIN, (data) => handleRoomJoin(socket, syncNamespace, data));
     socket.on(ClientEvents.ROOM_LEAVE, (data) => handleRoomLeave(socket, syncNamespace, data));
-    socket.on('disconnect', () => handleDisconnect(socket, syncNamespace));
+
+    // Register voice event handlers
+    socket.on(ClientEvents.VOICE_JOIN, (data) => handleVoiceJoin(socket, syncNamespace, data));
+    socket.on(ClientEvents.VOICE_LEAVE, (data) => handleVoiceLeave(socket, syncNamespace, data));
+    socket.on(ClientEvents.VOICE_SIGNAL, (data) => handleVoiceSignal(socket, syncNamespace, data));
+    socket.on(ClientEvents.VOICE_SPEAKING, (data) => handleVoiceSpeaking(socket, syncNamespace, data));
+
+    // Handle disconnect
+    socket.on('disconnect', () => {
+      handleVoiceDisconnect(socket, syncNamespace);
+      handleDisconnect(socket, syncNamespace);
+    });
 
     // Heartbeat/ping-pong is handled automatically by Socket.io
     // with pingTimeout and pingInterval options

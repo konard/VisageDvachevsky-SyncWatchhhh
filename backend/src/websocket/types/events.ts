@@ -16,6 +16,28 @@ export type RoomJoinEvent = z.infer<typeof RoomJoinEventSchema>;
 export type RoomLeaveEvent = z.infer<typeof RoomLeaveEventSchema>;
 
 // ============================================
+// Voice Events (Client → Server)
+// ============================================
+
+export const VoiceJoinEventSchema = z.object({});
+
+export const VoiceLeaveEventSchema = z.object({});
+
+export const VoiceSignalEventSchema = z.object({
+  targetId: z.string(),
+  signal: z.unknown(), // SimplePeer signal data (SDP or ICE candidate)
+});
+
+export const VoiceSpeakingEventSchema = z.object({
+  isSpeaking: z.boolean(),
+});
+
+export type VoiceJoinEvent = z.infer<typeof VoiceJoinEventSchema>;
+export type VoiceLeaveEvent = z.infer<typeof VoiceLeaveEventSchema>;
+export type VoiceSignalEvent = z.infer<typeof VoiceSignalEventSchema>;
+export type VoiceSpeakingEvent = z.infer<typeof VoiceSpeakingEventSchema>;
+
+// ============================================
 // Server Events (Server → Client)
 // ============================================
 
@@ -72,6 +94,32 @@ export interface RoomErrorEvent {
   message: string;
 }
 
+export interface VoicePeersEvent {
+  peers: string[]; // Array of oderId for peers in voice chat
+}
+
+export interface VoicePeerJoinedEvent {
+  oderId: string;
+}
+
+export interface VoicePeerLeftEvent {
+  oderId: string;
+}
+
+export interface VoiceSignalRelayEvent {
+  fromId: string; // oderId of sender
+  signal: unknown; // SimplePeer signal data
+}
+
+export interface VoiceSpeakingEvent {
+  oderId: string;
+  isSpeaking: boolean;
+}
+
+export interface VoiceIceServersEvent {
+  iceServers: RTCIceServer[];
+}
+
 // Error codes
 export const ErrorCodes = {
   ROOM_NOT_FOUND: 'ROOM_NOT_FOUND',
@@ -82,6 +130,9 @@ export const ErrorCodes = {
   NOT_IN_ROOM: 'NOT_IN_ROOM',
   INVALID_TOKEN: 'INVALID_TOKEN',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
+  NOT_IN_VOICE: 'NOT_IN_VOICE',
+  ALREADY_IN_VOICE: 'ALREADY_IN_VOICE',
+  VOICE_PEER_NOT_FOUND: 'VOICE_PEER_NOT_FOUND',
 } as const;
 
 // ============================================
@@ -91,6 +142,10 @@ export const ErrorCodes = {
 export const ClientEvents = {
   ROOM_JOIN: 'room:join',
   ROOM_LEAVE: 'room:leave',
+  VOICE_JOIN: 'voice:join',
+  VOICE_LEAVE: 'voice:leave',
+  VOICE_SIGNAL: 'voice:signal',
+  VOICE_SPEAKING: 'voice:speaking',
 } as const;
 
 export const ServerEvents = {
@@ -98,4 +153,10 @@ export const ServerEvents = {
   ROOM_PARTICIPANT_JOINED: 'room:participant:joined',
   ROOM_PARTICIPANT_LEFT: 'room:participant:left',
   ROOM_ERROR: 'room:error',
+  VOICE_PEERS: 'voice:peers',
+  VOICE_PEER_JOINED: 'voice:peer:joined',
+  VOICE_PEER_LEFT: 'voice:peer:left',
+  VOICE_SIGNAL: 'voice:signal',
+  VOICE_SPEAKING: 'voice:speaking',
+  VOICE_ICE_SERVERS: 'voice:ice:servers',
 } as const;

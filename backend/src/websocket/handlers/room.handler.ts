@@ -245,6 +245,7 @@ export const handleRoomLeave = async (
 
 /**
  * Handle socket disconnect
+ * Note: voice disconnect is handled separately in voice.handler.ts
  */
 export const handleDisconnect = async (socket: Socket, io: SyncNamespace): Promise<void> => {
   try {

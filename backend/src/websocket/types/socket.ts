@@ -6,6 +6,15 @@ import {
   RoomParticipantJoinedEvent,
   RoomParticipantLeftEvent,
   RoomErrorEvent,
+  VoiceJoinEvent,
+  VoiceLeaveEvent,
+  VoiceSignalEvent,
+  VoiceSpeakingEvent,
+  VoicePeersEvent,
+  VoicePeerJoinedEvent,
+  VoicePeerLeftEvent,
+  VoiceSignalRelayEvent,
+  VoiceIceServersEvent,
 } from './events.js';
 
 // ============================================
@@ -15,6 +24,10 @@ import {
 export interface ClientToServerEvents {
   'room:join': (data: RoomJoinEvent) => void;
   'room:leave': (data: RoomLeaveEvent) => void;
+  'voice:join': (data: VoiceJoinEvent) => void;
+  'voice:leave': (data: VoiceLeaveEvent) => void;
+  'voice:signal': (data: VoiceSignalEvent) => void;
+  'voice:speaking': (data: VoiceSpeakingEvent) => void;
 }
 
 export interface ServerToClientEvents {
@@ -22,6 +35,12 @@ export interface ServerToClientEvents {
   'room:participant:joined': (data: RoomParticipantJoinedEvent) => void;
   'room:participant:left': (data: RoomParticipantLeftEvent) => void;
   'room:error': (data: RoomErrorEvent) => void;
+  'voice:peers': (data: VoicePeersEvent) => void;
+  'voice:peer:joined': (data: VoicePeerJoinedEvent) => void;
+  'voice:peer:left': (data: VoicePeerLeftEvent) => void;
+  'voice:signal': (data: VoiceSignalRelayEvent) => void;
+  'voice:speaking': (data: VoiceSpeakingEvent) => void;
+  'voice:ice:servers': (data: VoiceIceServersEvent) => void;
 }
 
 export interface InterServerEvents {
@@ -35,6 +54,7 @@ export interface SocketData {
   oderId?: string; // Participant order ID in room
   isGuest: boolean; // Whether this is a guest connection
   guestName?: string; // Guest display name
+  isInVoice?: boolean; // Whether user is in voice chat
 }
 
 export type Socket = IOSocket<
