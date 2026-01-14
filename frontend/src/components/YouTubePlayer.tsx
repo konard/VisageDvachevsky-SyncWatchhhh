@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useYouTubeIframeAPI } from '../hooks/useYouTubeIframeAPI';
 import { extractYouTubeVideoId } from '../utils/youtube';
+import { YT_PLAYER_STATE } from '../hooks/useYouTubePlayer';
 
 export interface YouTubePlayerProps {
   videoUrl?: string;
@@ -214,7 +215,7 @@ export function createYouTubePlayerRef(playerRef: React.RefObject<YT.Player | nu
       return playerRef.current?.getDuration() ?? 0;
     },
     getPlayerState: () => {
-      return playerRef.current?.getPlayerState() ?? YT.PlayerState.UNSTARTED;
+      return playerRef.current?.getPlayerState() ?? (YT_PLAYER_STATE.UNSTARTED as YT.PlayerState);
     },
     setPlaybackRate: (rate: number) => {
       playerRef.current?.setPlaybackRate(rate);
