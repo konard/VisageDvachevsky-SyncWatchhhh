@@ -1,8 +1,8 @@
 # Multi-stage build for production
 FROM node:20-alpine AS builder
 
-# Install OpenSSL 1.1 compatibility for Prisma
-RUN apk add --no-cache openssl1.1-compat
+# Install OpenSSL for Prisma (ensures libssl is available)
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 
@@ -36,8 +36,8 @@ RUN npm run build --workspace=transcoder
 # Production stage
 FROM node:20-alpine
 
-# Install FFmpeg for video transcoding and OpenSSL 1.1 compatibility for Prisma
-RUN apk add --no-cache ffmpeg openssl1.1-compat
+# Install FFmpeg for video transcoding and OpenSSL for Prisma
+RUN apk add --no-cache ffmpeg openssl
 
 WORKDIR /app
 

@@ -2,8 +2,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies for native modules and OpenSSL 1.1 compatibility for Prisma
-RUN apk add --no-cache python3 make g++ bash openssl1.1-compat
+# Install dependencies for native modules and OpenSSL for Prisma
+RUN apk add --no-cache python3 make g++ bash openssl
 
 # Copy package files
 COPY package*.json ./
