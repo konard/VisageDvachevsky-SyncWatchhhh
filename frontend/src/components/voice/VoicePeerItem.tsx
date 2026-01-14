@@ -48,13 +48,33 @@ export function VoicePeerItem({ peer, onVolumeChange }: VoicePeerItemProps) {
             <input
               type="range"
               min="0"
-              max="1"
+              max="2"
               step="0.01"
               value={peer.volume}
               onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
               aria-label={`Volume for ${peer.username}`}
             />
             <span className="volume-value">{Math.round(peer.volume * 100)}%</span>
+          </div>
+        )}
+
+        {/* Audio level indicator */}
+        {peer.isSpeaking && (
+          <div className="voice-peer-audio-level">
+            <div
+              className="audio-level-bar"
+              style={{ width: `${peer.audioLevel * 100}%` }}
+            />
+          </div>
+        )}
+
+        {/* Connection quality indicator */}
+        {peer.quality && (
+          <div className={`voice-peer-quality quality-${peer.quality}`} title={`Quality: ${peer.quality}`}>
+            {peer.quality === 'excellent' && '●'}
+            {peer.quality === 'good' && '●'}
+            {peer.quality === 'fair' && '●'}
+            {peer.quality === 'poor' && '●'}
           </div>
         )}
       </div>

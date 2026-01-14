@@ -1,8 +1,9 @@
 import {
   PlaybackState,
   SYNC_TOLERANCE_MS,
-  HARD_SYNC_THRESHOLD_MS,
-  SOFT_SYNC_RATE_ADJUST,
+  SOFT_RESYNC_THRESHOLD_MS,
+  SOFT_RESYNC_RATE_FAST,
+  SOFT_RESYNC_RATE_SLOW,
 } from '@syncwatch/shared';
 import { PlayerControls, SyncStatus } from '../stores/playback.store';
 
@@ -50,13 +51,15 @@ export class SyncCheckerService {
         status: 'synced',
         action: 'none',
       };
-    } else if (Math.abs(drift) < HARD_SYNC_THRESHOLD_MS) {
+    } else if (Math.abs(drift) < SOFT_RESYNC_THRESHOLD_MS) {
+      // Use soft resync for drift < 1 second (gradual rate adjustment)
       return {
         drift,
         status: 'syncing',
         action: 'soft_sync',
       };
     } else {
+      // Use hard sync for drift >= 1 second (immediate seek)
       return {
         drift,
         status: 'drifted',
@@ -96,8 +99,9 @@ export class SyncCheckerService {
 
   /**
    * Apply soft sync by adjusting playback rate
-   * If ahead: slow down slightly
-   * If behind: speed up slightly
+   * If ahead: slow down to 0.97x
+   * If behind: speed up to 1.03x
+   * This provides smooth synchronization without video jerking
    */
   private applySoftSync(
     drift: number,
@@ -108,22 +112,30 @@ export class SyncCheckerService {
       return;
     }
 
+    // Use the new soft resync rates (3% adjustment instead of the old 2%)
     const adjustedRate =
       drift > 0
-        ? baseRate * (1 - SOFT_SYNC_RATE_ADJUST) // Slow down if ahead
-        : baseRate * (1 + SOFT_SYNC_RATE_ADJUST); // Speed up if behind
+        ? baseRate * SOFT_RESYNC_RATE_SLOW  // Slow down to 0.97x if ahead
+        : baseRate * SOFT_RESYNC_RATE_FAST; // Speed up to 1.03x if behind
 
     try {
       player.setPlaybackRate(adjustedRate);
       this.softSyncActive = true;
 
-      // Reset to normal rate after 2 seconds
+      // Calculate duration needed to correct the drift
+      // drift / (rate difference * base rate) = time in ms
+      const rateDiff = Math.abs(adjustedRate - baseRate);
+      const correctionDuration = Math.abs(drift) / (rateDiff * baseRate);
+
+      // Reset to normal rate after correction completes or max 3 seconds
+      const resetDelay = Math.min(correctionDuration, 3000);
+
       if (this.softSyncTimeout) {
         clearTimeout(this.softSyncTimeout);
       }
       this.softSyncTimeout = setTimeout(() => {
         this.resetPlaybackRate(player, baseRate);
-      }, 2000);
+      }, resetDelay);
     } catch (error) {
       console.error('Error applying soft sync:', error);
     }

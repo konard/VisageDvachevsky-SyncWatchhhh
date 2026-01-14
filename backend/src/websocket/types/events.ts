@@ -146,6 +146,9 @@ export const ClientEvents = {
   SYNC_PAUSE: 'sync:pause',
   SYNC_SEEK: 'sync:seek',
   SYNC_RATE: 'sync:rate',
+  SYNC_RESYNC: 'sync:resync',
+  READY_INITIATE: 'ready:initiate',
+  READY_RESPOND: 'ready:respond',
 } as const;
 
 // ============================================
@@ -342,3 +345,83 @@ export interface TimelineReactionsEvent {
     reactions: Record<string, number>;
   }>;
 }
+
+// ============================================
+// Ready Check Events
+// ============================================
+
+export type ReadyStatus = 'pending' | 'ready' | 'not_ready' | 'timeout';
+
+export interface ReadyCheckParticipant {
+  userId: string;
+  username: string;
+  status: ReadyStatus;
+}
+
+export interface ReadyCheck {
+  checkId: string;
+  roomId: string;
+  initiatedBy: string;
+  participants: ReadyCheckParticipant[];
+  timeoutMs: number;
+  createdAt: number;
+}
+
+// Client → Server
+export const ReadyInitiateEventSchema = z.object({});
+export const ReadyRespondEventSchema = z.object({
+  checkId: z.string(),
+  status: z.enum(['ready', 'not_ready']),
+});
+
+export type ReadyInitiateEvent = z.infer<typeof ReadyInitiateEventSchema>;
+export type ReadyRespondEvent = z.infer<typeof ReadyRespondEventSchema>;
+
+// Server → Client
+export interface ReadyStartEvent {
+  check: ReadyCheck;
+}
+
+export interface ReadyUpdateEvent {
+  check: ReadyCheck;
+}
+
+export interface ReadyCompleteEvent {
+  checkId: string;
+  allReady: boolean;
+}
+
+export interface ReadyTimeoutEvent {
+  checkId: string;
+}
+
+// ============================================
+// Countdown Events
+// ============================================
+
+export interface CountdownConfig {
+  durationMs: number;
+  steps: (number | string)[];
+  serverStartTime: number;
+}
+
+// Server → Client
+export interface CountdownStartEvent {
+  config: CountdownConfig;
+}
+
+export interface CountdownTickEvent {
+  step: number | string;
+  remaining: number;
+}
+
+export interface CountdownCompleteEvent {
+  // Empty object
+}
+
+// ============================================
+// Sync Resync Event
+// ============================================
+
+export const SyncResyncEventSchema = z.object({});
+export type SyncResyncEvent = z.infer<typeof SyncResyncEventSchema>;

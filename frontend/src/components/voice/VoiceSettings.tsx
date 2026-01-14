@@ -1,6 +1,6 @@
 import React from 'react';
 import { useVoiceStore } from '../../stores/voiceStore';
-import { VoiceMode } from '@syncwatch/shared';
+import { VoiceMode, NoiseSuppressionLevel } from '@syncwatch/shared';
 
 interface VoiceSettingsProps {
   onClose: () => void;
@@ -21,8 +21,17 @@ export function VoiceSettings({ onClose }: VoiceSettingsProps) {
     setSettings({ pttKey });
   };
 
+  const handlePTTMouseButtonChange = (value: string) => {
+    const pttMouseButton = value === 'none' ? undefined : parseInt(value, 10);
+    setSettings({ pttMouseButton });
+  };
+
   const handleVADThresholdChange = (vadThreshold: number) => {
     setSettings({ vadThreshold });
+  };
+
+  const handleNoiseSuppressionLevelChange = (noiseSuppressionLevel: NoiseSuppressionLevel) => {
+    setSettings({ noiseSuppressionLevel });
   };
 
   const handleToggleSetting = (key: keyof typeof settings) => {
@@ -70,20 +79,44 @@ export function VoiceSettings({ onClose }: VoiceSettingsProps) {
 
           {/* PTT Key */}
           {settings.mode === 'push_to_talk' && (
-            <div className="setting-group">
-              <label htmlFor="pttKey">Push-to-Talk Key</label>
-              <select
-                id="pttKey"
-                value={settings.pttKey}
-                onChange={(e) => handlePTTKeyChange(e.target.value)}
-              >
-                <option value="Space">Space</option>
-                <option value="KeyV">V</option>
-                <option value="KeyT">T</option>
-                <option value="ControlLeft">Left Ctrl</option>
-                <option value="ShiftLeft">Left Shift</option>
-              </select>
-            </div>
+            <>
+              <div className="setting-group">
+                <label htmlFor="pttKey">Push-to-Talk Key</label>
+                <select
+                  id="pttKey"
+                  value={settings.pttKey}
+                  onChange={(e) => handlePTTKeyChange(e.target.value)}
+                >
+                  <option value="Space">Space</option>
+                  <option value="KeyV">V</option>
+                  <option value="KeyT">T</option>
+                  <option value="KeyB">B</option>
+                  <option value="KeyC">C</option>
+                  <option value="ControlLeft">Left Ctrl</option>
+                  <option value="ControlRight">Right Ctrl</option>
+                  <option value="ShiftLeft">Left Shift</option>
+                  <option value="ShiftRight">Right Shift</option>
+                  <option value="AltLeft">Left Alt</option>
+                  <option value="AltRight">Right Alt</option>
+                </select>
+              </div>
+
+              <div className="setting-group">
+                <label htmlFor="pttMouseButton">Push-to-Talk Mouse Button</label>
+                <select
+                  id="pttMouseButton"
+                  value={settings.pttMouseButton?.toString() || 'none'}
+                  onChange={(e) => handlePTTMouseButtonChange(e.target.value)}
+                >
+                  <option value="none">None</option>
+                  <option value="3">Mouse 4 (Back)</option>
+                  <option value="4">Mouse 5 (Forward)</option>
+                </select>
+                <p className="setting-hint">
+                  Additional mouse button for Push-to-Talk
+                </p>
+              </div>
+            </>
           )}
 
           {/* VAD Threshold */}
@@ -107,6 +140,25 @@ export function VoiceSettings({ onClose }: VoiceSettingsProps) {
             </div>
           )}
 
+          {/* Noise Suppression Level */}
+          <div className="setting-group">
+            <label htmlFor="noiseSuppressionLevel">Noise Suppression Level</label>
+            <select
+              id="noiseSuppressionLevel"
+              value={settings.noiseSuppressionLevel}
+              onChange={(e) => handleNoiseSuppressionLevelChange(e.target.value as NoiseSuppressionLevel)}
+            >
+              <option value="off">Off</option>
+              <option value="low">Low</option>
+              <option value="moderate">Moderate</option>
+              <option value="high">High</option>
+              <option value="maximum">Maximum</option>
+            </select>
+            <p className="setting-hint">
+              Higher levels reduce more background noise but may affect voice quality
+            </p>
+          </div>
+
           {/* Audio Processing */}
           <div className="setting-group">
             <label>Audio Processing</label>
@@ -118,14 +170,6 @@ export function VoiceSettings({ onClose }: VoiceSettingsProps) {
                   onChange={() => handleToggleSetting('echoCancellation')}
                 />
                 <span>Echo Cancellation</span>
-              </label>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={settings.noiseSuppression}
-                  onChange={() => handleToggleSetting('noiseSuppression')}
-                />
-                <span>Noise Suppression</span>
               </label>
               <label className="checkbox-label">
                 <input
