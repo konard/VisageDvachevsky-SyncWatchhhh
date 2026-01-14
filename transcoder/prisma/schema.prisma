@@ -1,0 +1,35 @@
+// This file references the backend prisma schema
+// In production, we share the same database schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Video Management model - simplified for transcoder
+model Video {
+  id           String   @id @default(cuid())
+  uploaderId   String
+  filename     String
+  originalSize BigInt
+  mimeType     String
+  duration     Int?
+  status       String   @default("pending")
+  progress     Int      @default(0)
+  errorMessage String?
+  storageKey   String
+  manifestUrl  String?
+  width        Int?
+  height       Int?
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([uploaderId])
+  @@index([status])
+  @@index([expiresAt])
+}

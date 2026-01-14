@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import Fastify, { FastifyInstance } from 'fastify';
 import jwt from '@fastify/jwt';
 import { usersRoutes } from '../routes.js';
+import { authRoutes } from '../../auth/routes.js';
 import { prisma } from '../../../common/utils/prisma.js';
 import { hashPassword } from '../../../common/utils/password.js';
 import { env } from '../../../config/env.js';
@@ -10,12 +11,24 @@ describe('Users Routes Integration', () => {
   let app: FastifyInstance;
   let testUserId: string;
   let testAccessToken: string;
+  let user2Id: string;
+  let user2AccessToken: string;
+
   const testEmail = `usertest-${Date.now()}@example.com`;
   const testUsername = `usertest${Date.now()}`;
+  const testEmail2 = `user-search-2-${Date.now()}@example.com`;
+  const testUsername2 = `searchtest2${Date.now()}`;
   const testPassword = 'testPassword123';
 
   beforeAll(async () => {
-    // Create test user
+    // Create Fastify app
+    app = Fastify();
+    await app.register(jwt, { secret: env.JWT_SECRET });
+    await app.register(authRoutes, { prefix: '/auth' });
+    await app.register(usersRoutes, { prefix: '/users' });
+    await app.ready();
+
+    // Create test user 1 (main test user)
     const passwordHash = await hashPassword(testPassword);
     const user = await prisma.user.create({
       data: {
@@ -26,28 +39,44 @@ describe('Users Routes Integration', () => {
     });
     testUserId = user.id;
 
-    // Create Fastify app
-    app = Fastify();
-    await app.register(jwt, { secret: env.JWT_SECRET });
-    await app.register(usersRoutes, { prefix: '/users' });
-    await app.ready();
-
-    // Generate access token for test user
+    // Generate access token for test user 1
     testAccessToken = app.jwt.sign({
       userId: testUserId,
       email: testEmail,
       username: testUsername,
     });
+
+    // Create test user 2 (for search tests)
+    const response2 = await app.inject({
+      method: 'POST',
+      url: '/auth/register',
+      payload: {
+        email: testEmail2,
+        username: testUsername2,
+        password: testPassword,
+      },
+    });
+    const body2 = JSON.parse(response2.body);
+    user2AccessToken = body2.accessToken;
+    user2Id = body2.user.id;
   });
 
   afterAll(async () => {
-    // Clean up test user
+    // Clean up test users
     await prisma.user.deleteMany({
-      where: { id: testUserId },
+      where: {
+        OR: [
+          { id: testUserId },
+          { id: user2Id },
+          { email: testEmail },
+          { email: testEmail2 },
+        ],
+      },
     });
     await app.close();
   });
 
+  // Profile Management Tests
   describe('GET /users/me', () => {
     it('should get current user profile', async () => {
       const response = await app.inject({
@@ -382,6 +411,156 @@ describe('Users Routes Integration', () => {
       const response = await app.inject({
         method: 'DELETE',
         url: '/users/me',
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
+  });
+
+  // User Search Tests
+  describe('GET /users/search', () => {
+    it('should search users by username', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/users/search?query=${testUsername2}`,
+        headers: {
+          authorization: `Bearer ${testAccessToken}`,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.users).toBeDefined();
+      expect(Array.isArray(body.users)).toBe(true);
+      expect(body.users.length).toBeGreaterThan(0);
+      expect(body.users[0].username).toContain(testUsername2);
+    });
+
+    it('should search users by email', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/users/search?query=${testEmail2}`,
+        headers: {
+          authorization: `Bearer ${testAccessToken}`,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.users).toBeDefined();
+      expect(Array.isArray(body.users)).toBe(true);
+      expect(body.users.length).toBeGreaterThan(0);
+      expect(body.users[0].email).toContain(testEmail2);
+    });
+
+    it('should not include current user in search results', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/users/search?query=usertest`,
+        headers: {
+          authorization: `Bearer ${testAccessToken}`,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.users).toBeDefined();
+      expect(Array.isArray(body.users)).toBe(true);
+
+      // Should not include testUserId (current user)
+      const hasCurrentUser = body.users.some((u: any) => u.id === testUserId);
+      expect(hasCurrentUser).toBe(false);
+    });
+
+    it('should return empty array for no matches', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/users/search?query=nonexistentuser12345',
+        headers: {
+          authorization: `Bearer ${testAccessToken}`,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.users).toBeDefined();
+      expect(Array.isArray(body.users)).toBe(true);
+      expect(body.users.length).toBe(0);
+    });
+
+    it('should respect limit parameter', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/users/search?query=usertest&limit=1',
+        headers: {
+          authorization: `Bearer ${testAccessToken}`,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.users).toBeDefined();
+      expect(body.users.length).toBeLessThanOrEqual(1);
+    });
+
+    it('should reject search without authorization', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/users/search?query=test',
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
+
+    it('should reject search without query parameter', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/users/search',
+        headers: {
+          authorization: `Bearer ${testAccessToken}`,
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+  });
+
+  describe('GET /users/:id', () => {
+    it('should get user by ID', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/users/${user2Id}`,
+        headers: {
+          authorization: `Bearer ${testAccessToken}`,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.user).toBeDefined();
+      expect(body.user.id).toBe(user2Id);
+      expect(body.user.username).toBe(testUsername2);
+      expect(body.user.email).toBe(testEmail2);
+    });
+
+    it('should return 404 for non-existent user', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/users/nonexistent-id-12345',
+        headers: {
+          authorization: `Bearer ${testAccessToken}`,
+        },
+      });
+
+      expect(response.statusCode).toBe(404);
+      const body = JSON.parse(response.body);
+      expect(body.message).toContain('User not found');
+    });
+
+    it('should reject request without authorization', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/users/${user2Id}`,
       });
 
       expect(response.statusCode).toBe(401);
