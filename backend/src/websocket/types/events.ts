@@ -105,7 +105,18 @@ export const ChatMessageEventSchema = z.object({
   content: z.string().min(1).max(1000),
 });
 
+export const ChatTypingEventSchema = z.object({
+  isTyping: z.boolean(),
+});
+
+export const ChatLoadHistoryEventSchema = z.object({
+  before: z.number().optional(), // Timestamp to load messages before
+  limit: z.number().min(1).max(100).optional().default(50),
+});
+
 export type ChatMessageEvent = z.infer<typeof ChatMessageEventSchema>;
+export type ChatTypingEvent = z.infer<typeof ChatTypingEventSchema>;
+export type ChatLoadHistoryEvent = z.infer<typeof ChatLoadHistoryEventSchema>;
 
 export interface ChatMessage {
   id: string;
@@ -127,6 +138,13 @@ export type SystemEvent =
 
 export interface ChatHistoryEvent {
   messages: ChatMessage[];
+  hasMore?: boolean;
+}
+
+export interface ChatTypingStatusEvent {
+  userId: string;
+  username: string;
+  isTyping: boolean;
 }
 
 export interface ChatErrorEvent {
@@ -142,6 +160,8 @@ export const ClientEvents = {
   ROOM_JOIN: 'room:join',
   ROOM_LEAVE: 'room:leave',
   CHAT_MESSAGE: 'chat:message',
+  CHAT_TYPING: 'chat:typing',
+  CHAT_LOAD_HISTORY: 'chat:load-history',
   TIME_PING: 'time:ping',
   SYNC_PLAY: 'sync:play',
   SYNC_PAUSE: 'sync:pause',
@@ -202,6 +222,7 @@ export const ServerEvents = {
   ROOM_ERROR: 'room:error',
   CHAT_MESSAGE: 'chat:message',
   CHAT_HISTORY: 'chat:history',
+  CHAT_TYPING: 'chat:typing',
   CHAT_ERROR: 'chat:error',
   TIME_PONG: 'time:pong',
   SYNC_COMMAND: 'sync:command',
